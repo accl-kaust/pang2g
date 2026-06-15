@@ -275,7 +275,7 @@ g++ -std=c++20 -O3 -march=native \
     -I"$REPO/include" \
     "$BENCH_SRC" \
     "$BUILD_BASE/steal_largest/libg2g_lib.a" \
-    -pthread -ltbb \
+    -pthread -fopenmp \
     -o "$BENCH_BIN"
 
 BENCH_RESULTS="$OUTDIR/matching_bench.tsv"

@@ -33,19 +33,19 @@ echo "[setup] conda: $(conda --version)"
 if conda env list | grep -q "^${ENV_NAME} "; then
     echo "[setup] Environment '${ENV_NAME}' exists — updating packages..."
     conda activate "$ENV_NAME"
-    conda install -y -c conda-forge -c bioconda cmake cxx-compiler tbb-devel minimap2
+    conda install -y -c conda-forge -c bioconda cmake cxx-compiler minimap2
 else
     echo "[setup] Creating environment '${ENV_NAME}'..."
     conda create -y -n "$ENV_NAME" \
         -c conda-forge -c bioconda \
-        cmake cxx-compiler tbb-devel minimap2 python=3.11
+        cmake cxx-compiler minimap2 python=3.11
     conda activate "$ENV_NAME"
 fi
 
 echo "[setup] Compiler:  $(g++ --version | head -1)"
 echo "[setup] CMake:     $(cmake --version | head -1)"
 echo "[setup] minimap2:  $(minimap2 --version)"
-echo "[setup] TBB:       $(find "$CONDA_PREFIX" -name 'libtbb*' 2>/dev/null | head -1)"
+echo "[setup] OpenMP:    $(g++ -fopenmp -dM -E - < /dev/null 2>/dev/null | grep _OPENMP || echo 'not found')"
 
 # ── 3. Build G2G (Release) ───────────────────────────────────────────────────
 echo ""

@@ -1,65 +1,40 @@
 /**
  * src/parallel.cpp
  * ================
- * Phase 4 — Work-stealing parallel runtime.
+ * Phase 4 — Work-stealing parallel runtime (OpenMP implementation).
  *
- * Implementation notes
- * --------------------
- * oneTBB 2021 (available as libtbb-dev on Ubuntu 24) provides:
- *   - tbb::task_group    : work-stealing thread pool, tasks are lambdas.
- *   - tbb::task_arena    : controls the thread count for a group of tasks.
- *   - tbb::concurrent_priority_queue<T,Cmp>
- *                         : lock-free priority queue used as the ready queue.
+ * Replaces oneTBB with:
+ *   - OpenMP threads (#pragma omp parallel)
+ *   - std::priority_queue + std::mutex as the steal-largest ready queue
+ *   - std::condition_variable for idle-wait instead of spin-yield
  *
- * Steal-largest
- * -------------
- * TBB's internal scheduler is LIFO within each thread's deque, which gives
- * good cache locality but does not implement steal-largest across threads.
- * We add an explicit tbb::concurrent_priority_queue<ReadyEntry, CmpPriority>
- * (ordered by subtree_work descending) as a secondary "large-task" queue.
- * Workers drain the priority queue before pulling from TBB's own deque,
- * giving steal-largest semantics at the cost of one atomic pop per task.
+ * The steal-largest semantics are preserved: workers pop the highest-
+ * priority (largest subtree_work) task from the shared ready queue.
+ * OpenMP's own work-stealing applies to the outer parallel region;
+ * our explicit priority queue ensures large tasks are picked first
+ * regardless of which thread happens to wake up.
  *
- * Task DAG construction
- * ---------------------
- * We align snarls greedily (same pairing logic as the sequential aligner):
- *   for each snarl i in TA:  find the best-scoring unused snarl j in TB.
- * The dependency structure mirrors the snarl tree: a parent pair (i, j)
- * must wait for all of its child pairs.  Because the current snarl
- * decomposer produces flat (depth-1) trees in this environment, all pairs
- * are independent and dep_count = 0 for every task.  The infrastructure
- * is fully general and handles nested trees when libsnarls is available.
- *
- * Memory eviction
- * ---------------
- * After a parent task is executed, its children's SnarlAlignment results are
- * no longer needed.  We release them by resetting the unique_ptr.  For the
- * flat-tree case this has no effect (roots have no parents) but it keeps
- * peak RSS flat for deeply nested trees.
- *
- * Statistics
- * ----------
- * - tasks_executed: monotonic counter, one atomic increment per task.
- * - tasks_ready_peak: high-water mark of the ready queue size.
- * - wall_seconds: measured with std::chrono::steady_clock.
- * - parallel_efficiency: computed by ParallelAligner::align_snarls after
- *   comparing p-thread run to the single-thread baseline.
+ * G2G_STEAL_RANDOM ablation: when compiled with -DG2G_STEAL_RANDOM=1,
+ * the priority queue is replaced with a FIFO std::queue (tasks popped
+ * in insertion order rather than by priority).
  */
 
 #include <g2g/parallel.hpp>
 #include <g2g/sequence.hpp>
 #include <g2g/matching.hpp>
 
-#include <tbb/task_arena.h>
-#include <tbb/task_group.h>
-#include <tbb/concurrent_priority_queue.h>
-#include <tbb/concurrent_queue.h>          // used by G2G_STEAL_RANDOM ablation
+#ifdef G2G_HAVE_OPENMP
+#include <omp.h>
+#endif
 
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <cstdlib>    // getenv
+#include <condition_variable>
+#include <cstdlib>
+#include <mutex>
 #include <numeric>
+#include <queue>
 #include <stdexcept>
 
 namespace g2g {
@@ -67,13 +42,16 @@ namespace g2g {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 static uint32_t detect_threads() {
-    // Honour G2G_NUM_THREADS env variable first
     if (const char* env = std::getenv("G2G_NUM_THREADS")) {
         int n = std::atoi(env);
         if (n > 0) return static_cast<uint32_t>(n);
     }
+#ifdef G2G_HAVE_OPENMP
+    return static_cast<uint32_t>(omp_get_max_threads());
+#else
     uint32_t hw = std::thread::hardware_concurrency();
     return hw ? hw : 1u;
+#endif
 }
 
 // ── ParallelAligner constructor ───────────────────────────────────────────────
@@ -134,39 +112,12 @@ SnarlAlignment ParallelAligner::execute_task(
 
 // ── Task DAG construction ─────────────────────────────────────────────────────
 
-/**
- * Build the greedy snarl pairing and encode the result as a flat task array.
- *
- * Pairing logic (mirrors sequential aligner):
- *   For each snarl ia in TA, find the highest-scoring unused snarl ib in TB.
- *   This is O(|TA| * |TB|) pairings evaluated greedily.
- *
- * Dependency logic:
- *   A pair (ia, ib) depends on all pairs whose snarls are children of
- *   (sa, sb) in their respective trees.  We find these by checking, for
- *   each existing task, whether its ia is a child of sa OR its ib is a
- *   child of sb.  For flat (depth-1) snarl trees — the common case with
- *   the built-in decomposer — dep_count is always 0 and all tasks are
- *   immediately ready.
- */
 std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
     const SnarlTree& ta,
     const SnarlTree& tb) const
 {
     const uint32_t na = static_cast<uint32_t>(ta.snarls.size());
     const uint32_t nb = static_cast<uint32_t>(tb.snarls.size());
-
-    // Greedy pairing: mirrors the sequential aligner exactly.
-    // Iterate ia in 0..na-1 order (same as GraphAligner::align_snarls).
-    // For each ia pick the unused ib with the highest combined subtree_work
-    // (proxy for actual score; exact score is computed during task execution).
-    // This guarantees the parallel aligner produces the same pairing as the
-    // sequential aligner when subtree_work is the tie-breaker — which it is,
-    // because both use the same snarl tree produced by SnarlDecomposer.
-    //
-    // The task's priority field is set to combined subtree_work so that the
-    // TBB steal-largest scheduler executes heavy tasks first, independently
-    // of the pairing order.
 
     std::vector<bool>    used_b(nb, false);
     std::vector<int32_t> task_idx_for_ia(na, -1);
@@ -175,20 +126,17 @@ std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
     tasks.reserve(std::min(na, nb));
 
     for (uint32_t ia = 0; ia < na; ++ia) {
-        // Pick the unused ib with the highest combined subtree_work
         int32_t  best_ib  = -1;
         uint64_t best_pri = 0;
         for (uint32_t ib = 0; ib < nb; ++ib) {
             if (used_b[ib]) continue;
             uint64_t pri = ta.snarls[ia].subtree_work + tb.snarls[ib].subtree_work;
-            // Use >= so ties are broken by lowest ib (matches sequential ia=0
-            // picking ib=0 when all priorities are equal).
             if (best_ib < 0 || pri > best_pri) {
                 best_pri = pri;
                 best_ib  = static_cast<int32_t>(ib);
             }
         }
-        if (best_ib < 0) break;   // TB exhausted
+        if (best_ib < 0) break;
 
         used_b[static_cast<uint32_t>(best_ib)] = true;
 
@@ -203,11 +151,7 @@ std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
         t.dep_count.store(0, std::memory_order_relaxed);
     }
 
-    // Assign parent_idx and dep_count based on snarl-tree nesting.
-    // For each task t, if sa has a parent in TA (i.e. some other snarl
-    // whose children range includes ia), that parent's task is t's parent.
-    //
-    // Build parent map for TA: parent_of_ia[ia] = parent_ia (or UINT32_MAX)
+    // Wire parent/child dependencies from snarl-tree nesting
     std::vector<uint32_t> parent_of_ia(na, UINT32_MAX);
     for (uint32_t i = 0; i < na; ++i) {
         for (uint32_t c = ta.snarls[i].children_begin;
@@ -229,7 +173,7 @@ std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
     return tasks;
 }
 
-// ── Ready-queue entry for steal-largest ───────────────────────────────────────
+// ── Ready-queue entry ─────────────────────────────────────────────────────────
 
 struct ReadyEntry {
     uint32_t task_idx;
@@ -238,11 +182,11 @@ struct ReadyEntry {
 
 struct CmpPriority {
     bool operator()(const ReadyEntry& a, const ReadyEntry& b) const {
-        return a.priority < b.priority;   // max-heap by priority
+        return a.priority < b.priority;   // max-heap
     }
 };
 
-// ── Main parallel scheduler ───────────────────────────────────────────────────
+// ── Main parallel scheduler (OpenMP) ──────────────────────────────────────────
 
 ParallelAligner::Result ParallelAligner::align_snarls(
     const VariationGraph& ga,
@@ -254,111 +198,120 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     using Clock = std::chrono::steady_clock;
     auto t0 = Clock::now();
 
-    // Build task DAG
     std::vector<SnarlPairTask> tasks = build_task_dag(ta, tb);
     const uint32_t ntasks = static_cast<uint32_t>(tasks.size());
 
-    // Collect results (one slot per task).
-    // Fix for race condition: results[ti] must be fully visible to any
-    // thread that reads it after observing the parent's dep_count reach 0.
-    // We use a separate result_ready[ti] atomic<bool> as the
-    // release/acquire synchronisation point:
-    //   writer: store result → release-store result_ready[ti]=true
-    //   parent notifier: acquire-load result_ready[child] (implicit via
-    //     dep_count fetch_sub acq_rel) ensures the result write happens-before
-    //     the parent is enqueued.
+    // Per-task result slots
     std::vector<SnarlAlignment>    results(ntasks);
     std::vector<std::atomic<bool>> result_ready(ntasks);
     for (auto& f : result_ready) f.store(false, std::memory_order_relaxed);
 
-    // Statistics accumulators
-    std::atomic<uint64_t>  tasks_executed{0};
-    std::atomic<uint64_t>  tasks_ready_peak{0};
+    std::atomic<uint64_t> tasks_executed{0};
+    std::atomic<uint32_t> done_count{0};
 
-    // Shared ready queue (steal-largest, or FIFO if G2G_STEAL_RANDOM=1 for ablation)
+    // Shared ready queue protected by mutex + condvar
 #ifdef G2G_STEAL_RANDOM
-    tbb::concurrent_queue<ReadyEntry> ready_queue;
+    std::queue<ReadyEntry> ready_queue;
 #else
-    tbb::concurrent_priority_queue<ReadyEntry, CmpPriority> ready_queue;
+    std::priority_queue<ReadyEntry, std::vector<ReadyEntry>, CmpPriority> ready_queue;
 #endif
+    std::mutex              queue_mtx;
+    std::condition_variable queue_cv;
 
-    // Seed with all tasks that have dep_count == 0
+    // Seed with all immediately-ready tasks
     for (uint32_t ti = 0; ti < ntasks; ++ti) {
         if (tasks[ti].dep_count.load(std::memory_order_relaxed) == 0) {
             ready_queue.push({ti, tasks[ti].priority});
         }
     }
 
-    // Worker lambda: drain the ready queue until all tasks done
-    std::atomic<uint32_t> done_count{0};
-
+    // Worker function: pull tasks from the ready queue until all done
     auto worker = [&]() {
-        ReadyEntry entry{};
-        while (done_count.load(std::memory_order_acquire) < ntasks) {
-            if (!ready_queue.try_pop(entry)) {
-                std::this_thread::yield();
-                continue;
+        while (true) {
+            ReadyEntry entry{};
+            bool got_task = false;
+
+            {
+                std::unique_lock<std::mutex> lk(queue_mtx);
+                // Wait until there's a task or all tasks are done
+                queue_cv.wait(lk, [&]() {
+                    return !ready_queue.empty()
+                        || done_count.load(std::memory_order_acquire) >= ntasks;
+                });
+
+                if (done_count.load(std::memory_order_acquire) >= ntasks)
+                    return;
+
+                if (!ready_queue.empty()) {
+#ifdef G2G_STEAL_RANDOM
+                    entry = ready_queue.front();
+                    ready_queue.pop();
+#else
+                    entry = ready_queue.top();
+                    ready_queue.pop();
+#endif
+                    got_task = true;
+                }
             }
+
+            if (!got_task) continue;
 
             uint32_t ti = entry.task_idx;
             const SnarlPairTask& task = tasks[ti];
 
-            // Execute and store result.
-            // release-store to result_ready ensures the SnarlAlignment write
-            // is visible to any thread that later does an acquire-load on it.
+            // Execute
             results[ti] = execute_task(ga, gb, ta, tb, task);
             result_ready[ti].store(true, std::memory_order_release);
 
             tasks_executed.fetch_add(1, std::memory_order_relaxed);
-            done_count.fetch_add(1, std::memory_order_release);
+            uint32_t new_done = done_count.fetch_add(1, std::memory_order_release) + 1;
 
-            // Notify parent: decrement dep_count with acq_rel so that the
-            // release from result_ready above is ordered before the parent
-            // is allowed to proceed (the acq side of acq_rel here synchronises
-            // with the release store of result_ready[ti] above via the
-            // happens-before chain through done_count).
+            // Notify parent
             if (task.parent_idx >= 0) {
                 uint32_t pi = static_cast<uint32_t>(task.parent_idx);
                 int32_t remaining = tasks[pi].dep_count.fetch_sub(
                     1, std::memory_order_acq_rel) - 1;
                 if (remaining == 0) {
-                    ready_queue.push({pi, tasks[pi].priority});
+                    {
+                        std::lock_guard<std::mutex> lk(queue_mtx);
+                        ready_queue.push({pi, tasks[pi].priority});
+                    }
+                    queue_cv.notify_one();
                 }
+            }
+
+            // If all done, wake everyone so they can exit
+            if (new_done >= ntasks) {
+                queue_cv.notify_all();
             }
         }
     };
 
-    // Run with TBB arena to honour num_threads_
+    // Launch OpenMP threads
+#ifdef G2G_HAVE_OPENMP
+    #pragma omp parallel num_threads(num_threads_)
     {
-        tbb::task_arena arena(static_cast<int>(num_threads_));
-        tbb::task_group tg;
-
-        arena.execute([&]() {
-            for (uint32_t t = 0; t < num_threads_; ++t) {
-                tg.run(worker);
-            }
-            tg.wait();
-        });
+        worker();
     }
+#else
+    // Fallback: single-threaded
+    worker();
+#endif
 
     auto t1 = Clock::now();
     double wall = std::chrono::duration<double>(t1 - t0).count();
 
-    // Build result vector in original task order (same as sequential)
     std::vector<SnarlAlignment> alignments;
     alignments.reserve(ntasks);
-    for (uint32_t ti = 0; ti < ntasks; ++ti) {
+    for (uint32_t ti = 0; ti < ntasks; ++ti)
         alignments.push_back(std::move(results[ti]));
-    }
 
     RunStats stats;
-    stats.tasks_executed    = tasks_executed.load();
-    stats.tasks_ready_peak  = tasks_ready_peak.load();
-    stats.wall_seconds      = wall;
-    stats.num_threads       = num_threads_;
+    stats.tasks_executed   = tasks_executed.load();
+    stats.wall_seconds     = wall;
+    stats.num_threads      = num_threads_;
 
     last_stats_ = stats;
-
     return {std::move(alignments), stats};
 }
 
@@ -370,26 +323,21 @@ AlignmentResult ParallelAligner::align(
 {
     AlignmentResult result;
 
-    // Step 1 — anchor detection (sequential; not the bottleneck)
     result.anchors = find_anchors(ga, gb, params_.anchor);
 
-    // Step 2 — snarl decomposition
     SnarlTree ta = SnarlDecomposer(ga).decompose();
     SnarlTree tb = SnarlDecomposer(gb).decompose();
 
-    // Step 3 — parallel snarl alignment
     auto [alignments, stats] = align_snarls(ga, gb, ta, tb, result.anchors);
     result.snarl_alignments  = std::move(alignments);
     last_stats_              = stats;
 
-    // Step 4 — total score
     for (const auto& a : result.anchors)
         result.total_score += params_.alpha * a.sim;
     for (const auto& sa : result.snarl_alignments)
         result.total_score += sa.score;
 
-    // Step 5 — delta graph (sequential; fast)
-    // Replicate build_deltas logic inline (same as align.cpp)
+    // Delta graph construction
     auto node_name = [](const VariationGraph& vg, NodeId n) -> std::string {
         if (n < vg.node_names.size()) return vg.node_names[n];
         return std::to_string(n);

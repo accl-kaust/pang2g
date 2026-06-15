@@ -21,22 +21,17 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # ── Dependencies ──────────────────────────────────────────────
-# libhandlegraph + libsnarls: install via conda or vcpkg
-# conda install -c bioconda -c conda-forge vg
-# Until then, we stub the interface in include/g2g/snarl_stub.hpp
-
 find_package(Threads REQUIRED)
 
-# Intel oneTBB (libtbb-dev on Ubuntu 22+/24)
-find_library(TBB_LIB tbb)
-find_path(TBB_INCLUDE tbb/task_group.h)
-if(TBB_LIB AND TBB_INCLUDE)
-  message(STATUS "Found TBB: ${TBB_LIB}")
-  set(G2G_HAVE_TBB TRUE)
-  add_compile_definitions(G2G_HAVE_TBB)
+# OpenMP (replaces oneTBB — works on any CPU vendor)
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+  message(STATUS "Found OpenMP ${OpenMP_CXX_VERSION}")
+  set(G2G_HAVE_OPENMP TRUE)
+  add_compile_definitions(G2G_HAVE_OPENMP)
 else()
-  message(WARNING "TBB not found — parallel runtime will not be built")
-  set(G2G_HAVE_TBB FALSE)
+  message(WARNING "OpenMP not found — parallel runtime will not be built")
+  set(G2G_HAVE_OPENMP FALSE)
 endif()
 
 # Optional: detect if libhandlegraph is available
@@ -72,9 +67,8 @@ endif()
 
 target_link_libraries(g2g_lib PUBLIC Threads::Threads)
 
-if(G2G_HAVE_TBB)
-  target_include_directories(g2g_lib PUBLIC ${TBB_INCLUDE})
-  target_link_libraries(g2g_lib PUBLIC ${TBB_LIB})
+if(G2G_HAVE_OPENMP)
+  target_link_libraries(g2g_lib PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
 # ── Executables ───────────────────────────────────────────────

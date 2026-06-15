@@ -16,7 +16,7 @@ add_executable(test_decompose test_decompose.cpp)
 target_link_libraries(test_decompose PRIVATE g2g_lib GTest::gtest_main)
 gtest_discover_tests(test_decompose)
 
-if(G2G_HAVE_TBB)
+if(G2G_HAVE_OPENMP)
   add_executable(test_parallel test_parallel.cpp)
   target_link_libraries(test_parallel PRIVATE g2g_lib GTest::gtest_main)
   gtest_discover_tests(test_parallel)
