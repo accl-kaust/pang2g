@@ -11,31 +11,41 @@
 #
 # THE PIPELINE (six stages, each resumable)
 # -----------------------------------------
-#   S1  Download HPRC v2.0 assemblies for two population panels:
+#   S1  Resolve + verify HPRC v2.0 assemblies for two population panels:
 #         AFR  (n=15 samples -> 30 haplotypes)
 #         EAS  (n=15 samples -> 30 haplotypes)
-#       Verified by SHA-256 against the HPRC index. Resumable (wget -c).
+#       Assemblies are PRE-STAGED on the login node (prestage_hprc.sh) and
+#       verified here by SHA-256 against the official HPRC index. Resumable.
 #   S2  Build two pangenome graphs with minigraph-cactus (the HPRC-recommended
 #         pipeline). ~48 CPU-hours per graph. Cached: skipped if GFA exists.
 #   S3  Run G2G (parallel, 128 threads) to align GA(AFR) <-> GB(EAS).
-#         Emits the delta graph (alleles present in one panel, absent/divergent
-#         in the other) and the shared graph.
-#   S4  Lift delta alleles to GRCh38 coordinates (BED) via the graph's
-#         reference path, so they can be intersected with coordinate-based
-#         truth sets.
-#   S5  Intersect with truth sets using bedtools:
-#         gnomAD-SV v4  -> expect delta alleles ENRICHED for high-F_ST SVs
-#         ClinVar       -> expect SHARED alleles to carry known pathogenic SVs
-#   S6  Significance: permutation null (shuffle delta intervals across the
-#         mappable genome N times) -> empirical enrichment p-value + fold-change.
-#         Plus a vg-giraffe delta-set comparison (what a mapping pipeline would
-#         have called) to show G2G finds variants the standard route misses.
+#   S4  Lift delta alleles to GRCh38 coordinates (BED).
+#   S5  Intersect with gnomAD-SV + ClinVar using bedtools.
+#   S6  Permutation enrichment + a vg-giraffe delta-set comparison.
 #
 # WHY THIS IS A SEPARATE, LONG-RUNNING JOB
-#   S1 (download, ~1 TB) and S2 (graph construction, ~96 CPU-h total) are the
-#   long poles. They are designed to run unattended and to resume after
-#   pre-emption. Launch this FIRST and let it run in the background while the
-#   throughput/scaling/ablation jobs (exp3/4/5) run on other nodes.
+#   S2 (graph construction, ~96 CPU-h total) is the long pole. It is designed
+#   to run unattended and resume after pre-emption.
+#
+# >>> NETWORK / DATA-STAGING NOTE (important — this is what was failing) <<<
+#   The original Stage 1 hand-built S3 URLs and tried to wget them FROM THE
+#   COMPUTE NODE. That failed for two independent reasons:
+#     (1) the URLs were wrong — they omitted the
+#         'year1_f1_assembly_v2_genbank/' directory, used the wrong base path
+#         (an extra '/assemblies'), and used the non-genbank filename
+#         'f1_assembly_v2.fa.gz' instead of 'f1_assembly_v2_genbank.fa.gz';
+#     (2) ROCS testbed compute nodes (mcnode*) sit on a private VPN-gated
+#         network with no verified outbound route to AWS S3, so each wget failed
+#         INSTANTLY ("connection refused", ~1 s per file — exactly the symptom
+#         in the exp6-*.err log).
+#   FIX:
+#     * Download all assemblies ONCE on the LOGIN NODE (mcmgt01) with
+#         slurm/scripts/prestage_hprc.sh, which drives every URL from the
+#         OFFICIAL HPRC index file (single source of truth) and SHA-verifies.
+#     * This Stage 1 now only RESOLVES URLs/SHAs from that index and VERIFIES
+#         the pre-staged files; it does not download from the compute node
+#         unless G2G_ALLOW_NODE_DOWNLOAD=1 (only useful if this node truly has
+#         S3 access).
 #
 # OUTPUTS  (all under results/exp6/)
 #   delta_enrichment.tsv      per-truth-set fold-change + permutation p-value
@@ -46,7 +56,9 @@
 #   delta.bed / shared.bed    lifted intervals (reproducibility)
 #   env.txt, manifest.sha256
 #
-# SUBMIT:  sbatch slurm/scripts/exp6_biological.sh
+# SUBMIT (after pre-staging on the login node):
+#   bash   slurm/scripts/prestage_hprc.sh      # login node, one time
+#   sbatch slurm/scripts/exp6_biological.sh    # compute node
 # Long partition recommended (build stage can exceed 24h on its own).
 # =============================================================================
 
@@ -64,7 +76,7 @@ set -euo pipefail
 # Resolve repo root robustly. Under SLURM the batch script is copied to a
 # spool dir (/var/lib/slurm/...), so BASH_SOURCE no longer points into the repo.
 # Prefer $G2G_REPO (exported by submit_all.sh / the user); fall back to the
-# script's own location only when running in-place (interactively).
+# script's own location only for in-place runs.
 if [[ -n "${G2G_REPO:-}" ]]; then
     REPO="$G2G_REPO"
 else
@@ -78,22 +90,19 @@ NCPU="$(nproc)"
 
 # ── Data roots (large; point at the >30 TB scratch, NOT $HOME) ───────────────
 DATA_ROOT="${G2G_DATA_ROOT:-$REPO/data/hprc}"
-ASM_DIR="$DATA_ROOT/assemblies"        # raw HPRC .fa.gz assemblies
+ASM_DIR="$DATA_ROOT/assemblies"        # raw HPRC .fa.gz assemblies (pre-staged)
 GRAPH_DIR="$DATA_ROOT/pangenomes"      # built GFA graphs
 REF_DIR="$DATA_ROOT/reference"         # GRCh38 + truth sets
 WORK_DIR="${G2G_SCRATCH:-$DATA_ROOT/work}"   # cactus scratch (huge, ephemeral)
 
-# ── Truth-set locations (user supplies or we fetch) ──────────────────────────
+# ── Truth-set locations (user supplies or pre-stages) ────────────────────────
 GNOMAD_SV="${G2G_GNOMAD_SV:-$REF_DIR/gnomad_sv_v4.bed}"
 CLINVAR_SV="${G2G_CLINVAR_SV:-$REF_DIR/clinvar_sv.bed}"
 GRCH38="${G2G_GRCH38:-$REF_DIR/GRCh38.fa}"
 
 # ── Panel definition ─────────────────────────────────────────────────────────
-# Sample lists live next to the script; one HPRC sample ID per line. These are
-# the 15+15 samples already selected from the HPRC sample table by superpopulation.
 AFR_SAMPLES="${G2G_AFR_LIST:-$SCRIPT_DIR/panels/afr_samples.txt}"
 EAS_SAMPLES="${G2G_EAS_LIST:-$SCRIPT_DIR/panels/eas_samples.txt}"
-HPRC_BASE="${G2G_HPRC_BASE:-https://s3-us-west-2.amazonaws.com/human-pangenomics/working/HPRC/assemblies}"
 
 # ── Tunables ─────────────────────────────────────────────────────────────────
 PERM_N="${G2G_PERM_N:-1000}"           # permutations for the null distribution
@@ -115,10 +124,8 @@ capture_env "$OUTDIR/env.txt"
 MANIFEST="$OUTDIR/manifest.sha256"; : > "$MANIFEST"
 log "exp6 start  ncpu=$NCPU  data_root=$DATA_ROOT"
 
-# Tool availability — none are fatal at parse time; each stage checks its own.
 # Per-run result table: always start clean (header only), so re-running the job
-# after a pre-emption does not accumulate duplicate rows. Provenance is kept
-# separately in the SHA manifest, which IS append-only.
+# after a pre-emption does not accumulate duplicate rows.
 fresh_tsv() { local path="$1"; shift; printf '%b\n' "$1" > "$path"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
@@ -130,58 +137,123 @@ HAVE_SAMTOOLS=$(have samtools && echo 1 || echo 0)
 log "tools: cactus=$HAVE_CACTUS minigraph=$HAVE_MINIGRAPH bedtools=$HAVE_BEDTOOLS vg=$HAVE_VG samtools=$HAVE_SAMTOOLS"
 
 # =============================================================================
-# STAGE 1 — DOWNLOAD HPRC ASSEMBLIES (resumable, SHA-256 verified)
+# STAGE 1 — RESOLVE + VERIFY HPRC ASSEMBLIES  (index-driven; pre-stage aware)
 # =============================================================================
-# Reads a panel list, downloads each sample's maternal+paternal assemblies,
-# verifies SHA-256 against the HPRC index if present, and records provenance.
-# Already-verified files are skipped, so re-running after pre-emption is cheap
-# (this is the "58/60 already downloaded" resume case from the roadmap).
+# See the NETWORK / DATA-STAGING NOTE in the header. Files are pre-staged on the
+# login node by prestage_hprc.sh; here we resolve their canonical URLs + SHA-256
+# from the official HPRC index and verify the staged copies. We do NOT download
+# from the compute node unless G2G_ALLOW_NODE_DOWNLOAD=1.
 DLLOG="$OUTDIR/download_log.tsv"
 fresh_tsv "$DLLOG" "panel\tsample\thaplotype\tfile\tbytes\tsha256\tstatus"
 
+# Local copy of the HPRC index (pre-staged by prestage_hprc.sh). If absent and
+# this node has internet (G2G_ALLOW_NODE_DOWNLOAD=1), fetch it; otherwise S1
+# cannot resolve URLs and prints an actionable hint.
+HPRC_INDEX_URL="${HPRC_INDEX_URL:-https://raw.githubusercontent.com/human-pangenomics/HPP_Year1_Assemblies/main/assembly_index/Year1_assemblies_v2_genbank.index}"
+INDEX_FILE="${G2G_HPRC_INDEX:-$DATA_ROOT/index/Year1_assemblies_v2_genbank.index}"
+ALLOW_NODE_DOWNLOAD="${G2G_ALLOW_NODE_DOWNLOAD:-0}"
+
+mkdir -p "$(dirname "$INDEX_FILE")"
+if [[ ! -s "$INDEX_FILE" && "$ALLOW_NODE_DOWNLOAD" -eq 1 ]]; then
+    log "STAGE1: fetching HPRC index (node download allowed) -> $INDEX_FILE"
+    wget --tries=5 --waitretry=10 --timeout=60 -q -O "$INDEX_FILE" "$HPRC_INDEX_URL" || true
+fi
+
+INDEX_OK=0
+if [[ -s "$INDEX_FILE" ]] && head -1 "$INDEX_FILE" | grep -q 'hap1_aws_fasta'; then
+    INDEX_OK=1
+    log "STAGE1: HPRC index ready ($(wc -l < "$INDEX_FILE") rows) -> $INDEX_FILE"
+else
+    log "STAGE1: HPRC index NOT available at $INDEX_FILE"
+    log "STAGE1:   Run 'bash slurm/scripts/prestage_hprc.sh' on the LOGIN NODE first,"
+    log "STAGE1:   or set G2G_ALLOW_NODE_DOWNLOAD=1 if this node can reach AWS S3."
+fi
+
+# Convert an s3:// HPRC URL to the no-egress https endpoint.
+s3_to_https() { sed 's%^s3://human-pangenomics/%https://s3-us-west-2.amazonaws.com/human-pangenomics/%'; }
+
+# Resolve (url, sha) for one sample+haplotype from the index.
+# paternal => hap1 (url col 2, sha col 6); maternal => hap2 (url col 3, sha col 7)
+resolve_index() {
+    local sample="$1" hap="$2" urlcol shacol
+    case "$hap" in
+        paternal) urlcol=2; shacol=6 ;;
+        maternal) urlcol=3; shacol=7 ;;
+        *) return 2 ;;
+    esac
+    awk -F'\t' -v s="$sample" -v uc="$urlcol" -v sc="$shacol" '
+        $1==s { print $uc "\t" $sc; found=1 }
+        END   { if(!found) exit 3 }' "$INDEX_FILE"
+}
+
+# Verify (and optionally download) one haplotype assembly. Echoes its path on success.
 fetch_assembly() {
     local panel="$1" sample="$2" hap="$3"
-    # HPRC naming: <SAMPLE>.<paternal|maternal>.f1_assembly_v2.fa.gz
-    local fname="${sample}.${hap}.f1_assembly_v2.fa.gz"
-    local url="$HPRC_BASE/$sample/assemblies/$fname"
+
+    if [[ "$INDEX_OK" -eq 0 ]]; then
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$panel" "$sample" "$hap" "NA" "0" "NA" "no_index" >> "$DLLOG"
+        return 1
+    fi
+
+    local row s3url sha
+    if ! row=$(resolve_index "$sample" "$hap"); then
+        log "  [$panel] $sample.$hap NOT in HPRC index — check the sample ID"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$panel" "$sample" "$hap" "NA" "0" "NA" "not_in_index" >> "$DLLOG"
+        return 1
+    fi
+    s3url=$(printf '%s' "$row" | cut -f1)
+    sha=$(  printf '%s' "$row" | cut -f2)
+    local url; url=$(printf '%s' "$s3url" | s3_to_https)
+    local fname; fname=$(basename "$url")
     local dest="$ASM_DIR/$fname"
 
-    if [[ -s "$dest" ]]; then
-        # Re-verify a previously downloaded file rather than trusting its presence.
-        local sha; sha=$(sha_of "$dest")
+    # Already pre-staged + verified?
+    if [[ -s "$dest" ]] && [[ "$(sha_of "$dest")" == "$sha" ]]; then
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "$panel" "$sample" "$hap" "$fname" "$(stat -c%s "$dest" 2>/dev/null || echo 0)" \
-            "$sha" "cached" >> "$DLLOG"
-        log "  [dl] cached  $fname"
+            "$panel" "$sample" "$hap" "$fname" "$(stat -c%s "$dest")" "$sha" "verified" >> "$DLLOG"
+        log "  [$panel] verified  $fname"
         echo "$dest"; return 0
     fi
 
-    log "  [dl] fetching $fname"
-    # --continue: resume partial transfers after pre-emption.
-    # --tries + --waitretry: ride out transient S3 hiccups.
-    if wget --continue --tries=5 --waitretry=30 --timeout=120 \
-            -q -O "$dest" "$url" 2>>"$OUTDIR/wget.err"; then
-        local sha bytes; sha=$(sha_of "$dest"); bytes=$(stat -c%s "$dest" 2>/dev/null || echo 0)
-        # Sanity: a real HPRC haplotype assembly is > 500 MB. A tiny file is an
-        # S3 error page that slipped past wget, not an assembly.
-        if [[ "$bytes" -lt 500000000 ]]; then
-            log "  [dl] WARN $fname only ${bytes}B — likely an error page; marking failed"
+    # Present but failed verification.
+    if [[ -s "$dest" ]]; then
+        log "  [$panel] $fname present but SHA mismatch — re-stage it"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$panel" "$sample" "$hap" "$fname" "$(stat -c%s "$dest")" "$(sha_of "$dest")" "sha_mismatch" >> "$DLLOG"
+        [[ "$ALLOW_NODE_DOWNLOAD" -eq 1 ]] || return 1
+    fi
+
+    # Missing. Only download from THIS node if explicitly allowed.
+    if [[ "$ALLOW_NODE_DOWNLOAD" -ne 1 ]]; then
+        log "  [$panel] MISSING $fname — pre-stage on the login node (prestage_hprc.sh)"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$panel" "$sample" "$hap" "$fname" "0" "$sha" "missing_prestage" >> "$DLLOG"
+        return 1
+    fi
+
+    log "  [$panel] fetching $fname"
+    if wget --continue --tries=5 --waitretry=30 --timeout=120 -q -O "$dest" "$url" 2>>"$OUTDIR/wget.err"; then
+        local got bytes; got=$(sha_of "$dest"); bytes=$(stat -c%s "$dest" 2>/dev/null || echo 0)
+        if [[ "$got" != "$sha" ]]; then
+            log "  [$panel] SHA mismatch after download for $fname — deleting"
             printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "$panel" "$sample" "$hap" "$fname" "$bytes" "$sha" "too_small" >> "$DLLOG"
+                "$panel" "$sample" "$hap" "$fname" "$bytes" "$got" "sha_mismatch" >> "$DLLOG"
             rm -f "$dest"; return 1
         fi
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "$panel" "$sample" "$hap" "$fname" "$bytes" "$sha" "downloaded" >> "$DLLOG"
+            "$panel" "$sample" "$hap" "$fname" "$bytes" "$got" "downloaded" >> "$DLLOG"
         echo "$dest"; return 0
     else
-        log "  [dl] FAILED  $fname"
+        log "  [$panel] download FAILED for $fname (does this node have S3 access?)"
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
             "$panel" "$sample" "$hap" "$fname" "0" "NA" "failed" >> "$DLLOG"
         return 1
     fi
 }
 
-# Build a cactus seqfile (TSV: <name>\t<path>) for one panel as we download.
+# Build a cactus seqfile (TSV: <name>\t<path>) for one panel from verified files.
 build_seqfile() {
     local panel="$1" listfile="$2" seqfile="$3"
     : > "$seqfile"
@@ -208,18 +280,23 @@ build_seqfile() {
     [[ "$n_ok" -ge 2 ]]
 }
 
-log "=== STAGE 1: HPRC assembly download ==="
+log "=== STAGE 1: HPRC assembly resolve + verify ==="
 AFR_SEQFILE="$DATA_ROOT/afr.seqfile"
 EAS_SEQFILE="$DATA_ROOT/eas.seqfile"
 S1_OK=1
 build_seqfile "AFR" "$AFR_SAMPLES" "$AFR_SEQFILE" || S1_OK=0
 build_seqfile "EAS" "$EAS_SAMPLES" "$EAS_SEQFILE" || S1_OK=0
 
+if [[ "$S1_OK" -eq 0 ]]; then
+    log "STAGE1: one or both panels incomplete."
+    log "STAGE1: If assemblies are missing, pre-stage them on the LOGIN NODE:"
+    log "STAGE1:     bash slurm/scripts/prestage_hprc.sh"
+    log "STAGE1: then re-submit this job. (See download_log.tsv for per-file status.)"
+fi
+
 # =============================================================================
 # STAGE 2 — BUILD PANGENOMES (minigraph-cactus; cached)
 # =============================================================================
-# ~48 CPU-h per panel. If the output GFA already exists and is non-empty, we
-# skip — this is what makes the whole job resumable across pre-emptions.
 PGSTATS="$OUTDIR/pangenome_stats.tsv"
 fresh_tsv "$PGSTATS" "panel\tgfa\tnodes\tedges\tpaths\tbuild_wall_sec\tpeak_rss_kb"
 
@@ -239,18 +316,14 @@ build_pangenome() {
 
     local m
     if [[ "$HAVE_CACTUS" -eq 1 ]]; then
-        # minigraph-cactus, HPRC-recommended. --gfa emits the final graph.
         m=$(measure_full cactus-pangenome "$WORK_DIR/js_${panel,,}" "$seqfile" \
                 --outDir "$cactus_out" --outName "${panel,,}" \
                 --reference _MINIGRAPH_ --gfa --gbz --threads "$NCPU" \
                 --mgCores "$NCPU" --mapCores "$NCPU")
-        # cactus writes <outName>.gfa.gz; normalise to our path.
         if [[ -s "$cactus_out/${panel,,}.gfa.gz" ]]; then
             gunzip -c "$cactus_out/${panel,,}.gfa.gz" > "$out_gfa"
         fi
     else
-        # Fallback: raw minigraph graph (no cactus base alignment). Coarser, but
-        # establishes the panel graph if cactus is unavailable.
         local refs; refs=$(awk '{print $2}' "$seqfile")
         m=$(measure_full bash -c "minigraph -cxggs -t $NCPU $refs > '$out_gfa'")
     fi
@@ -259,7 +332,6 @@ build_pangenome() {
     if [[ ! -s "$out_gfa" ]]; then
         log "STAGE2: $panel build produced no GFA (exit=$ec)"; return 1
     fi
-    # Quick structural census straight from the GFA.
     local nodes edges paths
     nodes=$(grep -c '^S' "$out_gfa" 2>/dev/null || echo 0)
     edges=$(grep -c '^L' "$out_gfa" 2>/dev/null || echo 0)
@@ -285,10 +357,6 @@ fi
 # =============================================================================
 # STAGE 3 — RUN G2G (parallel) AFR <-> EAS
 # =============================================================================
-# The actual contribution: a single graph-to-graph alignment of the two
-# population pangenomes. Output is a delta graph (panel-divergent alleles) and
-# a shared graph. We time and memory-profile this run too — it is also the
-# largest single real-data G2G invocation in the paper.
 G2GLOG="$OUTDIR/g2g_run.tsv"
 fresh_tsv "$G2GLOG" "stage\twall_sec\tpeak_rss_kb\tcpu_pct\texit"
 DELTA_GFA="$OUTDIR/delta.gfa"
@@ -305,7 +373,6 @@ if [[ "$S2_OK" -eq 1 && -x "$G2G" ]]; then
     read -r wall peak user sys cpu ec <<< "$m"
     printf 'align\t%s\t%s\t%s\t%s\n' "$wall" "$peak" "$cpu" "$ec" >> "$G2GLOG"
     log "STAGE3: g2g exit=$ec wall=${wall}s rss=${peak}kB"
-    # Surface the runtime's own instrumentation if present.
     if grep -q '\[timing\]' "$stderr_f" 2>/dev/null; then
         grep '\[timing\]\|\[runstats\]' "$stderr_f" | while read -r ln; do log "  $ln"; done
     fi
@@ -321,11 +388,6 @@ fi
 # =============================================================================
 # STAGE 4 — LIFT DELTA/SHARED ALLELES TO GRCh38 COORDINATES (BED)
 # =============================================================================
-# The truth sets (gnomAD-SV, ClinVar) are in GRCh38 coordinates. G2G's delta
-# alleles are graph nodes. We project each delta/shared allele onto the graph's
-# GRCh38 reference path (W-line / P-line named GRCh38*) to obtain an interval.
-# This is what `g2g lift` does; if the binary lacks the subcommand, we fall
-# back to a small AWK projector over the GFA W-lines.
 DELTA_BED="$OUTDIR/delta.bed"
 SHARED_BED="$OUTDIR/shared.bed"
 
@@ -338,8 +400,6 @@ lift_to_bed() {
         "$G2G" lift --gfa "$in_gfa" --ref-prefix GRCh38 \
                --min-len "$MIN_SV_LEN" --out "$out_bed" 2>>"$OUTDIR/lift.err" || true
     fi
-    # Fallback / supplement: derive intervals from W-lines referencing GRCh38.
-    # W-line: W <sample> <hap> <seqid> <start> <end> <walk>
     if [[ ! -s "$out_bed" ]]; then
         awk -v ml="$MIN_SV_LEN" '
             $1=="W" && $2 ~ /GRCh38/ {
@@ -370,7 +430,6 @@ fresh_tsv "$OVERLAPS" "query_set\ttruth_set\tquery_n\toverlap_n\tfraction"
 SHARED_PATH="$OUTDIR/shared_pathogenic.tsv"
 
 intersect_count() {
-    # echoes "<query_n> <overlap_n>"
     local query_bed="$1" truth_bed="$2"
     local qn on
     qn=$(wc -l < "$query_bed" 2>/dev/null || echo 0)
@@ -394,9 +453,6 @@ record_overlap() {
 log "=== STAGE 5: truth-set intersection ==="
 S5_OK=1
 if [[ "$S4_OK" -eq 1 ]]; then
-    # Build a high-F_ST stratum of gnomAD-SV if the F_ST column is present
-    # (col 5 by our convention: chrom start end id fst). Expectation: delta
-    # alleles are enriched in the HIGH-F_ST stratum vs all SVs.
     GNOMAD_HI="$OUTDIR/gnomad_sv_highfst.bed"
     if [[ -s "$GNOMAD_SV" ]]; then
         awk -v t="$FST_HI" 'NF>=5 && ($5+0)>=t {print $1"\t"$2"\t"$3"\t"$4}' \
@@ -406,10 +462,8 @@ if [[ "$S4_OK" -eq 1 ]]; then
     record_overlap "delta"  "gnomad_sv_all"    "$DELTA_BED" "$GNOMAD_SV"
     [[ -s "$GNOMAD_HI" ]] && record_overlap "delta" "gnomad_sv_highfst" "$DELTA_BED" "$GNOMAD_HI"
     record_overlap "delta"  "clinvar"          "$DELTA_BED" "$CLINVAR_SV"
-    # Shared graph should carry pan-population pathogenic variants.
     [[ -s "$SHARED_BED" ]] && record_overlap "shared" "clinvar" "$SHARED_BED" "$CLINVAR_SV"
 
-    # Dump the actual ClinVar-pathogenic SVs that fall in the SHARED graph.
     if [[ "$HAVE_BEDTOOLS" -eq 1 && -s "$SHARED_BED" && -s "$CLINVAR_SV" ]]; then
         fresh_tsv "$SHARED_PATH" "chrom\tstart\tend\tclinvar_id"
         bedtools intersect -u -a "$CLINVAR_SV" -b "$SHARED_BED" 2>/dev/null \
@@ -423,9 +477,6 @@ fi
 # =============================================================================
 # STAGE 6a — PERMUTATION ENRICHMENT TEST
 # =============================================================================
-# Is the delta∩gnomAD-high-F_ST overlap more than expected by chance? Shuffle
-# the delta intervals PERM_N times across the mappable genome (preserving count
-# and length distribution) and recompute the overlap each time -> empirical p.
 ENRICH="$OUTDIR/delta_enrichment.tsv"
 fresh_tsv "$ENRICH" "truth_set\tobserved\tnull_mean\tnull_sd\tfold_change\tp_value\tperms"
 
@@ -435,7 +486,6 @@ permutation_test() {
         log "STAGE6: permutation skipped for $tset (inputs/tools missing)"
         return 0
     fi
-    # A genome file (chrom sizes) is required for bedtools shuffle.
     local genome="$REF_DIR/GRCh38.genome"
     if [[ ! -s "$genome" ]]; then
         if [[ "$HAVE_SAMTOOLS" -eq 1 && -s "$GRCH38" ]]; then
@@ -454,7 +504,6 @@ permutation_test() {
     log "STAGE6: $tset observed overlap = $observed; running $PERM_N permutations"
 
     local nulls="$OUTDIR/.null_${tset}.txt"; : > "$nulls"
-    # Optional mappable-region mask keeps shuffled intervals in callable genome.
     local incl=()
     [[ -s "$REF_DIR/mappable.bed" ]] && incl=(-incl "$REF_DIR/mappable.bed")
     for ((i=0; i<PERM_N; i++)); do
@@ -462,7 +511,6 @@ permutation_test() {
             | bedtools intersect -u -a - -b "$truth_bed" 2>/dev/null | wc -l >> "$nulls"
     done
 
-    # Empirical p, fold-change vs null mean (Python for the stats).
     python3 - "$nulls" "$observed" "$tset" "$PERM_N" "$ENRICH" <<'PYEOF'
 import sys, statistics as st
 nulls_f, observed, tset, perms, out = sys.argv[1:6]
@@ -472,7 +520,6 @@ if not vals:
     sys.exit(0)
 mean = st.mean(vals)
 sd = st.pstdev(vals) if len(vals) > 1 else 0.0
-# one-sided p: P(null >= observed), +1 smoothing
 ge = sum(1 for v in vals if v >= observed)
 p = (ge + 1) / (len(vals) + 1)
 fold = observed / mean if mean > 0 else float("inf")
@@ -496,11 +543,6 @@ fi
 # =============================================================================
 # STAGE 6b — G2G vs vg-giraffe DELTA-SET COMPARISON
 # =============================================================================
-# The headline biological argument: G2G recovers panel-divergent SVs that the
-# standard mapping route (vg giraffe of one panel's haplotypes onto the other's
-# graph, then call) does not surface. We map EAS haplotypes onto the AFR graph
-# with giraffe, derive that pipeline's "found" interval set, and report the
-# delta variants G2G found that giraffe missed.
 GVG="$OUTDIR/g2g_vs_giraffe.tsv"
 fresh_tsv "$GVG" "metric\tvalue"
 
@@ -508,12 +550,9 @@ log "=== STAGE 6b: G2G vs vg-giraffe ==="
 if [[ "$S4_OK" -eq 1 && "$HAVE_VG" -eq 1 && "$HAVE_BEDTOOLS" -eq 1 && -s "$AFR_GFA" ]]; then
     GIRAFFE_BED="$OUTDIR/giraffe_found.bed"
     stderr_f="$OUTDIR/giraffe.stderr"
-    # Build a giraffe index over the AFR graph and map EAS assemblies' sequences.
-    # We time it for an honest apples-to-apples cost note in the paper.
     m=$(measure_full_capture "$stderr_f" bash -c "
         set -e
         vg autoindex --workflow giraffe -g '$AFR_GFA' -p '$GRAPH_DIR/afr_idx' -t $NCPU 2>/dev/null
-        # EAS haplotype sequences (concatenated) as the query read set.
         : > '$OUTDIR/eas_haps.fa'
         awk '\$1==\"W\" && \$2 !~ /GRCh38/ {next}' /dev/null 2>/dev/null || true
         vg paths -x '$EAS_GFA' -F 2>/dev/null > '$OUTDIR/eas_haps.fa' || true
@@ -525,7 +564,6 @@ if [[ "$S4_OK" -eq 1 && "$HAVE_VG" -eq 1 && "$HAVE_BEDTOOLS" -eq 1 && -s "$AFR_G
     read -r wall peak user sys cpu ec <<< "$m"
 
     if [[ -s "$GIRAFFE_BED" && -s "$DELTA_BED" ]]; then
-        # Delta intervals NOT covered by anything giraffe surjected = G2G-unique.
         g2g_only=$(bedtools intersect -v -a "$DELTA_BED" -b "$GIRAFFE_BED" 2>/dev/null | wc -l)
         delta_n=$(wc -l < "$DELTA_BED")
         giraffe_n=$(wc -l < "$GIRAFFE_BED")
@@ -562,8 +600,6 @@ log "  shared pathogenic:$SHARED_PATH"
 log "  manifest:         $MANIFEST"
 log "stage status: S1=$S1_OK S2=$S2_OK S3=$S3_OK S4=$S4_OK S5=$S5_OK"
 
-# Non-zero exit if the core scientific result (delta enrichment) never produced,
-# so a wrapper/master script can tell a real failure from a clean run.
 if [[ ! -s "$ENRICH" || $(wc -l < "$ENRICH") -le 1 ]]; then
     log "WARN: no enrichment rows produced — biological validation incomplete"
     exit 3
