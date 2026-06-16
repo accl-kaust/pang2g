@@ -50,22 +50,84 @@ EAS_SAMPLES="${G2G_EAS_LIST:-$SCRIPT_DIR/panels/eas_samples.txt}"
 HPRC_INDEX_URL="${HPRC_INDEX_URL:-https://raw.githubusercontent.com/human-pangenomics/HPP_Year1_Assemblies/main/assembly_index/Year1_assemblies_v2_genbank.index}"
 INDEX_FILE="$INDEX_DIR/Year1_assemblies_v2_genbank.index"
 
-log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2; }
 sha_of() { sha256sum "$1" 2>/dev/null | awk '{print $1}' || echo NA; }
 
 # S3 https endpoint for the (no-egress) HPRC public bucket.
 s3_to_https() { sed 's%^s3://human-pangenomics/%https://s3-us-west-2.amazonaws.com/human-pangenomics/%'; }
 
-# ── 0. Fetch the index ───────────────────────────────────────────────────────
-if [[ ! -s "$INDEX_FILE" ]]; then
+# ── Lazy network access ───────────────────────────────────────────────────────
+# The preflight + index fetch are DEFERRED until something actually needs to be
+# downloaded. If every assembly is already present + SHA-verified, the script
+# runs entirely offline — no network check, no index download, no wget needed.
+S3_HOST="s3-us-west-2.amazonaws.com"
+_NETWORK_CHECKED=0   # 0=not yet, 1=reachable, 2=unreachable
+
+# Called the first time we need to download. Checks wget presence, S3 reach,
+# and fetches the index if absent. Exits with guidance on failure.
+require_network() {
+    [[ "$_NETWORK_CHECKED" -ne 0 ]] && return $(( _NETWORK_CHECKED == 1 ? 0 : 1 ))
+
+    command -v wget >/dev/null 2>&1 \
+        || { log "FATAL: wget not found. 'conda install -c conda-forge wget' then re-run."; _NETWORK_CHECKED=2; return 1; }
+
+    log "preflight: checking outbound access to $S3_HOST ..."
+    local ok=0
+    if wget --timeout=15 --tries=1 --spider -q "https://$S3_HOST/" 2>/dev/null; then
+        ok=1
+    elif command -v curl >/dev/null 2>&1 && curl -sS --max-time 15 -I "https://$S3_HOST/" >/dev/null 2>&1; then
+        ok=1
+    fi
+
+    if [[ "$ok" -ne 1 ]]; then
+        log "FATAL: cannot reach $S3_HOST from this machine ($(hostname))."
+        log "       The ROCS testbed login/compute nodes are VPN-gated and may have"
+        log "       no outbound internet. You have two options:"
+        log "  (A) Download the assemblies on a machine that HAS internet (your laptop),"
+        log "      then copy them into the shared FS, e.g.:"
+        log "        rsync -avP ./assemblies/  <user>@mcmgt01:$ASM_DIR/"
+        log "      exp6 only needs the .fa.gz files sitting in $ASM_DIR (it verifies them)."
+        log "  (B) If a proxy is available on the testbed, export it and re-run:"
+        log "        export https_proxy=http://<proxy-host>:<port> http_proxy=\$https_proxy"
+        log "       (ask the ROCS admins for the proxy address if unsure)."
+        if [[ "${G2G_SKIP_PREFLIGHT:-0}" -eq 1 ]]; then
+            log "G2G_SKIP_PREFLIGHT=1 set — continuing despite failed preflight."
+        else
+            _NETWORK_CHECKED=2; return 1
+        fi
+    else
+        log "preflight OK: $S3_HOST reachable."
+    fi
+    _NETWORK_CHECKED=1
+    return 0
+}
+
+# Ensure the HPRC index is present (fetches it if needed + network available).
+require_index() {
+    if [[ -s "$INDEX_FILE" ]] && head -1 "$INDEX_FILE" | grep -q 'hap1_aws_fasta'; then
+        return 0   # already have it
+    fi
+    # Need to download it.
+    if ! require_network; then
+        log "cannot fetch HPRC index — network unavailable"
+        return 1
+    fi
     log "downloading HPRC index -> $INDEX_FILE"
-    wget --tries=5 --waitretry=10 --timeout=60 -q -O "$INDEX_FILE" "$HPRC_INDEX_URL" \
-        || { log "FATAL: could not fetch HPRC index from $HPRC_INDEX_URL"; exit 1; }
+    wget --tries=3 --waitretry=5 --timeout=30 --show-progress -O "$INDEX_FILE" "$HPRC_INDEX_URL" \
+        || { log "FATAL: could not fetch HPRC index from $HPRC_INDEX_URL"; return 1; }
+    head -1 "$INDEX_FILE" | grep -q 'hap1_aws_fasta' \
+        || { log "FATAL: $INDEX_FILE does not look like the HPRC index"; return 1; }
+    return 0
+}
+
+# Try to load the index (needed for resolving filenames + SHAs).
+if require_index; then
+    log "index ready ($(wc -l < "$INDEX_FILE") rows)"
+    INDEX_OK=1
+else
+    log "HPRC index not available — can only verify already-downloaded files by filename"
+    INDEX_OK=0
 fi
-# Sanity: the index must have the expected header.
-head -1 "$INDEX_FILE" | grep -q 'hap1_aws_fasta' \
-    || { log "FATAL: $INDEX_FILE does not look like the HPRC index"; exit 1; }
-log "index ready ($(wc -l < "$INDEX_FILE") rows)"
 
 # ── Resolver: sample+hap -> (https_url, expected_sha) from the index ─────────
 # paternal => hap1 (url col 2, sha col 6); maternal => hap2 (url col 3, sha col 7)
@@ -81,36 +143,70 @@ resolve() {
         END   { if(!found) exit 3 }' "$INDEX_FILE"
 }
 
-# ── Download one haplotype assembly with sha verification + resume ───────────
+# ── Fetch/verify one haplotype assembly ───────────────────────────────────────
+# Priority order:
+#   1. If index available: resolve canonical filename + SHA, check if already
+#      present + verified → skip.  If missing → download (triggers preflight).
+#   2. If no index: look for any file matching the expected naming pattern in
+#      $ASM_DIR → report found (unverified) or missing.
 fetch_one() {
     local panel="$1" sample="$2" hap="$3"
-    local row s3url sha
-    if ! row=$(resolve "$sample" "$hap"); then
-        log "  [$panel] $sample.$hap NOT in index — check the sample ID"; return 1
-    fi
-    s3url=$(printf '%s' "$row" | cut -f1)
-    sha=$(  printf '%s' "$row" | cut -f2)
-    local url; url=$(printf '%s' "$s3url" | s3_to_https)
-    local fname; fname=$(basename "$url")
-    local dest="$ASM_DIR/$fname"
 
-    if [[ -s "$dest" ]] && [[ "$(sha_of "$dest")" == "$sha" ]]; then
-        log "  [$panel] $fname already present + verified (skip)"
+    # ── With index: full resolve + SHA verify ─────────────────────────────────
+    if [[ "$INDEX_OK" -eq 1 ]]; then
+        local row s3url sha
+        if ! row=$(resolve "$sample" "$hap"); then
+            log "  [$panel] $sample.$hap NOT in index — check the sample ID"; return 1
+        fi
+        s3url=$(printf '%s' "$row" | cut -f1)
+        sha=$(  printf '%s' "$row" | cut -f2)
+        local url; url=$(printf '%s' "$s3url" | s3_to_https)
+        local fname; fname=$(basename "$url")
+        local dest="$ASM_DIR/$fname"
+
+        # Already present + SHA verified → skip (no network needed).
+        if [[ -s "$dest" ]] && [[ "$(sha_of "$dest")" == "$sha" ]]; then
+            log "  [$panel] $fname already present + verified (skip)"
+            echo "$dest"; return 0
+        fi
+
+        # Need to download — check network first (lazy, runs only once).
+        if ! require_network; then
+            if [[ -s "$dest" ]]; then
+                log "  [$panel] $fname present but SHA unverified (network unavailable for re-download)"
+                echo "$dest"; return 0   # use what we have
+            fi
+            log "  [$panel] $fname MISSING and cannot download (no network)"
+            return 1
+        fi
+
+        log "  [$panel] fetching $fname"
+        if ! wget --continue --tries=3 --waitretry=15 --timeout=60 --show-progress \
+                  -O "$dest" "$url"; then
+            log "  [$panel] download FAILED for $fname (network/route problem?)"
+            rm -f "$dest"
+            return 1
+        fi
+
+        local got; got=$(sha_of "$dest")
+        if [[ "$got" != "$sha" ]]; then
+            log "  [$panel] SHA MISMATCH for $fname (got $got want $sha) — deleting"
+            rm -f "$dest"; return 1
+        fi
+        log "  [$panel] OK $fname (sha verified)"
         echo "$dest"; return 0
     fi
 
-    log "  [$panel] fetching $fname"
-    # --continue resumes partial transfers after interruption.
-    wget --continue --tries=5 --waitretry=30 --timeout=120 -q -O "$dest" "$url" \
-        || { log "  [$panel] download FAILED for $fname"; return 1; }
-
-    local got; got=$(sha_of "$dest")
-    if [[ "$got" != "$sha" ]]; then
-        log "  [$panel] SHA MISMATCH for $fname (got $got want $sha) — deleting"
-        rm -f "$dest"; return 1
+    # ── Without index: best-effort filename match ─────────────────────────────
+    # Try the canonical HPRC naming pattern.
+    local fname="${sample}.${hap}.f1_assembly_v2_genbank.fa.gz"
+    local dest="$ASM_DIR/$fname"
+    if [[ -s "$dest" ]]; then
+        log "  [$panel] $fname found (no index — SHA not verified)"
+        echo "$dest"; return 0
     fi
-    log "  [$panel] OK $fname (sha verified)"
-    echo "$dest"
+    log "  [$panel] $fname MISSING (and no index to resolve the download URL)"
+    return 1
 }
 
 stage_panel() {
