@@ -61,8 +61,17 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="${G2G_REPO:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# Resolve repo root robustly. Under SLURM the batch script is copied to a
+# spool dir (/var/lib/slurm/...), so BASH_SOURCE no longer points into the repo.
+# Prefer $G2G_REPO (exported by submit_all.sh / the user); fall back to the
+# script's own location only when running in-place (interactively).
+if [[ -n "${G2G_REPO:-}" ]]; then
+    REPO="$G2G_REPO"
+else
+    _src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    REPO="$(cd "$_src/../.." && pwd)"
+fi
+SCRIPT_DIR="$REPO/slurm/scripts"
 G2G="${G2G_BIN:-$REPO/build/g2g}"
 OUTDIR="$REPO/results/exp6"
 NCPU="$(nproc)"

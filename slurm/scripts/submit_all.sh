@@ -41,6 +41,11 @@ REPO="${G2G_REPO:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 LOGDIR="$REPO/slurm/logs"
 mkdir -p "$LOGDIR"
 
+# Always export G2G_REPO so the submitted jobs can resolve repo paths even
+# though SLURM runs the batch script from its spool dir (where BASH_SOURCE no
+# longer points into the repo). --export=ALL below forwards this to every job.
+export G2G_REPO="$REPO"
+
 DRY_RUN=0
 LOCAL=0
 RUN_BIO=1
