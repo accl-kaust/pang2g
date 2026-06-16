@@ -39,7 +39,7 @@
 #SBATCH --time=18:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128
-#SBATCH --mem=512GB
+#SBATCH --mem=500G
 #SBATCH --constraint=cpu_amd_epyc_7763
 
 set -euo pipefail
