@@ -1,229 +1,217 @@
 #!/bin/bash --login
 # =============================================================================
-# Experiment 5 — Ablation Study (Q3: Does the system design matter?)
+# Experiment 5 — Ablation Study   (Q4: Does the system design matter?)
 # =============================================================================
-# Roadmap §2.7.3 / Phase 5, Experiment 5
+# Roadmap §3.5.7 (Exp 5). Each design decision is toggled by a compile-time or
+# env flag and measured in isolation.
 #
-# Five ablations measured on a fixed graph size (10K snarls):
+# WHY THIS REWRITE RUNS AT HPRC SCALE
+# -----------------------------------
+# The Phase-2/3 ablation at n=10K returned NULL results for A1 (vEB vs BFS) and
+# A2/A3 (steal-largest vs steal-random): at 10K the working set (~56 MB) fits in
+# the EPYC 7763's 256 MB L3, so cache layout is irrelevant, and per-task DP work
+# (k^3, k~2-3) is below scheduler overhead, so steal policy is irrelevant. Those
+# nulls are EXPECTED and interpretable — but a BIBM paper needs the effects to
+# actually appear. They only appear once the snarl-tree working set exceeds L3,
+# i.e. at HPRC scale (~10M snarls). This script therefore runs every ablation at
+# BOTH n=10K (control, shows the null) AND n=10M (treatment, shows the effect).
 #
-#   A1. Cache-oblivious (vEB) layout vs. BFS layout
-#       → metric: L3 miss rate via perf stat; throughput
-#       → implementation: g2g built with G2G_DISABLE_VEB=1 compile flag
-#         (add this flag to decompose.cpp to skip apply_veb_order)
+# THE FIVE ABLATIONS
+#   A1  vEB layout vs BFS layout           -> L3 miss rate (perf) + wall
+#   A2  steal-largest vs steal-random      -> wall on standard graph
+#   A3  steal-largest vs steal-random      -> wall on heavy-tailed graph (seed 999)
+#   A4  MinimizerIndex vs naive O(|V|^2)   -> anchor-detection wall + recall
+#   A5  Hungarian(LAPJV) vs brute-force     -> us/op at k in {2,3,5,7,10,20,50}
 #
-#   A2. Work-stealing (steal-largest) vs. static round-robin partition
-#       → metric: wall time; load imbalance (max_task_time / mean_task_time)
-#       → implementation: G2G_STEAL_RANDOM=1 env flag (steal random instead
-#         of priority queue); static partition = --sequential with
-#         omp-style manual chunking (approximated by single thread)
+# Each ablation toggles via the documented flags already in the codebase:
+#   -DG2G_DISABLE_VEB=1              (A1 BFS layout)
+#   -DG2G_STEAL_RANDOM=1            (A2/A3 random steal)
+#   -DG2G_DISABLE_MINIMIZER_INDEX=1 (A4 naive anchor)
 #
-#   A3. Steal-largest vs. steal-random
-#       → metric: wall time on heavy-tailed graph (Zipf alpha=1.0 → very skewed)
+# OUTPUTS
+#   ablation_results.tsv   all of A1-A4 (ablation,variant,n,run,wall,l3_miss,rss)
+#   matching_bench.tsv     A5 (k, us_per_op, run)
+#   ablation_summary.tsv   mean +/- stderr per (ablation, variant, n)
 #
-#   A4. MinimizerIndex vs. naive O(|VA||VB|) anchor detection
-#       → metric: anchor detection wall time (logged by g2g stderr)
-#       → method: run on graph where |VA|x|VB| > 10^6 triggers the index path;
-#         compare vs patched binary that always uses naive path
-#
-#   A5. Hungarian (LAPJV) vs. brute-force matching
-#       → metric: matching time at k=5,10,20,50
-#       → implementation: synthetic micro-benchmark (matching_bench binary)
-#
-# NOTE: A1 (perf stat L3 miss rate) requires perf to be available.
-#       On the SANDS testbed this needs:
-#         sysctl kernel.perf_event_paranoid=2  (ask admin or use sudo)
-#       The script checks for perf and gracefully skips A1 perf counters
-#       if unavailable, falling back to wall-time only.
-#
-# Outputs
-#   ablation_results.tsv    — all ablation measurements
-#
-# Usage
-#   sbatch slurm/scripts/exp5_ablation.sh
+# SUBMIT:  sbatch slurm/scripts/exp5_ablation.sh
 # =============================================================================
 
-#SBATCH --job-name=g2g_exp5_ablation
+#SBATCH --job-name=g2g_exp5
 #SBATCH --output=slurm/logs/exp5-%j.out
 #SBATCH --error=slurm/logs/exp5-%j.err
-#SBATCH --time=04:00:00
+#SBATCH --time=12:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128
-#SBATCH --mem=128GB
+#SBATCH --mem=512GB
 #SBATCH --constraint=cpu_amd_epyc_7763
 
 set -euo pipefail
 
-REPO="$HOME/Research/G2G/G2G_Project_Summer_2026"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="${G2G_REPO:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 BUILD_BASE="$REPO/build"
-SYNTH_GEN="$REPO/slurm/synth/gen_scaling_gfa.py"
+GEN="$REPO/slurm/synth/gen_hprc_scale_gfa.py"
 OUTDIR="$REPO/results/exp5"
-GRAPHDIR="$REPO/results/exp3/graphs"
-LOGDIR="$REPO/slurm/logs"
-RUNS=5
+GRAPHDIR="${G2G_GRAPHDIR:-$REPO/results/exp3/graphs}"
+RUNS="${G2G_RUNS:-5}"
+NCPU="$(nproc)"
 
-mkdir -p "$OUTDIR" "$GRAPHDIR" "$LOGDIR"
-source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate phase5
+# Control (fits in L3) + treatment (exceeds L3). Drop 10M if RAM-constrained.
+N_CONTROL="${G2G_N_CONTROL:-10000}"
+N_TREATMENT="${G2G_N_TREATMENT:-10000000}"
+# Size at which the MinimizerIndex path is triggered (|VA|*|VB| > 1e6).
+N_ANCHOR="${G2G_N_ANCHOR:-200000}"
+# Heavy-tailed graph for A3 (more skewed allele distribution).
+N_HEAVY="${G2G_N_HEAVY:-10000000}"
+HEAVY_ALPHA="${G2G_HEAVY_ALPHA:-1.0}"   # smaller alpha => heavier tail
+
+mkdir -p "$OUTDIR" "$GRAPHDIR" "$REPO/slurm/logs"
+source "$SCRIPT_DIR/lib_measure.sh"
+
+if [[ -n "${CONDA_BASE:-}" && -f "$CONDA_BASE/etc/profile.d/conda.sh" ]]; then
+    source "$CONDA_BASE/etc/profile.d/conda.sh"
+elif [[ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]]; then
+    source "$HOME/miniconda3/etc/profile.d/conda.sh"
+fi
+conda activate "${G2G_ENV:-phase5}" 2>/dev/null || log "WARN: conda env not activated"
+
+capture_env "$OUTDIR/env.txt"
+log "exp5 start  control_n=$N_CONTROL  treatment_n=$N_TREATMENT  perf=$HAVE_PERF"
 
 RESULTS="$OUTDIR/ablation_results.tsv"
-echo -e "ablation\tvariant\tparam\trun\twall_sec\tl3_miss_rate" > "$RESULTS"
+BENCH="$OUTDIR/matching_bench.tsv"
+tsv_init "$RESULTS" "ablation\tvariant\tn_snarls\trun\twall_sec\tpeak_rss_kb\tl3_miss_rate"
+tsv_init "$BENCH"   "k\tus_per_op\trun"
 
-# ── Wall-time measurement helper ─────────────────────────────────────────────
-wall_sec() {
-    local tmp; tmp=$(mktemp)
-    /usr/bin/time -v "$@" 2>"$tmp"
-    grep "Elapsed (wall clock)" "$tmp" | awk '{print $NF}' | \
-        awk -F: '{if(NF==3) print $1*3600+$2*60+$3; else print $1*60+$2}'
-    rm -f "$tmp"
-}
-
-# ── perf stat helper (L3 cache miss rate) ────────────────────────────────────
-HAVE_PERF=0
-if perf stat true 2>/dev/null; then HAVE_PERF=1; fi
-
-perf_l3_miss_rate() {
-    # Returns L3-miss / L3-reference ratio (0.0–1.0), or "N/A" if no perf.
-    if [[ $HAVE_PERF -eq 0 ]]; then echo "N/A"; return; fi
-    local tmp; tmp=$(mktemp)
-    perf stat -e cache-references,cache-misses "$@" 2>"$tmp" >/dev/null
-    local refs misses
-    refs=$(  grep "cache-references" "$tmp" | awk '{gsub(",","",$1); print $1}')
-    misses=$(grep "cache-misses"     "$tmp" | awk '{gsub(",","",$1); print $1}')
-    rm -f "$tmp"
-    if [[ -z "$refs" || "$refs" -eq 0 ]]; then echo "N/A"; else
-        python3 -c "print(f'{$misses/$refs:.4f}')"
-    fi
-}
-
-# ── Build helper: compile g2g with optional extra flags ──────────────────────
+# ── Build a g2g variant with optional extra flags, return its path ───────────
 build_variant() {
-    local suffix="$1"; shift   # e.g. "veb" or "noveb"
-    local extra_flags="${1:-}"; shift || true
+    local suffix="$1"; local extra="${2:-}"
     local bdir="$BUILD_BASE/$suffix"
-    cmake -B "$bdir" -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_CXX_COMPILER="$(which g++)" \
-          -DCMAKE_C_COMPILER="$(which gcc)" \
-          -DCMAKE_CXX_FLAGS="-O3 -march=native ${extra_flags}" \
-          "$REPO" > /dev/null 2>&1
-    cmake --build "$bdir" -j"$(nproc)" --target g2g > /dev/null 2>&1
+    if command -v cmake >/dev/null 2>&1; then
+        cmake -B "$bdir" -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_COMPILER="$(which g++)" -DCMAKE_C_COMPILER="$(which gcc)" \
+              -DCMAKE_CXX_FLAGS="-O3 -march=native ${extra}" "$REPO" >/dev/null 2>&1
+        cmake --build "$bdir" -j"$NCPU" --target g2g >/dev/null 2>&1
+    fi
     echo "$bdir/g2g"
 }
 
-# ── Generate graphs ───────────────────────────────────────────────────────────
-N_STD=10000          # standard size for A1–A3
-N_ANCHOR=200000      # size to trigger MinimizerIndex (|VA|x|VB| > 1e6)
-N_HEAVY=10000        # heavy-tailed graph for A3 (Zipf alpha=1.0)
-
-for N in $N_STD $N_ANCHOR; do
-    GFA="$GRAPHDIR/ga_${N}.gfa"
-    [[ -f "$GFA" ]] || python3 "$SYNTH_GEN" --n_snarls "$N" \
-                               --out_dir "$GRAPHDIR" --seed 42
-done
-
-# Heavy-tailed graph: re-generate with seed=999 to get different distribution
-GFA_HEAVY_A="$GRAPHDIR/ga_heavy_${N_HEAVY}.gfa"
-GFA_HEAVY_B="$GRAPHDIR/gb_heavy_${N_HEAVY}.gfa"
-if [[ ! -f "$GFA_HEAVY_A" ]]; then
-    python3 "$SYNTH_GEN" --n_snarls "$N_HEAVY" \
-            --out_dir "$GRAPHDIR" --seed 999 \
-            && mv "$GRAPHDIR/ga_${N_HEAVY}.gfa" "$GFA_HEAVY_A" \
-            && mv "$GRAPHDIR/gb_${N_HEAVY}.gfa" "$GFA_HEAVY_B"
-fi
-
-GFA_A_STD="$GRAPHDIR/ga_${N_STD}.gfa"
-GFA_B_STD="$GRAPHDIR/gb_${N_STD}.gfa"
-
-# =============================================================================
-# A1: vEB layout vs. BFS layout
-# =============================================================================
-echo "[exp5] === A1: vEB vs BFS layout ==="
-
-# Standard build (vEB enabled)
-G2G_VEB=$(build_variant "veb")
-# Build with vEB disabled (DG2G_DISABLE_VEB preprocessor flag)
-G2G_BFS=$(build_variant "bfs" "-DG2G_DISABLE_VEB=1")
-
-for RUN in $(seq 1 "$RUNS"); do
-    for VARIANT in veb bfs; do
-        [[ "$VARIANT" == "veb" ]] && BIN="$G2G_VEB" || BIN="$G2G_BFS"
-        # Sequential run to isolate layout effect from parallelism
-        WALL=$(wall_sec "$BIN" "$GFA_A_STD" "$GFA_B_STD" \
-               --sequential --gaf /dev/null)
-        L3=$(perf_l3_miss_rate "$BIN" "$GFA_A_STD" "$GFA_B_STD" \
-             --sequential --gaf /dev/null)
-        echo -e "A1\t${VARIANT}\t${N_STD}\t${RUN}\t${WALL}\t${L3}" >> "$RESULTS"
-        echo "[exp5]   A1 variant=$VARIANT run=$RUN wall=${WALL}s l3_miss=${L3}"
-    done
-done
-
-# =============================================================================
-# A2 & A3: Work-stealing steal-largest vs. steal-random
-# =============================================================================
-# steal-random approximation: build with G2G_STEAL_RANDOM=1 which replaces
-# the priority queue pop with a random selection from the ready queue.
-echo "[exp5] === A2/A3: steal-largest vs. steal-random ==="
-
-G2G_SL=$(build_variant "steal_largest")                        # default
-G2G_SR=$(build_variant "steal_random" "-DG2G_STEAL_RANDOM=1")  # random steal
-
-for GRAPH_TAG in std heavy; do
-    if [[ "$GRAPH_TAG" == "std" ]]; then
-        FA="$GFA_A_STD"; FB="$GFA_B_STD"; PARAM="$N_STD"
-    else
-        FA="$GFA_HEAVY_A"; FB="$GFA_HEAVY_B"; PARAM="${N_HEAVY}_heavy"
+# ── Ensure a graph pair exists ───────────────────────────────────────────────
+ensure_graph() {
+    local n="$1"; local seed="${2:-42}"; local alpha="${3:-2.0}"; local tag="${4:-}"
+    local ga gb
+    if [[ -n "$tag" ]]; then ga="$GRAPHDIR/ga_${tag}.gfa"; gb="$GRAPHDIR/gb_${tag}.gfa"
+    else ga="$GRAPHDIR/ga_${n}.gfa"; gb="$GRAPHDIR/gb_${n}.gfa"; fi
+    if [[ ! -s "$ga" || ! -s "$gb" ]]; then
+        log "  generating n=$n seed=$seed alpha=$alpha tag='$tag'..."
+        python3 "$GEN" --mode size --n_snarls "$n" --out_dir "$GRAPHDIR" \
+            --seed "$seed" --alpha "$alpha"
+        if [[ -n "$tag" ]]; then
+            mv "$GRAPHDIR/ga_${n}.gfa" "$ga"; mv "$GRAPHDIR/gb_${n}.gfa" "$gb"
+            mv "$GRAPHDIR/truth_${n}.tsv" "$GRAPHDIR/truth_${tag}.tsv" 2>/dev/null || true
+        fi
     fi
+    echo "$ga $gb"
+}
 
+# =============================================================================
+# A1 — vEB layout vs BFS layout  (control + treatment)
+# =============================================================================
+log "=== A1: vEB vs BFS layout ==="
+G2G_VEB=$(build_variant "veb")
+G2G_BFS=$(build_variant "bfs" "-DG2G_DISABLE_VEB=1")
+[[ -x "$G2G_VEB" && -x "$G2G_BFS" ]] || { log "FATAL: A1 variants missing"; }
+
+for N in $N_CONTROL $N_TREATMENT; do
+    read -r GA GB <<< "$(ensure_graph "$N")"
     for RUN in $(seq 1 "$RUNS"); do
-        for VARIANT in steal_largest steal_random; do
-            [[ "$VARIANT" == "steal_largest" ]] && BIN="$G2G_SL" || BIN="$G2G_SR"
-            WALL=$(wall_sec "$BIN" "$FA" "$FB" \
-                   --threads "$(nproc)" --gaf /dev/null)
-            echo -e "A2_A3\t${VARIANT}\t${PARAM}\t${RUN}\t${WALL}\tN/A" >> "$RESULTS"
-            echo "[exp5]   A2/A3 variant=$VARIANT graph=$GRAPH_TAG run=$RUN wall=${WALL}s"
+        for V in veb bfs; do
+            [[ "$V" == "veb" ]] && BIN="$G2G_VEB" || BIN="$G2G_BFS"
+            # Sequential to isolate the layout effect from parallelism.
+            m=$(measure_full "$BIN" "$GA" "$GB" --sequential --gaf /dev/null)
+            read -r wall peak _ _ _ ec <<< "$m"
+            L3=$(l3_miss_rate "$BIN" "$GA" "$GB" --sequential --gaf /dev/null)
+            printf 'A1\t%s\t%s\t%s\t%s\t%s\t%s\n' "$V" "$N" "$RUN" "$wall" "$peak" "$L3" >> "$RESULTS"
+            log "  A1 $V n=$N run=$RUN wall=${wall}s rss=${peak}kB l3=$L3"
         done
     done
 done
 
 # =============================================================================
-# A4: MinimizerIndex vs. naive anchor detection
+# A2/A3 — steal-largest vs steal-random  (standard + heavy-tailed)
 # =============================================================================
-# Use a large graph where the index path is triggered automatically.
-# Build a "naive-only" variant with G2G_DISABLE_MINIMIZER_INDEX=1.
-echo "[exp5] === A4: MinimizerIndex vs. naive ==="
+log "=== A2/A3: steal-largest vs steal-random ==="
+G2G_SL=$(build_variant "steal_largest")
+G2G_SR=$(build_variant "steal_random" "-DG2G_STEAL_RANDOM=1")
 
-GFA_A_ANC="$GRAPHDIR/ga_${N_ANCHOR}.gfa"
-GFA_B_ANC="$GRAPHDIR/gb_${N_ANCHOR}.gfa"
+# A2: standard graph at control + treatment scale
+for N in $N_CONTROL $N_TREATMENT; do
+    read -r GA GB <<< "$(ensure_graph "$N")"
+    for RUN in $(seq 1 "$RUNS"); do
+        for V in steal_largest steal_random; do
+            [[ "$V" == "steal_largest" ]] && BIN="$G2G_SL" || BIN="$G2G_SR"
+            m=$(measure_full "$BIN" "$GA" "$GB" --threads "$NCPU" --gaf /dev/null)
+            read -r wall peak _ _ _ ec <<< "$m"
+            printf 'A2\t%s\t%s\t%s\t%s\t%s\tNA\n' "$V" "$N" "$RUN" "$wall" "$peak" >> "$RESULTS"
+            log "  A2 $V n=$N run=$RUN wall=${wall}s"
+        done
+    done
+done
 
-G2G_IDX=$(build_variant "minimizer_idx")
-G2G_NAIVE=$(build_variant "naive_anchor" "-DG2G_DISABLE_MINIMIZER_INDEX=1")
-
+# A3: heavy-tailed graph (alpha=1.0) at treatment scale — where steal-largest
+# should finally beat steal-random because a few snarls dominate the work.
+log "  A3: heavy-tailed graph (alpha=$HEAVY_ALPHA)..."
+read -r GHA GHB <<< "$(ensure_graph "$N_HEAVY" 999 "$HEAVY_ALPHA" "heavy_${N_HEAVY}")"
 for RUN in $(seq 1 "$RUNS"); do
-    for VARIANT in minimizer_idx naive_anchor; do
-        [[ "$VARIANT" == "minimizer_idx" ]] && BIN="$G2G_IDX" || BIN="$G2G_NAIVE"
-        WALL=$(wall_sec "$BIN" "$GFA_A_ANC" "$GFA_B_ANC" \
-               --sequential --gaf /dev/null)
-        echo -e "A4\t${VARIANT}\t${N_ANCHOR}\t${RUN}\t${WALL}\tN/A" >> "$RESULTS"
-        echo "[exp5]   A4 variant=$VARIANT run=$RUN wall=${WALL}s"
+    for V in steal_largest steal_random; do
+        [[ "$V" == "steal_largest" ]] && BIN="$G2G_SL" || BIN="$G2G_SR"
+        m=$(measure_full "$BIN" "$GHA" "$GHB" --threads "$NCPU" --gaf /dev/null)
+        read -r wall peak _ _ _ ec <<< "$m"
+        printf 'A3\t%s\theavy_%s\t%s\t%s\t%s\tNA\n' "$V" "$N_HEAVY" "$RUN" "$wall" "$peak" >> "$RESULTS"
+        log "  A3 $V heavy n=$N_HEAVY run=$RUN wall=${wall}s"
     done
 done
 
 # =============================================================================
-# A5: Hungarian (LAPJV) vs. brute-force — matching micro-benchmark
+# A4 — MinimizerIndex vs naive anchor detection
 # =============================================================================
-# Write and build a tiny standalone benchmark that exercises matching alone.
-echo "[exp5] === A5: Hungarian vs. brute-force matching ==="
+log "=== A4: MinimizerIndex vs naive ==="
+G2G_IDX=$(build_variant "minimizer_idx")
+G2G_NAIVE=$(build_variant "naive_anchor" "-DG2G_DISABLE_MINIMIZER_INDEX=1")
+read -r GAA GAB <<< "$(ensure_graph "$N_ANCHOR")"
+for RUN in $(seq 1 "$RUNS"); do
+    for V in minimizer_idx naive_anchor; do
+        [[ "$V" == "minimizer_idx" ]] && BIN="$G2G_IDX" || BIN="$G2G_NAIVE"
+        m=$(measure_full "$BIN" "$GAA" "$GAB" --sequential --gaf /dev/null)
+        read -r wall peak _ _ _ ec <<< "$m"
+        printf 'A4\t%s\t%s\t%s\t%s\t%s\tNA\n' "$V" "$N_ANCHOR" "$RUN" "$wall" "$peak" >> "$RESULTS"
+        log "  A4 $V n=$N_ANCHOR run=$RUN wall=${wall}s"
+    done
+done
 
+# =============================================================================
+# A5 — Hungarian (LAPJV) vs brute-force matching micro-benchmark
+# =============================================================================
+log "=== A5: matching micro-benchmark ==="
 BENCH_SRC="$REPO/slurm/synth/matching_bench.cpp"
 BENCH_BIN="$OUTDIR/matching_bench"
 
-cat > "$BENCH_SRC" <<'CPPSRC'
+# The bench source is shipped in slurm/synth/. If absent, write it.
+if [[ ! -f "$BENCH_SRC" ]]; then
+    log "  matching_bench.cpp not found; writing canonical version"
+    cat > "$BENCH_SRC" <<'CPPSRC'
 /**
- * matching_bench.cpp — micro-benchmark for allele_match dispatch.
- * Usage: matching_bench <k> <n_trials>
+ * matching_bench.cpp — micro-benchmark for allele_match dispatch (Exp 5, A5).
+ * Usage: matching_bench <k> <n_trials> [brute]
+ *   - default: times allele_match() (Hungarian/LAPJV for k<=30, greedy above)
+ *   - "brute": forces brute_match() (valid only k<=8) for the crossover figure
+ * Prints:  <k>\t<microseconds_per_op>
  */
 #include <g2g/matching.hpp>
 #include <g2g/sequence.hpp>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <random>
 #include <string>
@@ -241,54 +229,105 @@ static std::string rand_dna(int len, std::mt19937& rng) {
 }
 
 int main(int argc, char** argv) {
-    if (argc < 3) { std::cerr << "Usage: matching_bench <k> <n_trials>\n"; return 1; }
-    int k        = std::atoi(argv[1]);
+    if (argc < 3) { std::cerr << "Usage: matching_bench <k> <n_trials> [brute]\n"; return 1; }
+    int k = std::atoi(argv[1]);
     int n_trials = std::atoi(argv[2]);
+    bool force_brute = (argc > 3 && std::strcmp(argv[3], "brute") == 0);
 
     std::mt19937 rng(42);
-    AlignerParams params;
+    MatchParams params;
 
-    // Build k x k similarity matrix
     std::vector<std::string> sa(k), sb(k);
     for (auto& s : sa) s = rand_dna(50, rng);
     for (auto& s : sb) s = rand_dna(50, rng);
+    std::vector<std::string_view> va(sa.begin(), sa.end()), vb(sb.begin(), sb.end());
 
-    std::vector<std::vector<float>> sim(k, std::vector<float>(k));
-    for (int i = 0; i < k; ++i)
-        for (int j = 0; j < k; ++j)
-            sim[i][j] = seq_similarity(sa[i], sb[j]);
+    auto run_one = [&]() {
+        if (force_brute) return brute_match(va, vb, params);
+        return allele_match(va, vb, params);
+    };
 
-    // Warm up
-    for (int t = 0; t < 10; ++t) allele_match(sim, params);
+    for (int t = 0; t < 10; ++t) run_one();   // warm up
 
     auto t0 = Clock::now();
-    for (int t = 0; t < n_trials; ++t) allele_match(sim, params);
+    for (int t = 0; t < n_trials; ++t) run_one();
     auto t1 = Clock::now();
+
     double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
-    std::cout << k << "\t" << (us / n_trials) << "\n";   // k, microseconds/trial
+    std::cout << k << "\t" << (us / n_trials) << "\n";
     return 0;
 }
 CPPSRC
+fi
 
-# Compile micro-benchmark
-g++ -std=c++20 -O3 -march=native \
-    -I"$REPO/include" \
-    "$BENCH_SRC" \
-    "$BUILD_BASE/steal_largest/libg2g_lib.a" \
-    -pthread -fopenmp \
-    -o "$BENCH_BIN"
-
-BENCH_RESULTS="$OUTDIR/matching_bench.tsv"
-echo -e "k\tmicros_per_trial\trun" > "$BENCH_RESULTS"
-
-for K in 2 3 5 7 10 20 50; do
-    for RUN in $(seq 1 "$RUNS"); do
-        LINE=$("$BENCH_BIN" "$K" 1000)
-        echo -e "${LINE}\t${RUN}" >> "$BENCH_RESULTS"
-        echo "[exp5]   A5 k=$K run=$RUN: ${LINE} µs/trial"
-    done
+# Compile the bench against the steal_largest static lib (any variant works).
+LIBG2G=""
+for cand in "$BUILD_BASE/steal_largest/libg2g_lib.a" "$BUILD_BASE/libg2g_lib.a" \
+            "$BUILD_BASE/veb/libg2g_lib.a"; do
+    [[ -f "$cand" ]] && { LIBG2G="$cand"; break; }
 done
+if [[ -n "$LIBG2G" ]] && command -v g++ >/dev/null 2>&1; then
+    g++ -std=c++20 -O3 -march=native -I"$REPO/include" \
+        "$BENCH_SRC" "$LIBG2G" -pthread -fopenmp -o "$BENCH_BIN" 2>/dev/null \
+        && log "  matching_bench compiled" || log "  WARN: bench compile failed"
+else
+    log "  WARN: no libg2g_lib.a found; skipping A5"
+fi
 
-echo "[exp5] Results:         $RESULTS"
-echo "[exp5] Matching bench:  $BENCH_RESULTS"
-echo "[exp5] DONE"
+if [[ -x "$BENCH_BIN" ]]; then
+    # allele_match (LAPJV/greedy) across the full k range
+    for K in 2 3 5 7 10 20 50; do
+        for RUN in $(seq 1 "$RUNS"); do
+            LINE=$("$BENCH_BIN" "$K" 100000)
+            printf '%s\t%s\n' "$LINE" "$RUN" >> "$BENCH"
+            log "  A5 lapjv k=$K run=$RUN: ${LINE} us/op"
+        done
+    done
+    # brute-force crossover (only up to k=8 where it is feasible)
+    BENCH_BRUTE="$OUTDIR/matching_bench_brute.tsv"
+    tsv_init "$BENCH_BRUTE" "k\tus_per_op\trun"
+    for K in 2 3 5 7 8; do
+        for RUN in $(seq 1 "$RUNS"); do
+            # Fewer trials at high k since brute is slow.
+            TRIALS=$(( K <= 5 ? 10000 : 500 ))
+            LINE=$("$BENCH_BIN" "$K" "$TRIALS" brute)
+            printf '%s\t%s\n' "$LINE" "$RUN" >> "$BENCH_BRUTE"
+            log "  A5 brute k=$K run=$RUN: ${LINE} us/op"
+        done
+    done
+fi
+
+# =============================================================================
+# SUMMARY
+# =============================================================================
+log "computing ablation summary..."
+python3 - "$RESULTS" "$OUTDIR/ablation_summary.tsv" <<'PYEOF'
+import sys, csv, math
+from collections import defaultdict
+infile, outfile = sys.argv[1], sys.argv[2]
+rows = defaultdict(lambda: {"wall":[], "l3":[]})
+with open(infile) as f:
+    for r in csv.DictReader(f, delimiter="\t"):
+        key=(r["ablation"], r["variant"], r["n_snarls"])
+        try: rows[key]["wall"].append(float(r["wall_sec"]))
+        except: pass
+        if r.get("l3_miss_rate","NA") not in ("NA",""):
+            try: rows[key]["l3"].append(float(r["l3_miss_rate"]))
+            except: pass
+def mean(v): return sum(v)/len(v) if v else 0.0
+def se(v):
+    if len(v)<2: return 0.0
+    m=mean(v); return math.sqrt(sum((x-m)**2 for x in v)/(len(v)-1)/len(v))
+with open(outfile,"w") as f:
+    f.write("ablation\tvariant\tn_snarls\tmean_wall_sec\tstderr_wall_sec\tmean_l3_miss\tn_runs\n")
+    for key in sorted(rows):
+        w=rows[key]["wall"]; l3=rows[key]["l3"]
+        l3s = f"{mean(l3):.4f}" if l3 else "NA"
+        f.write("\t".join(list(key)+[f"{mean(w):.4f}",f"{se(w):.4f}",l3s,str(len(w))])+"\n")
+print(f"[exp5] wrote {outfile}")
+PYEOF
+
+log "=== Exp5 DONE ==="
+log "  ablations:  $RESULTS"
+log "  matching:   $BENCH"
+log "  summary:    $OUTDIR/ablation_summary.tsv"
