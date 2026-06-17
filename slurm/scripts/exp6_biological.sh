@@ -370,7 +370,18 @@ build_seqfile() {
         [[ -z "$sample" || "$sample" == \#* ]] && continue
         for hap in paternal maternal; do
             if dest=$(fetch_assembly "$panel" "$sample" "$hap"); then
-                printf '%s.%s\t%s\n' "$sample" "$hap" "$dest" >> "$seqfile"
+                # cactus-pangenome requires haplotype suffixes of the form .N
+                # (integer), NOT ".paternal"/".maternal" — it errors out otherwise
+                # ('Sample name ... with ".paternal" suffix is not supported').
+                # Map paternal->.1, maternal->.2 in the SAMPLE-NAME column. The
+                # file path is unchanged; only the column-1 label is normalised.
+                local hapnum
+                case "$hap" in
+                    paternal) hapnum=1 ;;
+                    maternal) hapnum=2 ;;
+                    *)        hapnum=0 ;;
+                esac
+                printf '%s.%s\t%s\n' "$sample" "$hapnum" "$dest" >> "$seqfile"
                 echo "$(sha_of "$dest")  $(basename "$dest")" >> "$MANIFEST"
                 n_ok=$((n_ok+1))
             fi
@@ -431,10 +442,15 @@ build_pangenome() {
 
     local m
     if [[ "$HAVE_CACTUS" -eq 1 ]]; then
+        # NOTE: cactus-pangenome has NO --threads flag. Parallelism is set per
+        # phase: --mgCores (minigraph), --mapCores (mapping), --consCores
+        # (consensus), --indexCores (indexing). Passing --threads makes argparse
+        # reject the whole command (exit 2) before any work starts.
         m=$(measure_full cactus-pangenome "$WORK_DIR/js_${panel,,}" "$seqfile" \
                 --outDir "$cactus_out" --outName "${panel,,}" \
-                --reference GRCh38 --gfa --gbz --threads "$NCPU" \
-                --mgCores "$NCPU" --mapCores "$NCPU")
+                --reference GRCh38 --gfa --gbz \
+                --mgCores "$NCPU" --mapCores "$NCPU" \
+                --consCores "$NCPU" --indexCores "$NCPU")
         if [[ -s "$cactus_out/${panel,,}.gfa.gz" ]]; then
             gunzip -c "$cactus_out/${panel,,}.gfa.gz" > "$out_gfa"
         fi
