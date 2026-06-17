@@ -2,38 +2,6 @@
 # =============================================================================
 # Experiment 3 — Throughput Scaling & Tool Comparison   (Q2 + Q3)
 # =============================================================================
-# Roadmap §3.5.5 (Exp 3) + §3.5.2 (baseline panel) + §3.5.5 sub-exp 3a/3b.
-#
-# Answers:
-#   Q2  Is G2G fast?          -> wall + memory vs graph size, 1K..10M snarls
-#   Q3  vs existing tools?    -> linearise-and-map panel (vg giraffe, vg map,
-#                                GraphAligner, minigraph, minimap2)
-#
-# Three coordinated measurements:
-#   (3)  Throughput sweep: graph size grows; G2G(seq), G2G(par), baselines.
-#   (3a) Failure-mode log: WHY each baseline stops completing (OOM / timeout /
-#        path-explosion) at the size it breaks — turns "infeasible" into evidence.
-#   (3b) Haplotype-panel sweep: graph FIXED at 10K snarls; panel h grows
-#        {2,10,30,100,300}. G2G should be flat in h; baselines grow >= linearly.
-#
-# KEY INSTRUMENTATION (new): every G2G run is launched with --verbose-timing so
-# the per-phase breakdown (I/O / index-build / decompose / DP) is captured. This
-# is what lets us interpret the parallel-scaling result honestly and locate the
-# Amdahl bottleneck the Phase-2 100K run exposed.
-#
-# OUTPUTS (under $OUTDIR)
-#   throughput_scaling.tsv          one row per (n, system, run)  + per-phase cols
-#   throughput_scaling_summary.tsv  mean +/- stderr per (n, system)
-#   baseline_failure_modes.tsv      (n, tool, failure_mode, detail)
-#   haplotype_scaling.tsv           one row per (h, system, run)
-#   haplotype_scaling_summary.tsv   mean +/- stderr per (h, system)
-#   env.txt                         full hardware/software environment
-#   manifest.sha256                 checksums of every GFA used
-#
-# SUBMIT (from repo root):
-#   sbatch slurm/scripts/exp3_throughput.sh
-# =============================================================================
-
 #SBATCH --job-name=g2g_exp3
 #SBATCH --output=slurm/logs/exp3-%j.out
 #SBATCH --error=slurm/logs/exp3-%j.err
@@ -46,15 +14,18 @@
 set -euo pipefail
 
 # ── Paths (override via environment) ─────────────────────────────────────────
-# Resolve repo root robustly. Under SLURM the batch script is copied to a
-# spool dir (/var/lib/slurm/...), so BASH_SOURCE no longer points into the repo.
-# Prefer $G2G_REPO (exported by submit_all.sh / the user); fall back to the
-# script's own location only when running in-place (interactively).
 if [[ -n "${G2G_REPO:-}" ]]; then
     REPO="$G2G_REPO"
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -e "$SLURM_SUBMIT_DIR/slurm/scripts/exp3_throughput.sh" ]]; then
+    REPO="$SLURM_SUBMIT_DIR"
 else
     _src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     REPO="$(cd "$_src/../.." && pwd)"
+fi
+if [[ ! -e "$REPO/slurm/scripts/exp3_throughput.sh" ]]; then
+    echo "FATAL: could not locate the G2G repo (REPO='$REPO')." >&2
+    echo "  FIX: sbatch --export=ALL,G2G_REPO=\$PWD slurm/scripts/exp3_throughput.sh" >&2
+    exit 1
 fi
 SCRIPT_DIR="$REPO/slurm/scripts"
 BUILD="$REPO/build"
@@ -65,27 +36,32 @@ OUTDIR="$REPO/results/exp3"
 GRAPHDIR="${G2G_GRAPHDIR:-$REPO/results/exp3/graphs}"
 RUNS="${G2G_RUNS:-3}"
 
-# Graph-size sweep. MAX_N is HPRC-realistic (10M snarls ~ 36M nodes ~ whole
-# human pangenome scale). Drop to 1000000 if RAM < 256 GB.
+# Graph-size sweep. PARALLEL runs at every size here.
 SIZES_DEFAULT="1000 10000 100000 1000000 10000000"
 SIZES="${G2G_SIZES:-$SIZES_DEFAULT}"
+
+# ── SEQUENTIAL-BASELINE SIZE GATE (the runaway fix) ──────────────────────────
+# The single-threaded baseline is O(n_A * n_B) — QUADRATIC in snarl count.
+# Measured: n=10k -> ~4815 s/run. Extrapolated: n=10^5 -> ~5.6 days/run,
+# n=10^6 -> ~1.5 years/run. Running it at large n is BOTH infeasible and
+# unnecessary: it is only needed as the speedup *denominator* at sizes where it
+# is tractable. Above this threshold we run PARALLEL ONLY and report throughput
+# scaling (the headline figure), not a sequential-vs-parallel ratio.
+#   Default 10000 keeps each sequential run ~80 min and the whole sequential
+#   set bounded. Override with G2G_SEQ_MAX_N if you have time/headroom.
+SEQ_MAX_N="${G2G_SEQ_MAX_N:-10000}"
 
 # Haplotype-panel sweep (Exp 3b): fixed graph size, growing panel.
 HAP_N="${G2G_HAP_N:-10000}"
 HAP_PANELS="${G2G_HAP_PANELS:-2 10 30 100 300}"
 
-# Per-baseline wall-clock ceiling. Past this we declare the tool infeasible at
-# that size and record the failure mode rather than letting it run forever.
 BASELINE_TIMEOUT="${G2G_BASELINE_TIMEOUT:-7200}"   # 2 h
 
 NCPU="$(nproc)"
 
 mkdir -p "$OUTDIR" "$GRAPHDIR" "$REPO/slurm/logs"
-
-# shellcheck source=lib_measure.sh
 source "$SCRIPT_DIR/lib_measure.sh"
 
-# ── Environment ──────────────────────────────────────────────────────────────
 if [[ -n "${CONDA_BASE:-}" && -f "$CONDA_BASE/etc/profile.d/conda.sh" ]]; then
     source "$CONDA_BASE/etc/profile.d/conda.sh"
 elif [[ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]]; then
@@ -94,9 +70,9 @@ fi
 conda activate "${G2G_ENV:-phase5}" 2>/dev/null || log "WARN: could not activate conda env"
 
 capture_env "$OUTDIR/env.txt"
-log "exp3 start  repo=$REPO  binary=$G2G  sizes=[$SIZES]  runs=$RUNS"
+log "exp3 start  repo=$REPO  binary=$G2G  sizes=[$SIZES]  runs=$RUNS  seq_max_n=$SEQ_MAX_N"
 
-# ── Rebuild Release (so the evaluated binary matches the repo state) ──────────
+# ── Rebuild Release ──────────────────────────────────────────────────────────
 if command -v cmake >/dev/null 2>&1; then
     if cmake -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_CXX_COMPILER="$(which g++)" \
@@ -115,18 +91,14 @@ if [[ ! -x "$G2G" ]]; then
     exit 1
 fi
 
-# ── Detect whether the binary supports --verbose-timing ──────────────────────
-# (If the feature has not been merged yet, we still run, just without phase cols.)
 VERBOSE_FLAG=""
 if "$G2G" --help 2>&1 | grep -q -- "--verbose-timing"; then
     VERBOSE_FLAG="--verbose-timing"
     log "binary supports --verbose-timing: per-phase breakdown ENABLED"
 else
     log "binary lacks --verbose-timing: per-phase columns will be NA"
-    log "  (add the flag per gap-analysis item 'G2G timing instrumentation')"
 fi
 
-# ── Optional baselines: detect what is installed ─────────────────────────────
 have() { command -v "$1" >/dev/null 2>&1; }
 HAVE_VG=0;          have vg          && HAVE_VG=1
 HAVE_GRAPHALIGNER=0; have GraphAligner && HAVE_GRAPHALIGNER=1
@@ -134,10 +106,6 @@ HAVE_MINIGRAPH=0;   have minigraph   && HAVE_MINIGRAPH=1
 HAVE_MINIMAP2=0;    have minimap2    && HAVE_MINIMAP2=1
 log "baselines: vg=$HAVE_VG GraphAligner=$HAVE_GRAPHALIGNER minigraph=$HAVE_MINIGRAPH minimap2=$HAVE_MINIMAP2"
 
-# ── Parse a G2G --verbose-timing line into 4 phase numbers ───────────────────
-# Expected stderr format (emit this from main.cpp when --verbose-timing is set):
-#   [timing] io=12.34 index=45.67 decompose=8.90 dp=120.45
-# Returns: "io index decompose dp" or "NA NA NA NA"
 parse_phases() {
     local logfile="$1"
     local line
@@ -151,7 +119,6 @@ parse_phases() {
     echo "${io:-NA} ${idx:-NA} ${dec:-NA} ${dp:-NA}"
 }
 
-# ── Output files ─────────────────────────────────────────────────────────────
 RESULTS="$OUTDIR/throughput_scaling.tsv"
 FAILMODE="$OUTDIR/baseline_failure_modes.tsv"
 MANIFEST="$OUTDIR/manifest.sha256"
@@ -159,44 +126,35 @@ MANIFEST="$OUTDIR/manifest.sha256"
 tsv_init "$RESULTS" "n_snarls\tsystem\trun\twall_sec\tpeak_rss_kb\tuser_sec\tsys_sec\tcpu_pct\texit\tphase_io\tphase_index\tphase_decompose\tphase_dp"
 tsv_init "$FAILMODE" "n_snarls\ttool\tfailure_mode\tdetail"
 
-# ── Run one G2G configuration, append a row ──────────────────────────────────
-# run_g2g <n> <system_label> <run> <extra g2g args...>
 run_g2g() {
     local n="$1" label="$2" run="$3"; shift 3
     local ga="$GRAPHDIR/ga_${n}.gfa" gb="$GRAPHDIR/gb_${n}.gfa"
     local g2glog; g2glog=$(mktemp)
-
-    # measure_full_capture keeps the time report separate from the command's
-    # stderr, so the [timing] line lands in $g2glog where parse_phases can read it.
     local metrics
     metrics=$(measure_full_capture "$g2glog" \
               "$G2G" "$ga" "$gb" --gaf /dev/null $VERBOSE_FLAG "$@")
     read -r wall peak user sys cpu ec <<< "$metrics"
     local phases; phases=$(parse_phases "$g2glog")
     read -r p_io p_idx p_dec p_dp <<< "$phases"
-
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$n" "$label" "$run" "$wall" "$peak" "$user" "$sys" "$cpu" "$ec" \
         "$p_io" "$p_idx" "$p_dec" "$p_dp" >> "$RESULTS"
-    log "  [$label] n=$n run=$run wall=${wall}s rss=${peak}kB cpu=${cpu}% exit=$ec phases(io/idx/dec/dp)=$p_io/$p_idx/$p_dec/$p_dp"
+    log "  [$label] n=$n run=$run wall=${wall}s rss=${peak}kB cpu=${cpu}% exit=$ec"
     rm -f "$g2glog"
     return 0
 }
 
-# ── Record a baseline failure mode ───────────────────────────────────────────
 record_failure() {
     local n="$1" tool="$2" mode="$3" detail="$4"
     printf '%s\t%s\t%s\t%s\n' "$n" "$tool" "$mode" "$detail" >> "$FAILMODE"
     log "  [$tool] n=$n INFEASIBLE: $mode ($detail)"
 }
 
-# ── Linearise a graph into per-haplotype FASTA (baseline input) ──────────────
 linearise() {
     local gfa="$1" fasta="$2"
     if [[ -f "$LINEARISE" ]]; then
         python3 "$LINEARISE" "$gfa" "$fasta"
     else
-        # Inline fallback lineariser (P-line walk -> FASTA), handles +/-.
         python3 - "$gfa" "$fasta" <<'PYEOF'
 import sys
 def rc(s):
@@ -223,20 +181,15 @@ PYEOF
     fi
 }
 
-# ── Run a baseline tool with timeout + failure classification ────────────────
-# run_baseline <n> <tool> <command...>
 run_baseline() {
     local n="$1" tool="$2"; shift 2
     local blog; blog=$(mktemp)
     local metrics
-    # `timeout` returns 124 on TLE. We still capture whatever metrics exist.
     metrics=$(measure_full timeout "$BASELINE_TIMEOUT" "$@" 2>"$blog")
     read -r wall peak user sys cpu ec <<< "$metrics"
-
     if [[ "$ec" == "124" ]]; then
         record_failure "$n" "$tool" "timeout" ">${BASELINE_TIMEOUT}s wall"
     elif [[ "$ec" != "0" ]]; then
-        # Distinguish OOM (137 = SIGKILL, usually the OOM killer) from other errors
         if [[ "$ec" == "137" ]] || grep -qiE "out of memory|bad_alloc|cannot allocate" "$blog"; then
             record_failure "$n" "$tool" "oom" "exit=$ec peak_rss=${peak}kB"
         else
@@ -267,20 +220,25 @@ for N in $SIZES; do
     else
         log "  graphs present, reusing"
     fi
-    # Record checksums for the reproducibility manifest
     echo "$(sha_of "$GA")  $(basename "$GA")" >> "$MANIFEST"
     echo "$(sha_of "$GB")  $(basename "$GB")" >> "$MANIFEST"
 
     for RUN in $(seq 1 "$RUNS"); do
-        # G2G sequential (denominator for parallel speedup; isolates algo cost)
-        run_g2g "$N" "g2g_sequential" "$RUN" --sequential
+        # ── Sequential baseline: ONLY at sizes where it is tractable ─────────
+        if (( N <= SEQ_MAX_N )); then
+            run_g2g "$N" "g2g_sequential" "$RUN" --sequential
+        elif (( RUN == 1 )); then
+            log "  [g2g_sequential] n=$N SKIPPED (n > G2G_SEQ_MAX_N=$SEQ_MAX_N; O(n^2) baseline infeasible — reporting parallel-only)"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$N" "g2g_sequential" "$RUN" "NA" "NA" "NA" "NA" "NA" "skipped_seq_max_n" \
+                "NA" "NA" "NA" "NA" >> "$RESULTS"
+        fi
 
-        # G2G parallel (all cores) — the system under evaluation
+        # ── Parallel: at EVERY size (this is the headline scaling curve) ─────
         run_g2g "$N" "g2g_parallel_${NCPU}t" "$RUN" --threads "$NCPU"
     done
 
-    # ── Baselines (one timed run each; they are deterministic enough) ────────
-    # Linearise both graphs once; reuse across baselines.
+    # ── Baselines ────────────────────────────────────────────────────────────
     FA="$GRAPHDIR/seqs_a_${N}.fa"; FB="$GRAPHDIR/seqs_b_${N}.fa"
     NEED_LINEARISE=0
     if [[ $HAVE_MINIMAP2 -eq 1 || $HAVE_GRAPHALIGNER -eq 1 || $HAVE_VG -eq 1 || $HAVE_MINIGRAPH -eq 1 ]]; then
@@ -288,7 +246,6 @@ for N in $SIZES; do
     fi
     if [[ $NEED_LINEARISE -eq 1 && ( ! -s "$FA" || ! -s "$FB" ) ]]; then
         log "  linearising graphs for baselines..."
-        # Linearisation itself can OOM at huge N (path explosion). Guard it.
         if ! timeout "$BASELINE_TIMEOUT" bash -c "$(declare -f linearise); linearise '$GA' '$FA'" 2>/dev/null; then
             record_failure "$N" "linearise" "path_explosion" "haplotype extraction exceeded ${BASELINE_TIMEOUT}s or OOM"
             FA=""; FB=""
@@ -298,18 +255,12 @@ for N in $SIZES; do
     fi
 
     if [[ -n "$FA" && -s "$FA" ]]; then
-        # minimap2 asm5 — pure linear baseline (topology discarded both sides)
         [[ $HAVE_MINIMAP2 -eq 1 ]] && \
             run_baseline "$N" "minimap2_asm5" \
                 minimap2 -x asm5 -t "$NCPU" --secondary=no "$FA" "$FB" -o /dev/null
-
-        # GraphAligner — assembly-to-graph (queries=GA haplotypes, ref graph=GB)
         [[ $HAVE_GRAPHALIGNER -eq 1 ]] && \
             run_baseline "$N" "graphaligner" \
                 GraphAligner -g "$GB" -f "$FA" -a /dev/null -x vg -t "$NCPU"
-
-        # vg giraffe — de-facto pangenome mapper (requires an index build; we
-        # time the full pipeline because that is what a user pays).
         if [[ $HAVE_VG -eq 1 ]]; then
             run_baseline "$N" "vg_giraffe" bash -c "
                 set -e
@@ -318,13 +269,10 @@ for N in $SIZES; do
                 vg giraffe -x '$GRAPHDIR/gb_${N}.xg' -f '$FA' -t $NCPU > /dev/null 2>&1
             "
         fi
-
-        # minigraph — SV-scale assembly-to-graph
         [[ $HAVE_MINIGRAPH -eq 1 ]] && \
             run_baseline "$N" "minigraph" \
                 minigraph -cxggs -t "$NCPU" "$GB" "$FA"
     else
-        # No linearised input -> all linearise-and-map baselines are infeasible.
         for tool in minimap2_asm5 graphaligner vg_giraffe minigraph; do
             record_failure "$N" "$tool" "skipped" "linearise-and-map infeasible at n=$N"
         done
@@ -348,7 +296,6 @@ for H in $HAP_PANELS; do
     echo "$(sha_of "$GA")  $(basename "$GA")" >> "$MANIFEST"
 
     for RUN in $(seq 1 "$RUNS"); do
-        # G2G parallel — runtime should be ~flat in h
         m=$(measure_full "$G2G" "$GA" "$GB" --gaf /dev/null --threads "$NCPU")
         read -r wall peak user sys cpu ec <<< "$m"
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
@@ -356,7 +303,6 @@ for H in $HAP_PANELS; do
         log "  [g2g] h=$H run=$RUN wall=${wall}s rss=${peak}kB"
     done
 
-    # Baseline: linearise grows with h -> runtime should grow >= linearly
     if [[ $HAVE_MINIMAP2 -eq 1 ]]; then
         FA="$GRAPHDIR/seqs_a_h${H}.fa"; FB="$GRAPHDIR/seqs_b_h${H}.fa"
         if timeout "$BASELINE_TIMEOUT" bash -c "$(declare -f linearise); linearise '$GA' '$FA'" 2>/dev/null; then
@@ -390,7 +336,7 @@ rows = defaultdict(lambda: {"wall": [], "rss": []})
 with open(infile) as f:
     r = csv.DictReader(f, delimiter="\t")
     for row in r:
-        if row.get("exit", "0") not in ("0", ""):   # only successful runs
+        if row.get("exit", "0") not in ("0", ""):
             continue
         key = tuple(row[k] for k in keycols)
         try:

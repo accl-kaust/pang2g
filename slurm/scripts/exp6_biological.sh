@@ -73,15 +73,33 @@
 
 set -euo pipefail
 
-# Resolve repo root robustly. Under SLURM the batch script is copied to a
-# spool dir (/var/lib/slurm/...), so BASH_SOURCE no longer points into the repo.
-# Prefer $G2G_REPO (exported by submit_all.sh / the user); fall back to the
-# script's own location only for in-place runs.
+# Resolve repo root robustly. Under SLURM the batch script is COPIED to a spool
+# dir (/var/lib/slurm/...), so BASH_SOURCE points there, NOT into the repo — using
+# it makes REPO=/var/lib/slurm and every mkdir fails with "Permission denied".
+# Correct precedence:
+#   1. $G2G_REPO          — explicit override (submit_all.sh exports this)
+#   2. $SLURM_SUBMIT_DIR  — the dir you ran `sbatch` from (set by SLURM); this is
+#                           the reliable anchor for a direct `sbatch exp6...`.
+#   3. BASH_SOURCE/../..  — interactive / in-place runs only.
 if [[ -n "${G2G_REPO:-}" ]]; then
     REPO="$G2G_REPO"
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -e "$SLURM_SUBMIT_DIR/slurm/scripts/exp6_biological.sh" ]]; then
+    REPO="$SLURM_SUBMIT_DIR"
 else
     _src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     REPO="$(cd "$_src/../.." && pwd)"
+fi
+
+# Guard: if REPO doesn't actually look like the repo (e.g. resolved to the SLURM
+# spool dir), fail LOUDLY with the fix instead of scattering Permission-denied
+# mkdir errors across /var/lib/slurm.
+if [[ ! -e "$REPO/slurm/scripts/exp6_biological.sh" ]]; then
+    echo "FATAL: could not locate the G2G repo (REPO='$REPO')." >&2
+    echo "       This usually means the job was sbatch'd in a way that lost the" >&2
+    echo "       repo path. Fix by either:" >&2
+    echo "         sbatch --export=ALL,G2G_REPO=\$PWD slurm/scripts/exp6_biological.sh" >&2
+    echo "       (run from the repo root), or submit via slurm/scripts/submit_all.sh." >&2
+    exit 1
 fi
 SCRIPT_DIR="$REPO/slurm/scripts"
 G2G="${G2G_BIN:-$REPO/build/g2g}"
@@ -261,9 +279,14 @@ build_seqfile() {
         log "STAGE1: panel list $listfile missing/empty — cannot build $panel"
         return 1
     fi
-    # Reference row first (minigraph-cactus convention).
+    # Reference row first (minigraph-cactus convention). The reference MUST be a
+    # real sample name that matches a row in this seqfile — cactus leaves it
+    # uncollapsed as the coordinate system. For human pangenomes this is GRCh38.
+    # (The old code used '_MINIGRAPH_', which is cactus's INTERNAL label for
+    # minigraph-decomposition nodes, NOT a valid --reference value — that made
+    # cactus fail. We name the row 'GRCh38' and pass --reference GRCh38 in S2.)
     if [[ -s "$GRCH38" ]]; then
-        printf '_MINIGRAPH_\t%s\n' "$GRCH38" >> "$seqfile"
+        printf 'GRCh38\t%s\n' "$GRCH38" >> "$seqfile"
     fi
     local n_ok=0
     while IFS= read -r sample; do
@@ -308,6 +331,21 @@ build_pangenome() {
     fi
     if [[ "$HAVE_CACTUS" -eq 0 && "$HAVE_MINIGRAPH" -eq 0 ]]; then
         log "STAGE2: neither cactus-pangenome nor minigraph available — cannot build $panel"
+        log "STAGE2:   install with: conda install -n ${G2G_ENV:-phase5} -c bioconda -c conda-forge cactus minigraph vg"
+        return 1
+    fi
+    # cactus-pangenome needs a REAL reference sample (GRCh38) as the uncollapsed
+    # coordinate system. Without it, the seqfile has no GRCh38 row and the build
+    # fails. Guard here with a clear message instead of a cryptic cactus error.
+    if [[ "$HAVE_CACTUS" -eq 1 && ! -s "$GRCH38" ]]; then
+        log "STAGE2: GRCh38 reference FASTA missing at $GRCH38"
+        log "STAGE2:   cactus-pangenome requires it as the reference coordinate system."
+        log "STAGE2:   Stage it there (see README §reference-data) and re-run."
+        return 1
+    fi
+    if ! grep -q '^GRCh38'$'\t' "$seqfile" 2>/dev/null; then
+        log "STAGE2: seqfile $seqfile has no GRCh38 reference row — cannot anchor $panel"
+        log "STAGE2:   (this means GRCh38 was absent when Stage 1 built the seqfile)."
         return 1
     fi
     local cactus_out="$GRAPH_DIR/${panel,,}_cactus"
@@ -318,7 +356,7 @@ build_pangenome() {
     if [[ "$HAVE_CACTUS" -eq 1 ]]; then
         m=$(measure_full cactus-pangenome "$WORK_DIR/js_${panel,,}" "$seqfile" \
                 --outDir "$cactus_out" --outName "${panel,,}" \
-                --reference _MINIGRAPH_ --gfa --gbz --threads "$NCPU" \
+                --reference GRCh38 --gfa --gbz --threads "$NCPU" \
                 --mgCores "$NCPU" --mapCores "$NCPU")
         if [[ -s "$cactus_out/${panel,,}.gfa.gz" ]]; then
             gunzip -c "$cactus_out/${panel,,}.gfa.gz" > "$out_gfa"
