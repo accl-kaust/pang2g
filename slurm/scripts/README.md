@@ -101,6 +101,15 @@ Downloads the 60 HPRC assemblies (30 AFR + 30 EAS haplotypes), driven by the
 official HPRC assembly index, SHA-256 verifying each file. Writes to
 `$G2G_DATA_ROOT/assemblies/`. *(You've already run this successfully.)*
 
+> **Don't delete `$G2G_DATA_ROOT/index/`.** `prestage_hprc.sh` also stores a
+> small (33K) HPRC index file at `$G2G_DATA_ROOT/index/Year1_assemblies_v2_genbank.index`.
+> exp6 needs it on the **compute node** to map each sample to its URL+SHA — and
+> the compute node can't re-fetch it (air-gapped). A cleanup that empties `index/`
+> while leaving `assemblies/` intact will make exp6 fail Stage 1 with
+> `HPRC index NOT available`, even though all 60 assemblies are present. If that
+> happens, re-fetch just the index (see the troubleshooting table) or re-run
+> `prestage_hprc.sh`.
+
 ```bash
 export G2G_DATA_ROOT=~/Research/G2G/hprc_data
 bash slurm/scripts/prestage_hprc.sh
@@ -232,6 +241,8 @@ rm -rf ~/Research/G2G/hprc_data/reference/_downloads
 |---|---|---|
 | `mkdir: cannot create '/var/lib/slurm/...'` | `G2G_REPO` unset | resubmit with `--export=ALL,G2G_REPO=$PWD` |
 | Stage 1 `missing_prestage` | assemblies not staged / wrong `G2G_DATA_ROOT` | export `G2G_DATA_ROOT`, run `prestage_hprc.sh` |
+| Stage 1 `HPRC index NOT available` | `index/` dir emptied (e.g. by a cleanup) while assemblies remain | re-fetch the 33K index: `wget -O $G2G_DATA_ROOT/index/Year1_assemblies_v2_genbank.index https://raw.githubusercontent.com/human-pangenomics/HPP_Year1_Assemblies/main/assembly_index/Year1_assemblies_v2_genbank.index` (or re-run `prestage_hprc.sh`) |
+| `PREFLIGHT FAILED` with a numbered list | one or more data inputs missing | do the one command shown next to each numbered item, then resubmit |
 | Stage 2 `GRCh38 reference FASTA missing` | truth data not staged | run `prestage_refs.sh` |
 | Stage 2 `neither cactus nor minigraph` | tools not in env | `conda install -n phase5 -c bioconda -c conda-forge cactus minigraph vg` |
 | exp3 still runs for days | `G2G_SEQ_MAX_N` raised, or huge `G2G_SIZES` | keep `SEQ_MAX_N=10000`; trim `G2G_SIZES` |

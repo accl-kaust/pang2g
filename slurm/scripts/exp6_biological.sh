@@ -187,6 +187,83 @@ else
     log "STAGE1:   or set G2G_ALLOW_NODE_DOWNLOAD=1 if this node can reach AWS S3."
 fi
 
+# ---------------------------------------------------------------------------
+# PREFLIGHT — check ALL Stage-1/Stage-2 data prerequisites up front and, if any
+# are missing, abort with ONE consolidated, actionable report instead of failing
+# opaquely deep in a later stage. Each line says exactly what is missing and the
+# exact command to fix it. This exists because the inputs (index, panel lists,
+# assemblies, reference + truth sets) live in different places and any one of
+# them missing otherwise surfaces only as "S1=0" with the reason buried in the
+# log. Set G2G_SKIP_PREFLIGHT=1 to bypass (not recommended).
+# ---------------------------------------------------------------------------
+if [[ "${G2G_SKIP_PREFLIGHT:-0}" -ne 1 ]]; then
+    pf_problems=()
+
+    # 1. HPRC index (resolved above into INDEX_OK)
+    if [[ "$INDEX_OK" -ne 1 ]]; then
+        pf_problems+=("HPRC index missing/!invalid at: $INDEX_FILE
+       FIX (login node):  wget -O '$INDEX_FILE' \\
+                            '$HPRC_INDEX_URL'
+       or run:            bash slurm/scripts/prestage_hprc.sh")
+    fi
+
+    # 2. Panel sample lists
+    for pl in "$AFR_SAMPLES:AFR" "$EAS_SAMPLES:EAS"; do
+        f="${pl%%:*}"; nm="${pl##*:}"
+        if [[ ! -s "$f" ]]; then
+            pf_problems+=("$nm panel sample list missing/empty at: $f
+       FIX: create it (one HPRC sample ID per line) or set G2G_${nm}_LIST.")
+        fi
+    done
+
+    # 3. Staged assemblies (cheap sanity check: is the dir populated at all?)
+    n_asm=$(ls "$ASM_DIR"/*.fa.gz 2>/dev/null | wc -l)
+    if [[ "$n_asm" -eq 0 ]]; then
+        pf_problems+=("no HPRC assemblies staged in: $ASM_DIR
+       FIX (login node):  bash slurm/scripts/prestage_hprc.sh")
+    fi
+
+    # 4. Reference genome (cactus anchor + coordinate lifting)
+    if [[ ! -s "$GRCH38" ]]; then
+        pf_problems+=("GRCh38 reference FASTA missing at: $GRCH38
+       FIX (login node):  bash slurm/scripts/prestage_refs.sh")
+    fi
+
+    # 5. Truth sets (Stage 5 enrichment) — warn-level: build can run, biology can't
+    pf_warn=()
+    [[ -s "$GNOMAD_SV"  ]] || pf_warn+=("gnomAD-SV BED missing at: $GNOMAD_SV")
+    [[ -s "$CLINVAR_SV" ]] || pf_warn+=("ClinVar BED missing at:   $CLINVAR_SV")
+
+    if [[ "${#pf_problems[@]}" -gt 0 ]]; then
+        log "############################################################"
+        log "PREFLIGHT FAILED — exp6 cannot run. Missing prerequisites:"
+        log "############################################################"
+        i=1
+        for p in "${pf_problems[@]}"; do
+            log "  [$i] $p"
+            i=$((i+1))
+        done
+        if [[ "${#pf_warn[@]}" -gt 0 ]]; then
+            log "  (also, truth sets needed for Stage 5 enrichment:)"
+            for w in "${pf_warn[@]}"; do log "      - $w  -> bash slurm/scripts/prestage_refs.sh"; done
+        fi
+        log "############################################################"
+        log "Fix the item(s) above (most are one command on the LOGIN NODE),"
+        log "then resubmit:  sbatch --export=ALL,G2G_REPO=\$PWD,G2G_DATA_ROOT=\$G2G_DATA_ROOT \\"
+        log "                       slurm/scripts/exp6_biological.sh"
+        log "############################################################"
+        exit 2
+    fi
+
+    if [[ "${#pf_warn[@]}" -gt 0 ]]; then
+        log "PREFLIGHT: core inputs OK; truth sets missing (Stage 5 enrichment will be skipped):"
+        for w in "${pf_warn[@]}"; do log "  - $w"; done
+        log "PREFLIGHT:   stage them with: bash slurm/scripts/prestage_refs.sh"
+    else
+        log "PREFLIGHT: all data prerequisites present (index, panels, $n_asm assemblies, GRCh38, truth sets)."
+    fi
+fi
+
 # Convert an s3:// HPRC URL to the no-egress https endpoint.
 s3_to_https() { sed 's%^s3://human-pangenomics/%https://s3-us-west-2.amazonaws.com/human-pangenomics/%'; }
 
