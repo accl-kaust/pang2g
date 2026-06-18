@@ -46,11 +46,34 @@ wget -q --show-progress -O "$METADATA_DIR/hprc_v2_index.tsv" "$METADATA_URL" || 
 
 # Download the authoritative 1000 Genomes super-population panel so we can
 # classify each HPRC sample by ancestry instead of trusting a hardcoded list.
+# Try several mirrors; validate the result actually looks like the panel
+# (a real sample row mentioning a super-population) rather than an empty file
+# or an HTML error page — otherwise classification silently yields 0 samples.
 PANEL="$METADATA_DIR/1kgp_pops.panel"
-PANEL_URL="https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
+PANEL_URLS=(
+    "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
+    "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
+    "https://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
+    "https://s3.amazonaws.com/1000genomes/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
+)
 echo "[hprc] Downloading 1KGP super-population panel..."
-wget -q -O "$PANEL" "$PANEL_URL" 2>/dev/null || curl -fsSL -o "$PANEL" "$PANEL_URL" 2>/dev/null || \
-    echo "[hprc] WARNING: could not download 1KGP panel — falling back to GIAB supplement only"
+PANEL_OK=0
+for u in "${PANEL_URLS[@]}"; do
+    if wget -q -O "$PANEL" "$u" 2>/dev/null || curl -fsSL -o "$PANEL" "$u" 2>/dev/null; then
+        if grep -qE '(AFR|EAS)' "$PANEL" 2>/dev/null && \
+           [[ $(wc -l < "$PANEL") -gt 1000 ]]; then
+            PANEL_OK=1
+            echo "[hprc] panel OK ($(wc -l < "$PANEL") rows) from $u"
+            break
+        fi
+    fi
+done
+if [[ "$PANEL_OK" -eq 0 ]]; then
+    echo "[hprc] ERROR: could not fetch a valid 1KGP panel from any mirror." >&2
+    echo "[hprc]        Population classification needs it. Check login-node" >&2
+    echo "[hprc]        network, or place the panel at: $PANEL" >&2
+    exit 1
+fi
 
 echo "[hprc] Metadata written to $METADATA_DIR"
 
@@ -85,6 +108,7 @@ except FileNotFoundError:
 
 # GIAB / non-1KGP samples the panel does not cover.
 superpop.setdefault("HG005", "EAS")   # GIAB Han Chinese son (NA24631)
+sys.stderr.write(f"[hprc] super-pop entries loaded: {len(superpop)}\n")
 
 with open(idx, newline='') as f:
     reader = csv.DictReader(f, delimiter='\t')
