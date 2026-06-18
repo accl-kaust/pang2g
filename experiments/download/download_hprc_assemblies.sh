@@ -12,13 +12,13 @@
 #   bash experiments/download/download_hprc_assemblies.sh
 #
 # Environment variables:
-#   G2G_DATA_ROOT  base directory for data   [default: /data/fat/g2g]
+#   G2G_DATA_ROOT  base directory for data   [default: $HOME/g2g_data]
 #   HPRC_POPS      populations to download    [default: "AFR EAS"]
 #   N_PER_POP      samples per population     [default: 20]
 # ============================================================
 set -euo pipefail
 
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 HPRC_DIR="$DATA_ROOT/hprc"
 ASSEMBLY_DIR="$HPRC_DIR/assemblies"
 METADATA_DIR="$HPRC_DIR/metadata"

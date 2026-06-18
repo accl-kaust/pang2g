@@ -13,11 +13,11 @@
 #   conda activate g2g_eval
 #   bash experiments/exp6_hprc/02_build_pangenomes.sh
 #
-# Set G2G_DATA_ROOT to your data directory (default: /data/fat/g2g)
+# Set G2G_DATA_ROOT to your data directory (default: $HOME/g2g_data)
 # ============================================================
 set -euo pipefail
 
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 HPRC_DIR="$DATA_ROOT/hprc"
 ASSEMBLY_DIR="$HPRC_DIR/assemblies"
 METADATA_DIR="$HPRC_DIR/metadata"

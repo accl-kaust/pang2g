@@ -107,8 +107,12 @@ python experiments/plot/plot_exp6_biology.py \
 
 ## 4. Experiment 6 (HPRC biological validation)
 
-This one needs real data on the shared project volume `/data/fat/g2g`. Run the
-stages in order; each later stage depends on the previous.
+This one needs real data. By default everything lands under
+`$G2G_DATA_ROOT` (defaults to `$HOME/g2g_data`, since the shared
+`/data/fat` volume is not writable by individual user accounts). If you
+do get write access to a larger shared volume, just export
+`G2G_DATA_ROOT=/path/to/share` before submitting and every stage will
+use it. Run the stages in order; each later stage depends on the previous.
 
 ```bash
 # Stage 0 — install third-party tools (Julia/PanGraph, minigraph, cactus, gfatools)
@@ -140,13 +144,18 @@ gnomAD-SV → intersect ClinVar. The individual scripts
 
 | Path | What |
 |---|---|
-| `/data/fat/g2g` | `$G2G_DATA_ROOT` — HPRC assemblies, gnomAD/ClinVar, built pangenomes |
+| `$G2G_DATA_ROOT` (default `$HOME/g2g_data`) | HPRC assemblies, gnomAD/ClinVar, built pangenomes, synthetic GFA scratch |
 | `results/phase5/<exp>/` | Per-experiment CSVs + timing files (in repo, on `/home`) |
 | `results/phase5/figures/` | Rendered figures |
 | `logs/` | Slurm stdout/stderr |
 
-The `/data/fat/` share is the multi-user project volume (65 TB, RAIDZ2); keep
-large datasets and pangenome builds there, not in `/home`.
+`G2G_DATA_ROOT` defaults to `$HOME/g2g_data`. The cluster's `/data/fat`
+share is not writable by individual user accounts, so datasets and
+pangenome builds go under your home by default. If you are granted a quota
+on a larger shared volume, export `G2G_DATA_ROOT` to point there before
+submitting any job — the synthetic experiments (3–5) only use it as scratch
+for generated GFAs, while Exp6 stores the real HPRC/gnomAD/ClinVar data and
+built pangenomes there.
 
 ---
 

@@ -19,7 +19,7 @@
 # ============================================================
 set -euo pipefail
 
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 RESULTS="$DATA_ROOT/results/exp6"
 GNOMAD_DIR="$DATA_ROOT/gnomad_sv"
 TIMESTAMP=$(date +%Y%m%dT%H%M%S)
@@ -85,7 +85,7 @@ echo "[gnomad_int] High-FST overlap:   $N_HIFST_OVERLAP"
 # 3. Background overlap rate (random BED regions, same size)
 # ─────────────────────────────────────────────────────────────
 echo "[gnomad_int] Computing background overlap rate..."
-CHR_SIZES="/data/fat/g2g/clinvar/hg38.chrom.sizes"
+CHR_SIZES="$DATA_ROOT/clinvar/hg38.chrom.sizes"
 
 if [[ -f "$CHR_SIZES" ]]; then
     SHUFFLED="$RESULTS/intersections/delta_shuffled_${TIMESTAMP}.bed"

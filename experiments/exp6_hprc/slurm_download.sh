@@ -19,7 +19,7 @@ source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \
     source "$HOME/miniconda/etc/profile.d/conda.sh"
 conda activate g2g_eval
 cd "$G2G_ROOT"
-export G2G_DATA_ROOT="/data/fat/g2g"
+export G2G_DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 export N_PER_POP=20
 
 echo "[slurm] Download job $SLURM_JOB_ID started at $(date)"

@@ -28,7 +28,7 @@
 set -euo pipefail
 
 G2G_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 RESULTS="$G2G_ROOT/results/phase5/exp5"
 BUILDS="$G2G_ROOT/build"
 GEN_SCRIPT="$G2G_ROOT/experiments/exp3_throughput/gen_synthetic_gfa.py"

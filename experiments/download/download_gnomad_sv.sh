@@ -10,7 +10,7 @@
 # ============================================================
 set -euo pipefail
 
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 OUT_DIR="$DATA_ROOT/gnomad_sv"
 mkdir -p "$OUT_DIR"
 

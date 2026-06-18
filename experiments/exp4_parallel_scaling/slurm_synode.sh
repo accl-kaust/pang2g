@@ -31,7 +31,7 @@ conda activate g2g_eval
 
 cd "$G2G_ROOT"
 
-export G2G_DATA_ROOT="/data/fat/g2g"
+export G2G_DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 export MAX_THREADS="$SLURM_CPUS_ON_NODE"
 export N_SNARLS="100000"
 export REPEATS="5"
