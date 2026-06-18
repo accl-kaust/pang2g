@@ -34,9 +34,15 @@ echo "[clinvar] Output: $OUT_DIR"
 # 1. Download ClinVar VCF (GRCh38)
 # ─────────────────────────────────────────────────────────────
 echo "[clinvar] Downloading ClinVar VCF (GRCh38)..."
-wget -q --show-progress --tries=5 --waitretry=30 \
-    -O "$OUT_DIR/clinvar.vcf.gz" \
-    "${NCBI_FTP}/clinvar.vcf.gz"
+if [[ -f "$OUT_DIR/clinvar.vcf.gz" ]] && \
+   [[ $(stat -c%s "$OUT_DIR/clinvar.vcf.gz") -gt 50000000 ]] && \
+   bcftools view -h "$OUT_DIR/clinvar.vcf.gz" &>/dev/null; then
+    echo "[clinvar] SKIP download (valid VCF already present, $(stat -c%s "$OUT_DIR/clinvar.vcf.gz") bytes)."
+else
+    wget -q --show-progress --tries=5 --waitretry=30 \
+        -O "$OUT_DIR/clinvar.vcf.gz" \
+        "${NCBI_FTP}/clinvar.vcf.gz"
+fi
 
 wget -q -O "$OUT_DIR/clinvar.vcf.gz.tbi" \
     "${NCBI_FTP}/clinvar.vcf.gz.tbi" || \
