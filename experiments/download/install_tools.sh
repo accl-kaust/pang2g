@@ -18,17 +18,59 @@ echo "[tools] Installing into $TOOLS_DIR"
 # 1. PanGraph (graph-to-graph baseline)
 # ─────────────────────────────────────────────────────────────
 # NOTE: upstream `neherlab/pangraph` was rewritten in Rust, so the old
-# `Pkg.add(url="…/pangraph")` Julia install no longer works — the repo root
-# has no Project.toml ("could not find project file"). Bioconda packages a
-# ready-to-run `pangraph` with the same `pangraph build …` CLI, which is the
-# simplest no-sudo install, so we use that.
-echo "[tools] Installing PanGraph via bioconda..."
-if conda install -y -c bioconda -c conda-forge pangraph; then
-    echo "[tools] PanGraph installed: $(command -v pangraph)"
+# `Pkg.add(url=".../pangraph")` Julia install no longer works (the repo root
+# has no Project.toml) and it is not on bioconda. The Rust rewrite ships static
+# prebuilt binaries on its GitHub releases, so we fetch the linux x86_64 asset
+# directly. The asset URL is discovered from the releases API so a version bump
+# doesn't break the install.
+echo "[tools] Installing PanGraph (Rust prebuilt binary)..."
+install_pangraph() {
+    local api="https://api.github.com/repos/neherlab/pangraph/releases/latest"
+    local asset_url
+    asset_url=$(curl -fsSL "$api" \
+        | grep -o '"browser_download_url": *"[^"]*"' \
+        | sed 's/.*"browser_download_url": *"//; s/"$//' \
+        | grep -iE 'linux' \
+        | grep -iE 'x86_64|amd64' \
+        | grep -viE '\.sha|\.txt|\.sig|\.asc' \
+        | head -1)
+    if [[ -z "$asset_url" ]]; then
+        echo "[tools] Could not find a linux x86_64 PanGraph asset." >&2
+        return 1
+    fi
+    echo "[tools] PanGraph asset: $asset_url"
+    local fname="$TOOLS_DIR/$(basename "$asset_url")"
+    curl -fsSL -o "$fname" "$asset_url" || return 1
+
+    case "$fname" in
+        *.tar.gz|*.tgz) tar -xzf "$fname" -C "$TOOLS_DIR" ;;
+        *.tar.xz)       tar -xJf "$fname" -C "$TOOLS_DIR" ;;
+        *.zip)          unzip -o "$fname" -d "$TOOLS_DIR" ;;
+        *)              cp "$fname" "$TOOLS_DIR/pangraph" ;;  # raw binary
+    esac
+
+    # Expose the executable as $TOOLS_DIR/pangraph
+    if [[ ! -x "$TOOLS_DIR/pangraph" ]]; then
+        local found
+        found=$(find "$TOOLS_DIR" -type f -name 'pangraph*' \
+                    ! -name '*.tar.*' ! -name '*.zip' 2>/dev/null | head -1)
+        [[ -n "$found" ]] && cp "$found" "$TOOLS_DIR/pangraph"
+    fi
+    chmod +x "$TOOLS_DIR/pangraph" 2>/dev/null || true
+    [[ -x "$TOOLS_DIR/pangraph" ]] || return 1
+}
+
+if install_pangraph; then
+    export PATH="$TOOLS_DIR:$PATH"
+    grep -qsF "export PATH=\"$TOOLS_DIR:\$PATH\"" ~/.bashrc \
+        || echo "export PATH=\"$TOOLS_DIR:\$PATH\"" >> ~/.bashrc
+    echo "[tools] PanGraph installed: $TOOLS_DIR/pangraph"
+    "$TOOLS_DIR/pangraph" --version 2>/dev/null \
+        || "$TOOLS_DIR/pangraph" --help 2>/dev/null | head -1 || true
 else
-    echo "[tools] WARNING: 'conda install pangraph' failed." >&2
-    echo "[tools] Exp3 will still run and record PanGraph rows with exit_code=-1" >&2
-    echo "[tools] (skipped). Re-run that baseline later with:" >&2
+    echo "[tools] WARNING: PanGraph install failed." >&2
+    echo "[tools] Exp3 still runs and records PanGraph rows with exit_code=-1" >&2
+    echo "[tools] (skipped). Backfill later once installed with:" >&2
     echo "[tools]   ONLY_PANGRAPH=1 bash experiments/exp3_throughput/run.sh" >&2
 fi
 
