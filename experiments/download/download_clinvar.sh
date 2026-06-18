@@ -17,6 +17,17 @@ mkdir -p "$OUT_DIR"
 
 NCBI_FTP="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38"
 
+# Fail loudly if the toolchain isn't on PATH — otherwise bcftools errors get
+# swallowed by `|| true` and we silently write empty BEDs. The usual cause is
+# forgetting to `conda activate g2g_eval` before running.
+for tool in bcftools tabix wget; do
+    if ! command -v "$tool" &>/dev/null; then
+        echo "[clinvar] ERROR: '$tool' not found on PATH." >&2
+        echo "[clinvar]        Did you 'conda activate g2g_eval' first?" >&2
+        exit 1
+    fi
+done
+
 echo "[clinvar] Output: $OUT_DIR"
 
 # ─────────────────────────────────────────────────────────────
