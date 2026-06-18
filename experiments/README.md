@@ -165,8 +165,14 @@ bash experiments/download/install_tools.sh
 tmux new -s g2g_dl
 conda activate g2g_eval
 bash experiments/download/download_all_login.sh
-#   → HPRC assemblies (20 AFR + 20 EAS), gnomAD-SV v4.1, ClinVar (GRCh38)
+#   → HPRC assemblies (balanced AFR/EAS, classified from the 1KGP 3202 panel),
+#     GRCh38 reference (no-alt set), gnomAD-SV v4.1, ClinVar (GRCh38)
 #   detach with Ctrl-b d ; reattach with `tmux attach -t g2g_dl`
+#
+#   NB: HPRC Year-1 has only ~6 East-Asian assemblies, so the AFR/EAS panels
+#   are auto-balanced to the EAS count (≈5 per pop) for a size-matched compare.
+#   ClinVar SV extraction is an optional layer; if it yields 0 SVs the Exp6
+#   Slurm job skips it and still produces the core gnomAD-SV result.
 
 # ── On the COMPUTE NODES (as Slurm jobs) ──────────────────────────
 
