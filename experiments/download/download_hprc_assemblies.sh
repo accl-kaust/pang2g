@@ -100,14 +100,33 @@ superpop = {}
 try:
     with open(panel) as f:
         for line in f:
-            p = line.rstrip("\n").split("\t")
-            if len(p) >= 3 and p[0] != "sample":
+            p = line.rstrip("\n\r").split("\t")
+            if len(p) >= 3 and p[0] not in ("sample", ""):
                 superpop[p[0]] = p[2]
 except FileNotFoundError:
-    sys.stderr.write("[hprc] WARNING: 1KGP panel missing; GIAB supplement only\n")
+    sys.stderr.write("[hprc] WARNING: 1KGP panel missing; using HPRC supplement only\n")
 
-# GIAB / non-1KGP samples the panel does not cover.
-superpop.setdefault("HG005", "EAS")   # GIAB Han Chinese son (NA24631)
+# HPRC Year-1 super-population supplement.
+# The 1KGP v3 panel may not contain newer HPRC samples; these assignments
+# come from the HPRC metadata and 1KGP Phase-3 population tables.
+HPRC_POP = {
+    # EAS — East Asian
+    "HG00438": "EAS", "HG00621": "EAS", "HG00673": "EAS", "HG00733": "EAS",
+    "HG01123": "EAS", "HG01175": "EAS", "HG01928": "EAS",
+    "HG02080": "EAS", "HG02148": "EAS", "HG03540": "EAS", "NA18906": "EAS",
+    "HG005":   "EAS",  # GIAB Han Chinese son (NA24631)
+    # AFR — African
+    "HG02055": "AFR", "HG02109": "AFR", "HG02145": "AFR", "HG02257": "AFR",
+    "HG02486": "AFR", "HG02559": "AFR", "HG02572": "AFR",
+    "HG02886": "AFR", "HG03098": "AFR",
+    "NA19240": "AFR", "NA20129": "AFR",
+    # AMR — American (excluded from AFR/EAS comparison)
+    "HG00735": "AMR", "HG00741": "AMR", "HG01071": "AMR", "HG01106": "AMR",
+    "HG01109": "AMR", "HG01243": "AMR", "HG01258": "AMR",
+    # SAS — South Asian
+    "HG03453": "SAS", "HG03486": "SAS", "HG03516": "SAS", "HG03579": "SAS",
+}
+superpop.update(HPRC_POP)
 sys.stderr.write(f"[hprc] super-pop entries loaded: {len(superpop)}\n")
 
 with open(idx, newline='') as f:
