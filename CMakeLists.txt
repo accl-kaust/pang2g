@@ -20,6 +20,22 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_link_options(-fsanitize=address,undefined)
 endif()
 
+# ── Ablation build flags ──────────────────────────────────────
+# Each flag disables one optimization to isolate its contribution.
+option(G2G_BFS_LAYOUT       "Use BFS snarl-tree layout instead of van Emde Boas" OFF)
+option(G2G_STEAL_RANDOM     "Use random steal instead of largest-task-first"      OFF)
+option(G2G_NAIVE_ANCHOR     "Force naïve O(|VA||VB|) anchor detection"            OFF)
+option(G2G_BRUTE_MATCHING   "Force brute-force bipartite matching (no Hungarian)" OFF)
+option(G2G_STATIC_PARTITION "Use static work partition instead of work-stealing"  OFF)
+
+foreach(FLAG G2G_BFS_LAYOUT G2G_STEAL_RANDOM G2G_NAIVE_ANCHOR
+             G2G_BRUTE_MATCHING G2G_STATIC_PARTITION)
+  if(${FLAG})
+    add_compile_definitions(${FLAG})
+    message(STATUS "Ablation flag: ${FLAG}=ON")
+  endif()
+endforeach()
+
 # ── Dependencies ──────────────────────────────────────────────
 find_package(Threads REQUIRED)
 
