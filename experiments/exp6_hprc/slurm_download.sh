@@ -1,27 +1,26 @@
 #!/bin/bash --login
-# SLURM — HPRC assembly download (Stage 1 of Exp6)
+# ============================================================
+# DEPRECATED — do NOT submit this as a Slurm job.
+#
+# The compute nodes on this cluster have NO internet access, so the Exp6
+# downloads cannot run in a batch job (they hang / fail immediately). Run the
+# downloads on the LOGIN NODE inside tmux instead:
+#
+#   tmux new -s g2g_dl
+#   conda activate g2g_eval
+#   bash experiments/download/download_all_login.sh
+#
+# This wrapper is kept only to redirect anyone who still `sbatch`es it.
+# ============================================================
 #SBATCH --job-name=g2g_exp6_download
 #SBATCH --output=logs/exp6_download_%j.out
 #SBATCH --error=logs/exp6_download_%j.err
 #SBATCH --partition=mc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=32G
-#SBATCH --time=24:00:00
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=shakleyaahmed@gmail.com
+#SBATCH --time=00:01:00
 
-set -euo pipefail
-G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
-mkdir -p "$G2G_ROOT/logs"
-source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \
-    source "$HOME/miniconda/etc/profile.d/conda.sh"
-conda activate g2g_eval
-cd "$G2G_ROOT"
-export G2G_DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
-export N_PER_POP=20
-
-echo "[slurm] Download job $SLURM_JOB_ID started at $(date)"
-bash experiments/download/download_hprc_assemblies.sh
-echo "[slurm] Download completed at $(date)"
+echo "ERROR: compute nodes have no internet — do not download via Slurm." >&2
+echo "Run on the login node in tmux:" >&2
+echo "  bash experiments/download/download_all_login.sh" >&2
+exit 1
