@@ -150,13 +150,25 @@ do get write access to a larger shared volume, just export
 `G2G_DATA_ROOT=/path/to/share` before submitting and every stage will
 use it. Run the stages in order; each later stage depends on the previous.
 
+> **Compute nodes have no internet.** Stages 0 and 1 (anything that
+> downloads) must run on the **login node** `mcmgt01`, *not* as a Slurm job —
+> a batch job has no outbound network and will hang/fail. Only the
+> compute-heavy stages (2 and 3) are submitted with `sbatch`.
+
 ```bash
-# Stage 0 — install third-party tools (Julia/PanGraph, minigraph, cactus, gfatools)
+# ── On the LOGIN NODE (mcmgt01), inside tmux ──────────────────────
+
+# Stage 0 — install third-party tools (PanGraph, minigraph, cactus, gfatools)
 bash experiments/download/install_tools.sh
 
-# Stage 1 — download datasets (~hours; large). Runs as a Slurm job.
-sbatch experiments/exp6_hprc/slurm_download.sh
+# Stage 1 — download datasets (~400 GB, hours). Long-running → use tmux.
+tmux new -s g2g_dl
+conda activate g2g_eval
+bash experiments/download/download_all_login.sh
 #   → HPRC assemblies (20 AFR + 20 EAS), gnomAD-SV v4.1, ClinVar (GRCh38)
+#   detach with Ctrl-b d ; reattach with `tmux attach -t g2g_dl`
+
+# ── On the COMPUTE NODES (as Slurm jobs) ──────────────────────────
 
 # Stage 2 — build the AFR and EAS pangenomes with minigraph-cactus
 #   (~48 CPU-h each; 120h walltime ceiling)
@@ -165,6 +177,11 @@ sbatch experiments/exp6_hprc/slurm_build_pangenomes.sh
 # Stage 3 — G2G align + gnomAD-SV enrichment + ClinVar overlap
 sbatch experiments/exp6_hprc/slurm.sh
 ```
+
+`download_all_login.sh` runs all three download scripts in sequence and is
+re-runnable — completed files are skipped, so if a transfer drops you can
+just start it again. The old `slurm_download.sh` is deprecated and now exits
+with an error pointing here.
 
 `slurm.sh` chains the analysis steps: stratify samples → run G2G → intersect
 gnomAD-SV → intersect ClinVar. The individual scripts
