@@ -76,6 +76,7 @@ run_stage() {
 }
 
 run_stage "HPRC assemblies" "$G2G_ROOT/experiments/download/download_hprc_assemblies.sh"
+run_stage "GRCh38 reference" "$G2G_ROOT/experiments/download/download_grch38.sh"
 run_stage "gnomAD-SV v4.1"  "$G2G_ROOT/experiments/download/download_gnomad_sv.sh"
 run_stage "ClinVar (GRCh38)" "$G2G_ROOT/experiments/download/download_clinvar.sh"
 
