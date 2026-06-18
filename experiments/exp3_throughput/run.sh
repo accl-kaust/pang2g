@@ -17,14 +17,14 @@
 #   bash experiments/exp3_throughput/run.sh
 #
 # Environment variables:
-#   G2G_DATA_ROOT  data directory [default: /data/fat/g2g]
+#   G2G_DATA_ROOT  data directory [default: $HOME/g2g_data]
 #   THREADS        threads for G2G [default: all cores]
 #   SKIP_PANGRAPH  skip PanGraph baseline [default: 0]
 # ============================================================
 set -euo pipefail
 
 G2G_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 RESULTS="$G2G_ROOT/results/phase5/exp3"
 BUILD="$G2G_ROOT/build/release"
 G2G_BIN="$BUILD/g2g"

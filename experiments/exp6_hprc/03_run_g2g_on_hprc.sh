@@ -13,7 +13,7 @@
 # ============================================================
 set -euo pipefail
 
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 HPRC_DIR="$DATA_ROOT/hprc"
 PANGENOME_DIR="$HPRC_DIR/pangenomes"
 RESULTS="$DATA_ROOT/results/exp6"

@@ -10,8 +10,8 @@ filtered by:
 
 Usage:
     python 01_stratify_hprc_samples.py \\
-        --metadata /data/fat/g2g/hprc/metadata/hprc_v2_index.tsv \\
-        --out-dir  /data/fat/g2g/hprc/metadata/
+        --metadata ~/g2g_data/hprc/metadata/hprc_v2_index.tsv \\
+        --out-dir  ~/g2g_data/hprc/metadata/
 """
 
 import argparse
@@ -110,12 +110,14 @@ def stratify(index_file: str, out_dir: str,
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    data_root = os.environ.get("G2G_DATA_ROOT",
+                               os.path.expanduser("~/g2g_data"))
     parser.add_argument("--metadata",
-                        default="/data/fat/g2g/hprc/metadata/hprc_v2_index.tsv")
+                        default=os.path.join(data_root, "hprc/metadata/hprc_v2_index.tsv"))
     parser.add_argument("--out-dir",
-                        default="/data/fat/g2g/hprc/metadata/")
+                        default=os.path.join(data_root, "hprc/metadata/"))
     parser.add_argument("--assembly-dir",
-                        default="/data/fat/g2g/hprc/assemblies/")
+                        default=os.path.join(data_root, "hprc/assemblies/"))
     parser.add_argument("--n-afr", type=int, default=20)
     parser.add_argument("--n-eas", type=int, default=20)
     args = parser.parse_args()

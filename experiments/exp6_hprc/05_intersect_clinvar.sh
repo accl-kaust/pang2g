@@ -16,7 +16,7 @@
 # ============================================================
 set -euo pipefail
 
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 RESULTS="$DATA_ROOT/results/exp6"
 CLINVAR_DIR="$DATA_ROOT/clinvar"
 TIMESTAMP=$(date +%Y%m%dT%H%M%S)

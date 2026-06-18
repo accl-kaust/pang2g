@@ -12,7 +12,7 @@
 #
 # Usage:
 #   conda activate g2g_eval
-#   export G2G_DATA_ROOT=/data/fat/g2g
+#   export G2G_DATA_ROOT=$HOME/g2g_data
 #   bash experiments/exp4_parallel_scaling/run.sh
 #
 # Environment variables:
@@ -23,7 +23,7 @@
 set -euo pipefail
 
 G2G_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DATA_ROOT="${G2G_DATA_ROOT:-/data/fat/g2g}"
+DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 RESULTS="$G2G_ROOT/results/phase5/exp4"
 BUILD="$G2G_ROOT/build/release"
 G2G_BIN="$BUILD/g2g"
