@@ -73,10 +73,10 @@ conda activate g2g_eval
 |---|---|---|---|---|
 | 1 — Correctness | `sbatch experiments/exp1_correctness/slurm.sh` | mc | 16 / 32G / 2h | no (synthetic) |
 | 2 — minimap2 consistency | `sbatch experiments/exp2_minimap2/slurm.sh` | mc | 16 / 64G / 4h | no (synthetic) |
-| 3 — Throughput | `sbatch experiments/exp3_throughput/slurm.sh` | mc | 64 / 256G / 24h | no (synthetic) |
+| 3 — Throughput | `sbatch experiments/exp3_throughput/slurm.sh` | mc | 64 / 256G / 14h | no (synthetic) |
 | 4 — Parallel scaling | `sbatch experiments/exp4_parallel_scaling/slurm.sh` | mc | 128 / 400G / 12h | no (synthetic) |
 | 5 — Ablation | `sbatch experiments/exp5_ablation/slurm.sh` | mc | 64 / 256G / 12h | no (synthetic) |
-| 6 — HPRC biology | see [§4](#4-experiment-6-hprc-biological-validation) | mc | 64 / 400G / 48h | **yes** |
+| 6 — HPRC biology | see [§4](#4-experiment-6-hprc-biological-validation) | mc | 64 / 400G / 14h | **yes** |
 
 Experiments 1–5 are fully synthetic and need no downloads — submit them right
 away.
@@ -177,7 +177,7 @@ bash experiments/download/download_all_login.sh
 # ── On the COMPUTE NODES (as Slurm jobs) ──────────────────────────
 
 # Stage 2 — build the AFR and EAS pangenomes with minigraph-cactus
-#   (~48 CPU-h each; 120h walltime ceiling)
+#   (small balanced panel ~5 samples/pop → a few hours each; 14h walltime)
 sbatch experiments/exp6_hprc/slurm_build_pangenomes.sh
 
 # Stage 3 — G2G align + gnomAD-SV enrichment + ClinVar overlap
@@ -193,9 +193,10 @@ with an error pointing here.
 gnomAD-SV → intersect ClinVar. The individual scripts
 (`01_…` through `05_…`) can also be run by hand for debugging.
 
-> **Tip:** `slurm_build_pangenomes.sh` is 5 days of walltime. A future cluster
-> policy will require jobs >3 days to be preemptible (`--qos=spot`); it's not
-> enforced yet, but if it starts failing to schedule, add `#SBATCH --qos=spot`.
+> **Walltime cap:** compute-node jobs are limited to **14 hours**. Every Slurm
+> script here is set to `--time=14:00:00` or less. The Exp6 build fits easily
+> because the balanced panel is small (~5 samples/pop). If a build ever bumps
+> the limit, split AFR and EAS into two separate jobs.
 
 ---
 

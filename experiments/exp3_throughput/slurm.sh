@@ -18,7 +18,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=256G
-#SBATCH --time=24:00:00
+#SBATCH --time=14:00:00
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=shakleyaahmed@gmail.com
 
