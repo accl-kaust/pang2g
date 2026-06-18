@@ -94,8 +94,15 @@ build_pangenome() {
     echo "[build_pg] Seqfile: $seqfile ($(wc -l < "$seqfile") entries)"
 
     # ── Run cactus-pangenome ──────────────────────────────────
+    # Toil refuses to reuse an existing jobstore, so a previous failed run
+    # leaves one behind that blocks every retry. Clean it (and stale outputs)
+    # for a fresh start. SLURM_MEM_PER_NODE is in MB, so pass it with an 'M'
+    # suffix — appending 'G' previously asked for 409600G (400,000 GB).
+    rm -rf "$job_store"
+    local mem_mb="${SLURM_MEM_PER_NODE:-409600}"
+
     START_EPOCH=$(date +%s)
-    echo "[build_pg] Starting cactus-pangenome at $(date)..."
+    echo "[build_pg] Starting cactus-pangenome at $(date) (maxMemory=${mem_mb}M)..."
 
     cactus-pangenome \
         "$job_store" \
@@ -107,7 +114,7 @@ build_pangenome() {
         --gfa \
         --gbz \
         --maxCores "$NCPU" \
-        --maxMemory "${SLURM_MEM_PER_NODE:-400}G" \
+        --maxMemory "${mem_mb}M" \
         --logFile "$log_file" \
         2>&1 | tee -a "$log_file"
 
