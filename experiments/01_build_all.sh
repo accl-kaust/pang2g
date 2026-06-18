@@ -22,6 +22,33 @@ set -euo pipefail
 
 G2G_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NCPU=$(nproc)
+ENV_NAME="${G2G_ENV_NAME:-g2g_eval}"
+
+# ── Ensure the g2g_eval toolchain env is active ───────────────
+# The cmake/ninja/compilers live inside the conda env, not in base.
+if [[ "${CONDA_DEFAULT_ENV:-}" != "$ENV_NAME" ]]; then
+    echo "[build] Activating conda env '$ENV_NAME' (was: ${CONDA_DEFAULT_ENV:-none})"
+    # shellcheck disable=SC1090
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    conda activate "$ENV_NAME"
+fi
+
+# ── Preflight: confirm the build toolchain is on PATH ─────────
+missing=()
+for tool in cmake ninja; do
+    command -v "$tool" &>/dev/null || missing+=("$tool")
+done
+# A C++ compiler from the env (cxx-compiler installs x86_64-conda-linux-gnu-g++)
+if ! command -v c++ &>/dev/null && ! command -v g++ &>/dev/null \
+   && ! ls "${CONDA_PREFIX:-/nonexistent}"/bin/*-g++ &>/dev/null; then
+    missing+=("c++ compiler")
+fi
+if (( ${#missing[@]} > 0 )); then
+    echo "[build] ERROR: missing build tools: ${missing[*]}" >&2
+    echo "[build] Run 'bash experiments/00_setup_env.sh' first, then re-run this script." >&2
+    exit 1
+fi
+echo "[build] Toolchain OK: cmake=$(command -v cmake)  ninja=$(command -v ninja)"
 
 build_variant() {
     local name="$1"; shift
