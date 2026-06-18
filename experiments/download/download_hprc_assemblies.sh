@@ -52,28 +52,35 @@ wget -q --show-progress -O "$METADATA_DIR/hprc_v2_index.tsv" "$METADATA_URL" || 
 # really looks like a population table (>1000 data rows mentioning AFR/EAS)
 # rather than an empty file or an HTML error page.
 PANEL="$METADATA_DIR/1kgp_pops.panel"
+# The 3202-sample table contains the HPRC samples; the 2013 2504-panel does NOT,
+# so it is deliberately excluded — falling back to it silently mislabels
+# everything as unclassified. We REQUIRE a known HPRC sample (HG00438) to be
+# present, not just any AFR/EAS string, so a wrong file can't pass validation.
 PANEL_URLS=(
-    "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20130606_g1k_3202_samples_ped_population.txt"
-    "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20130606_g1k_3202_samples_ped_population.txt"
-    "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
-    "https://s3.amazonaws.com/1000genomes/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
+    "http://1000genomes.s3.amazonaws.com/1000G_2504_high_coverage/additional_698_related/20130606_g1k_3202_samples_ped_population.txt"
+    "https://1000genomes.s3.amazonaws.com/1000G_2504_high_coverage/additional_698_related/20130606_g1k_3202_samples_ped_population.txt"
+    "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/additional_698_related/20130606_g1k_3202_samples_ped_population.txt"
+    "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/additional_698_related/20130606_g1k_3202_samples_ped_population.txt"
 )
-echo "[hprc] Downloading 1KGP population table..."
+echo "[hprc] Downloading 1KGP 3202-sample population table..."
 PANEL_OK=0
 for u in "${PANEL_URLS[@]}"; do
     if wget -q -O "$PANEL" "$u" 2>/dev/null || curl -fsSL -o "$PANEL" "$u" 2>/dev/null; then
-        if grep -qE '(AFR|EAS)' "$PANEL" 2>/dev/null && \
+        if grep -qw 'HG00438' "$PANEL" 2>/dev/null && \
+           grep -qE '(AFR|EAS)' "$PANEL" 2>/dev/null && \
            [[ $(wc -l < "$PANEL") -gt 1000 ]]; then
             PANEL_OK=1
-            echo "[hprc] panel OK ($(wc -l < "$PANEL") rows) from $u"
+            echo "[hprc] panel OK ($(wc -l < "$PANEL") rows, HPRC samples present) from $u"
             break
         fi
     fi
 done
 if [[ "$PANEL_OK" -eq 0 ]]; then
-    echo "[hprc] ERROR: could not fetch a valid 1KGP population table." >&2
-    echo "[hprc]        Population classification needs it. Check login-node" >&2
-    echo "[hprc]        network, or place the table at: $PANEL" >&2
+    echo "[hprc] ERROR: could not fetch a valid 3202-sample 1KGP table." >&2
+    echo "[hprc]        It must contain the HPRC samples (e.g. HG00438)." >&2
+    echo "[hprc]        Download it manually from one of:" >&2
+    printf '[hprc]          %s\n' "${PANEL_URLS[@]}" >&2
+    echo "[hprc]        and place it at: $PANEL" >&2
     exit 1
 fi
 
