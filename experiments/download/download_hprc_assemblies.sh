@@ -44,19 +44,21 @@ wget -q --show-progress -O "$METADATA_DIR/hprc_v2_index.tsv" "$METADATA_URL" || 
     curl -fsSL -o "$METADATA_DIR/hprc_v2_index.tsv" "$METADATA_URL"
 }
 
-# Download the authoritative 1000 Genomes super-population panel so we can
-# classify each HPRC sample by ancestry instead of trusting a hardcoded list.
-# Try several mirrors; validate the result actually looks like the panel
-# (a real sample row mentioning a super-population) rather than an empty file
-# or an HTML error page — otherwise classification silently yields 0 samples.
+# Download the authoritative 1000 Genomes population table so we can classify
+# each HPRC sample by ancestry instead of trusting a hardcoded list. We use the
+# expanded 3202-sample pedigree+population file (2020), which — unlike the 2013
+# 2504-sample panel — actually contains the newer HPRC samples (HG00438,
+# NA19240, etc.). The 2504 panel is kept only as a fallback. Validate the file
+# really looks like a population table (>1000 data rows mentioning AFR/EAS)
+# rather than an empty file or an HTML error page.
 PANEL="$METADATA_DIR/1kgp_pops.panel"
 PANEL_URLS=(
+    "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20130606_g1k_3202_samples_ped_population.txt"
+    "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20130606_g1k_3202_samples_ped_population.txt"
     "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
-    "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
-    "https://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
     "https://s3.amazonaws.com/1000genomes/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
 )
-echo "[hprc] Downloading 1KGP super-population panel..."
+echo "[hprc] Downloading 1KGP population table..."
 PANEL_OK=0
 for u in "${PANEL_URLS[@]}"; do
     if wget -q -O "$PANEL" "$u" 2>/dev/null || curl -fsSL -o "$PANEL" "$u" 2>/dev/null; then
@@ -69,9 +71,9 @@ for u in "${PANEL_URLS[@]}"; do
     fi
 done
 if [[ "$PANEL_OK" -eq 0 ]]; then
-    echo "[hprc] ERROR: could not fetch a valid 1KGP panel from any mirror." >&2
+    echo "[hprc] ERROR: could not fetch a valid 1KGP population table." >&2
     echo "[hprc]        Population classification needs it. Check login-node" >&2
-    echo "[hprc]        network, or place the panel at: $PANEL" >&2
+    echo "[hprc]        network, or place the table at: $PANEL" >&2
     exit 1
 fi
 
@@ -95,38 +97,39 @@ import sys, csv, os
 idx, panel, out, metadir, npp = sys.argv[1:6]
 npp = int(npp)
 
-# Build sample -> super-population map from the 1KGP panel.
+# Build sample -> super-population map from the authoritative 1KGP table.
+# Two formats are handled, detected from the header line:
+#   - 2504 panel:  sample  pop  super_pop  gender        (tab-separated)
+#   - 3202 ped:    SampleID FatherID MotherID Sex Population Superpopulation
+# We locate the sample and super-population columns by header name so we never
+# guess populations ourselves (an earlier hardcoded list mislabeled several
+# American samples as EAS).
 superpop = {}
 try:
     with open(panel) as f:
+        first = f.readline()
+        sep = "\t" if "\t" in first else None  # None => any whitespace
+        hdr = [h.lower() for h in first.split(sep)]
+        def col(*names):
+            for i, h in enumerate(hdr):
+                if h in names:
+                    return i
+            return None
+        s_i = col("sample", "sampleid", "sample_id")
+        sp_i = col("super_pop", "superpopulation", "superpop", "super_population")
+        if s_i is None or sp_i is None:
+            sys.stderr.write(f"[hprc] ERROR: cannot find sample/superpop columns "
+                             f"in panel header: {hdr}\n")
+            sys.exit(4)
         for line in f:
-            p = line.rstrip("\n\r").split("\t")
-            if len(p) >= 3 and p[0] not in ("sample", ""):
-                superpop[p[0]] = p[2]
+            p = line.split(sep)
+            if len(p) > max(s_i, sp_i):
+                superpop[p[s_i].strip()] = p[sp_i].strip()
 except FileNotFoundError:
-    sys.stderr.write("[hprc] WARNING: 1KGP panel missing; using HPRC supplement only\n")
+    sys.stderr.write("[hprc] ERROR: 1KGP panel missing\n"); sys.exit(4)
 
-# HPRC Year-1 super-population supplement.
-# The 1KGP v3 panel may not contain newer HPRC samples; these assignments
-# come from the HPRC metadata and 1KGP Phase-3 population tables.
-HPRC_POP = {
-    # EAS — East Asian
-    "HG00438": "EAS", "HG00621": "EAS", "HG00673": "EAS", "HG00733": "EAS",
-    "HG01123": "EAS", "HG01175": "EAS", "HG01928": "EAS",
-    "HG02080": "EAS", "HG02148": "EAS", "HG03540": "EAS", "NA18906": "EAS",
-    "HG005":   "EAS",  # GIAB Han Chinese son (NA24631)
-    # AFR — African
-    "HG02055": "AFR", "HG02109": "AFR", "HG02145": "AFR", "HG02257": "AFR",
-    "HG02486": "AFR", "HG02559": "AFR", "HG02572": "AFR",
-    "HG02886": "AFR", "HG03098": "AFR",
-    "NA19240": "AFR", "NA20129": "AFR",
-    # AMR — American (excluded from AFR/EAS comparison)
-    "HG00735": "AMR", "HG00741": "AMR", "HG01071": "AMR", "HG01106": "AMR",
-    "HG01109": "AMR", "HG01243": "AMR", "HG01258": "AMR",
-    # SAS — South Asian
-    "HG03453": "SAS", "HG03486": "SAS", "HG03516": "SAS", "HG03579": "SAS",
-}
-superpop.update(HPRC_POP)
+# GIAB Han Chinese son (NA24631), not present in 1KGP tables.
+superpop.setdefault("HG005", "EAS")
 sys.stderr.write(f"[hprc] super-pop entries loaded: {len(superpop)}\n")
 
 with open(idx, newline='') as f:
