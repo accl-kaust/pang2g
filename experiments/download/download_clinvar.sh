@@ -36,9 +36,20 @@ wget -q -O "$OUT_DIR/clinvar.vcf.gz.tbi" \
 #    CLNSIG = Pathogenic or Likely_pathogenic
 #    CLNVC  = structural variant types (Deletion, Duplication, etc.)
 # ─────────────────────────────────────────────────────────────
+# Show top CLNVC values to confirm filter will match
+echo "[clinvar] CLNVC value counts (top 10):"
+bcftools query -f '%CLNVC\n' "$OUT_DIR/clinvar.vcf.gz" 2>/dev/null \
+    | sort | uniq -c | sort -rn | head -10 || true
+
 echo "[clinvar] Extracting pathogenic SVs..."
+# CLNVC uses Title_Case (e.g. "Deletion", "Duplication"); bcftools ~ is case-sensitive.
+# Use case-insensitive regex via (?i) prefix (POSIX ERE supported by bcftools >= 1.10).
+# Do NOT filter on FILTER column — ClinVar variants routinely carry filters like
+# "no_assertion_criteria_provided" but are still clinically relevant.
+SV_FILTER='CLNVC~"(?i)(deletion|duplication|inversion|insertion|copy_number)"'
+PATHO_FILTER='CLNSIG~"(?i)(pathogenic)"'
 bcftools query \
-    -i 'CLNSIG~"Pathogenic" && (CLNVC~"deletion" || CLNVC~"duplication" || CLNVC~"inversion" || CLNVC~"insertion")' \
+    -i "${PATHO_FILTER} && ${SV_FILTER}" \
     -f '%CHROM\t%POS\t%END\t%ID\t%CLNVC\t%CLNSIG\t%CLNDN\n' \
     "$OUT_DIR/clinvar.vcf.gz" \
     | awk 'BEGIN{OFS="\t"} {
@@ -53,7 +64,7 @@ bcftools query \
 # ─────────────────────────────────────────────────────────────
 echo "[clinvar] Extracting all ClinVar SVs..."
 bcftools query \
-    -i '(CLNVC~"deletion" || CLNVC~"duplication" || CLNVC~"inversion" || CLNVC~"insertion")' \
+    -i "${SV_FILTER}" \
     -f '%CHROM\t%POS\t%END\t%ID\t%CLNVC\t%CLNSIG\t%CLNDN\n' \
     "$OUT_DIR/clinvar.vcf.gz" \
     | awk 'BEGIN{OFS="\t"} {
@@ -67,9 +78,44 @@ bcftools query \
 # 4. Create GRCh38 chromosome size file (needed for bedtools)
 # ─────────────────────────────────────────────────────────────
 echo "[clinvar] Creating chromosome sizes file..."
-wget -q -O "$OUT_DIR/hg38.chrom.sizes" \
-    "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes" || \
-    echo "[clinvar] WARNING: Could not download chrom sizes (needed for bedtools slop)"
+# Try multiple sources; fall back to generating from the fai of the GRCh38 reference.
+SIZES_OK=0
+for url in \
+    "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes" \
+    "https://genome.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes" \
+    "https://storage.googleapis.com/genomics-public-data/references/hg38/v0/Homo_sapiens_assembly38.dict"
+do
+    if wget -q --tries=3 --waitretry=10 -O "$OUT_DIR/hg38.chrom.sizes.tmp" "$url" 2>/dev/null && \
+       [[ $(stat -c%s "$OUT_DIR/hg38.chrom.sizes.tmp" 2>/dev/null || echo 0) -gt 1000 ]]; then
+        # The .dict file needs to be converted to chrom.sizes format
+        if [[ "$url" == *.dict ]]; then
+            grep '^@SQ' "$OUT_DIR/hg38.chrom.sizes.tmp" \
+                | sed 's/.*SN:\([^\t]*\).*LN:\([^\t]*\).*/\1\t\2/' \
+                > "$OUT_DIR/hg38.chrom.sizes"
+        else
+            mv "$OUT_DIR/hg38.chrom.sizes.tmp" "$OUT_DIR/hg38.chrom.sizes"
+        fi
+        rm -f "$OUT_DIR/hg38.chrom.sizes.tmp"
+        SIZES_OK=1
+        echo "[clinvar] chrom.sizes downloaded ($(wc -l < "$OUT_DIR/hg38.chrom.sizes") contigs)"
+        break
+    fi
+done
+rm -f "$OUT_DIR/hg38.chrom.sizes.tmp"
+if [[ "$SIZES_OK" -eq 0 ]]; then
+    # Last resort: extract from the ClinVar VCF header contig lines
+    bcftools view -h "$OUT_DIR/clinvar.vcf.gz" \
+        | grep '^##contig' \
+        | sed 's/.*ID=\([^,>]*\).*length=\([0-9]*\).*/\1\t\2/' \
+        | grep -v '^$' \
+        > "$OUT_DIR/hg38.chrom.sizes" || true
+    if [[ $(stat -c%s "$OUT_DIR/hg38.chrom.sizes" 2>/dev/null || echo 0) -gt 0 ]]; then
+        echo "[clinvar] chrom.sizes extracted from VCF header ($(wc -l < "$OUT_DIR/hg38.chrom.sizes") contigs)"
+        SIZES_OK=1
+    else
+        echo "[clinvar] WARNING: could not create hg38.chrom.sizes — bedtools slop will fail" >&2
+    fi
+fi
 
 echo ""
 echo "[clinvar] Summary:"
