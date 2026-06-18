@@ -20,6 +20,12 @@
 #   G2G_DATA_ROOT  data directory [default: $HOME/g2g_data]
 #   THREADS        threads for G2G [default: all cores]
 #   SKIP_PANGRAPH  skip PanGraph baseline [default: 0]
+#   ONLY_PANGRAPH  run ONLY the PanGraph baseline [default: 0]
+#                  Reuses GFAs from a previous full run and skips minimap2 +
+#                  both G2G runs. Use to backfill PanGraph after installing it:
+#                    ONLY_PANGRAPH=1 bash experiments/exp3_throughput/run.sh
+#                  Writes a separate CSV (exp3_throughput_pangraph_<ts>.csv) so
+#                  it can be concatenated with the main run's CSV at plot time.
 # ============================================================
 set -euo pipefail
 
@@ -32,7 +38,18 @@ G2G_SEQ_BIN="$BUILD/g2g"   # sequential mode via --sequential flag
 GEN_SCRIPT="$G2G_ROOT/experiments/exp3_throughput/gen_synthetic_gfa.py"
 THREADS="${THREADS:-$(nproc)}"
 SKIP_PANGRAPH="${SKIP_PANGRAPH:-0}"
+ONLY_PANGRAPH="${ONLY_PANGRAPH:-0}"
 TIMESTAMP=$(date +%Y%m%dT%H%M%S)
+
+# In pangraph-only mode we must not skip it, and it must actually be installed.
+if [[ "$ONLY_PANGRAPH" == "1" ]]; then
+    SKIP_PANGRAPH=0
+    if ! command -v pangraph &>/dev/null; then
+        echo "[exp3] ERROR: ONLY_PANGRAPH=1 but 'pangraph' is not on PATH." >&2
+        echo "[exp3]        Install it first: bash experiments/download/install_tools.sh" >&2
+        exit 1
+    fi
+fi
 
 GFA_DIR="$DATA_ROOT/synthetic_gfa"
 mkdir -p "$RESULTS" "$GFA_DIR"
@@ -65,7 +82,11 @@ SIZES=(
 )
 SEEDS=(42 123 456)
 
-CSV="$RESULTS/exp3_throughput_${TIMESTAMP}.csv"
+if [[ "$ONLY_PANGRAPH" == "1" ]]; then
+    CSV="$RESULTS/exp3_throughput_pangraph_${TIMESTAMP}.csv"
+else
+    CSV="$RESULTS/exp3_throughput_${TIMESTAMP}.csv"
+fi
 echo "n_snarls,seq_len,k_max,seed,tool,threads,wall_ms,peak_kb,snarl_pairs,score,exit_code" \
     > "$CSV"
 
@@ -125,6 +146,7 @@ for seed in "${SEEDS[@]}"; do
     trap "rm -rf $TMPDIR_RUN" EXIT
 
     # ── Baseline 1: minimap2 (linearize + align) ─────────────
+    if [[ "$ONLY_PANGRAPH" != "1" ]]; then
     echo "[exp3] Baseline 1: minimap2..."
 
     # Extract haplotype FASTA from GFA
@@ -187,6 +209,7 @@ PYEOF
     IFS=':' read -r mm2_wall mm2_mem mm2_rc <<< "$result"
     echo "  minimap2: ${mm2_wall}ms  ${mm2_mem}KB  rc=$mm2_rc"
     echo "$n,$sl,$kmax,$seed,minimap2,$THREADS,$mm2_wall,$mm2_mem,0,0,$mm2_rc" >> "$CSV"
+    fi  # ONLY_PANGRAPH guard (minimap2)
 
     # ── Baseline 2: PanGraph (skip if Julia not available) ───
     if [[ "$SKIP_PANGRAPH" == "0" ]] && command -v pangraph &>/dev/null; then
@@ -222,6 +245,7 @@ PYEOF
     fi
 
     # ── Baseline 3: Sequential G2G ────────────────────────────
+    if [[ "$ONLY_PANGRAPH" != "1" ]]; then
     echo "[exp3] Baseline 3: Sequential G2G..."
     SEQ_CMD="$G2G_BIN $GFA_A $GFA_B --sequential \
         --gaf $TMPDIR_RUN/seq_out.gaf --vcf $TMPDIR_RUN/seq_out.vcf"
@@ -248,6 +272,7 @@ PYEOF
                 grep -o 'total_score=[0-9.]*' | head -1 | cut -d= -f2 || echo 0)
     echo "  G2G-par: ${par_wall}ms  ${par_mem}KB  pairs=$par_pairs  score=$par_score"
     echo "$n,$sl,$kmax,$seed,g2g_parallel,$THREADS,$par_wall,$par_mem,$par_pairs,$par_score,$par_rc" >> "$CSV"
+    fi  # ONLY_PANGRAPH guard (sequential + parallel G2G)
 
     rm -rf "$TMPDIR_RUN"
 
