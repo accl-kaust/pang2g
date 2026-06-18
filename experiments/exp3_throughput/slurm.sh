@@ -37,6 +37,7 @@ export G2G_DATA_ROOT="/data/fat/g2g"
 export THREADS="$SLURM_CPUS_ON_NODE"
 
 echo "[slurm] Job $SLURM_JOB_ID  node=$(hostname)  CPUs=$SLURM_CPUS_ON_NODE  date=$(date)"
+mkdir -p "results/phase5/exp3"
 echo "exp3_start_epoch=$(date +%s)" \
     >> "results/phase5/exp3/slurm_timing_${SLURM_JOB_ID}.txt"
 
