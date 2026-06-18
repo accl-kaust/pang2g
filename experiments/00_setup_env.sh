@@ -38,7 +38,10 @@ conda run -n "$ENV_NAME" conda install -y -c bioconda -c conda-forge \
     samtools \
     bcftools \
     seqkit \
-    paftools
+    k8
+# NOTE: paftools.js ships bundled with the minimap2 package (on PATH after
+# install); the k8 JS engine above is what actually runs it. There is no
+# separate `paftools` conda package.
 
 # ── Python analysis packages ──────────────────────────────────
 conda run -n "$ENV_NAME" pip install \
