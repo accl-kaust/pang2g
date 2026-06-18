@@ -36,6 +36,26 @@ it also works if you forget to activate first. Outputs:
 | `build/abl_brute_matching` | `g2g` | Brute-force matching (no Hungarian) |
 | `build/abl_static_partition` | `g2g` | Static partition (no work-stealing) |
 
+### Optional third-party tools
+
+Exp3 compares G2G against a **PanGraph** baseline, and Exp6 needs
+minigraph-cactus / gfatools. Install them with:
+
+```bash
+bash experiments/download/install_tools.sh
+```
+
+- **PanGraph** is fetched as the prebuilt Rust binary (v1.3.0+) from the
+  `neherlab/pangraph` GitHub releases — it is *not* on bioconda, and the old
+  Julia package no longer builds. It lands at `$G2G_DATA_ROOT/tools/pangraph`
+  and that dir is appended to your PATH in `~/.bashrc`.
+- After running the installer, refresh your current shell so `pangraph`
+  resolves: `export PATH="$G2G_DATA_ROOT/tools:$PATH"` (or open a new shell).
+- PanGraph is **optional**: if it isn't installed, Exp3 still runs and records
+  its PanGraph rows with `exit_code=-1` (skipped sentinel). You can backfill
+  that baseline later without rerunning the whole sweep — see
+  [§3.1](#31-backfilling-the-pangraph-baseline-exp3).
+
 ---
 
 ## 1. Submitting experiments
@@ -86,6 +106,22 @@ Logs land in `logs/`; results in `results/phase5/<exp>/` as timestamped CSVs.
 ---
 
 ## 3. Plotting results
+
+### 3.1 Backfilling the PanGraph baseline (Exp3)
+
+If you ran Exp3 before installing PanGraph (its rows show `exit_code=-1`),
+you don't need to rerun the whole sweep. Once `pangraph` is on PATH:
+
+```bash
+export PATH="$G2G_DATA_ROOT/tools:$PATH"   # if not already
+ONLY_PANGRAPH=1 bash experiments/exp3_throughput/run.sh
+```
+
+This reuses the GFAs already under `$G2G_DATA_ROOT/synthetic_gfa`, skips
+minimap2 and both G2G runs, and writes only the PanGraph rows to
+`results/phase5/exp3/exp3_throughput_pangraph_<ts>.csv`. The plot command
+below globs `exp3_throughput_*.csv`, so it picks up both the original sweep
+and this backfill automatically — no manual merge needed.
 
 After an experiment finishes, render its figure (writes PDF+PNG to
 `results/phase5/figures/`):

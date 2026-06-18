@@ -231,9 +231,12 @@ PYEOF
         }
         /^S/{smap[$2]=$3}' "$GFA_B" > "$TMPDIR_RUN/genome_b.fa" 2>/dev/null || true
 
-        PG_CMD="pangraph build --circular false \
-            $TMPDIR_RUN/genome_a.fa $TMPDIR_RUN/genome_b.fa \
-            -o $TMPDIR_RUN/pangraph_out.json"
+        # PanGraph 1.3.0 (Rust) CLI: genomes are linear so we omit -c/--circular
+        # (it is a bare flag now, not --circular false); output via
+        # --output-json, threads via -j, and -s 5 maps to minimap2 asm5.
+        PG_CMD="pangraph build -j $THREADS -s 5 \
+            --output-json $TMPDIR_RUN/pangraph_out.json \
+            $TMPDIR_RUN/genome_a.fa $TMPDIR_RUN/genome_b.fa"
         result=$(run_timed "pangraph" "$PG_CMD" \
             "$TMPDIR_RUN/time_pg.txt" "$TMPDIR_RUN/pg_log.txt" || echo "0:0:1")
         IFS=':' read -r pg_wall pg_mem pg_rc <<< "$result"
