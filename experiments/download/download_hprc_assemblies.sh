@@ -44,61 +44,53 @@ wget -q --show-progress -O "$METADATA_DIR/hprc_v2_index.tsv" "$METADATA_URL" || 
     curl -fsSL -o "$METADATA_DIR/hprc_v2_index.tsv" "$METADATA_URL"
 }
 
-# Also download the population metadata (1KGP superpopulation assignments)
-POP_META_URL="https://raw.githubusercontent.com/human-pangenomics/HPP_Year1_Assemblies/main/assembly_index/Year1_assemblies_v2_genbank.index"
-wget -q -O "$METADATA_DIR/hprc_sample_pops.tsv" \
-    "https://raw.githubusercontent.com/human-pangenomics/HPRC/main/metadata/HPRC_metadata.csv" 2>/dev/null || \
-    echo "[hprc] WARNING: could not download pop metadata — will use hardcoded AFR/EAS lists below"
+# Download the authoritative 1000 Genomes super-population panel so we can
+# classify each HPRC sample by ancestry instead of trusting a hardcoded list.
+PANEL="$METADATA_DIR/1kgp_pops.panel"
+PANEL_URL="https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"
+echo "[hprc] Downloading 1KGP super-population panel..."
+wget -q -O "$PANEL" "$PANEL_URL" 2>/dev/null || curl -fsSL -o "$PANEL" "$PANEL_URL" 2>/dev/null || \
+    echo "[hprc] WARNING: could not download 1KGP panel — falling back to GIAB supplement only"
 
 echo "[hprc] Metadata written to $METADATA_DIR"
 
 # ─────────────────────────────────────────────────────────────
-# 2. Hardcoded AFR and EAS sample lists (HPRC Year 1 v2)
-#    Source: HPRC metadata table (1KGP superpopulation labels)
+# 2+3. Resolve fasta URLs AND select a BALANCED AFR/EAS sample set
 # ─────────────────────────────────────────────────────────────
-
-# AFR samples (Yoruba, Luhya, Esan, Mende, Gambian — 20 samples)
-AFR_SAMPLES=(
-    HG00735 HG00741 HG01071 HG01106 HG01109
-    HG01243 HG01258 HG02055 HG02080 HG02109
-    HG02145 HG02257 HG02486 HG02559 HG02572
-    HG02886 HG03098 HG03453 HG03486 HG03516
-)
-
-# EAS samples (Han Chinese, Japanese, Vietnamese — 20 samples)
-EAS_SAMPLES=(
-    HG00268 HG00438 HG00621 HG00673 HG00733
-    HG01123 HG01175 HG01928 HG02011 HG02148
-    HG02572 HG03540 NA18906 NA19240 NA20129
-    NA21309 HG00171 HG00512 HG00513 HG00514
-)
-
-echo "[hprc] AFR samples (${#AFR_SAMPLES[@]}): ${AFR_SAMPLES[*]}"
-echo "[hprc] EAS samples (${#EAS_SAMPLES[@]}): ${EAS_SAMPLES[*]}"
-
-# Save sample lists
-printf '%s\n' "${AFR_SAMPLES[@]}" > "$METADATA_DIR/afr_samples.txt"
-printf '%s\n' "${EAS_SAMPLES[@]}" > "$METADATA_DIR/eas_samples.txt"
-
-# ─────────────────────────────────────────────────────────────
-# 3. Resolve real per-haplotype fasta URLs from the HPRC index
-# ─────────────────────────────────────────────────────────────
-# The assembly fasta locations are NOT a guessable S3 path — they are listed
-# (as s3:// URLs) inside the index file we just downloaded, in columns whose
-# names contain "hap1"/"hap2" and "fasta". We parse them into a simple
-# sample -> hap1_url, hap2_url map and convert s3:// to https.
+# The HPRC Year-1 assembly set is heavily skewed away from EAS — only ~6 East
+# Asian samples exist in the whole index. Rather than hardcode (fragile, and our
+# earlier guesses were wrong: NA18*/NA19* are actually YRI), we join the index
+# against the 1KGP panel to get each sample's super-population, then pick an
+# EQUAL number from AFR and EAS (capped by EAS availability and N_PER_POP) for a
+# size-matched comparison. Fasta URLs live (as s3:// URLs) inside the index in
+# columns named like "hap1_*_fasta"; we parse and convert them to https below.
 INDEX="$METADATA_DIR/hprc_v2_index.tsv"
 URLMAP="$METADATA_DIR/assembly_urls.tsv"
 
-python3 - "$INDEX" "$URLMAP" <<'PYEOF'
-import sys, csv
-idx, out = sys.argv[1], sys.argv[2]
+python3 - "$INDEX" "$PANEL" "$URLMAP" "$METADATA_DIR" "$N_PER_POP" <<'PYEOF'
+import sys, csv, os
+idx, panel, out, metadir, npp = sys.argv[1:6]
+npp = int(npp)
+
+# Build sample -> super-population map from the 1KGP panel.
+superpop = {}
+try:
+    with open(panel) as f:
+        for line in f:
+            p = line.rstrip("\n").split("\t")
+            if len(p) >= 3 and p[0] != "sample":
+                superpop[p[0]] = p[2]
+except FileNotFoundError:
+    sys.stderr.write("[hprc] WARNING: 1KGP panel missing; GIAB supplement only\n")
+
+# GIAB / non-1KGP samples the panel does not cover.
+superpop.setdefault("HG005", "EAS")   # GIAB Han Chinese son (NA24631)
+
 with open(idx, newline='') as f:
     reader = csv.DictReader(f, delimiter='\t')
     cols = reader.fieldnames or []
 
     def find(hap):
-        # prefer a column that is clearly an AWS/S3 fasta URL for this hap
         for want in (lambda c: hap in c and 'fasta' in c and ('aws' in c or 's3' in c),
                      lambda c: hap in c and 'fasta' in c):
             for c in cols:
@@ -109,23 +101,50 @@ with open(idx, newline='') as f:
     c1, c2 = find('hap1'), find('hap2')
     scol = next((c for c in cols if c.lower() in
                  ('sample', 'sample_id', 'sampleid')), cols[0] if cols else None)
-
     sys.stderr.write(f"[hprc] index columns: {cols}\n")
     sys.stderr.write(f"[hprc] using sample='{scol}' hap1='{c1}' hap2='{c2}'\n")
     if not (c1 and c2 and scol):
         sys.stderr.write("[hprc] ERROR: could not locate fasta-URL columns in index\n")
         sys.exit(2)
 
-    n = 0
-    with open(out, 'w') as o:
-        for row in reader:
-            s = (row.get(scol) or '').strip()
-            u1 = (row.get(c1) or '').strip()
-            u2 = (row.get(c2) or '').strip()
-            if s:
-                o.write(f"{s}\t{u1}\t{u2}\n"); n += 1
-    sys.stderr.write(f"[hprc] wrote {n} sample URL rows -> {out}\n")
+    rows = {}
+    for row in reader:
+        s = (row.get(scol) or '').strip()
+        if s:
+            rows[s] = ((row.get(c1) or '').strip(), (row.get(c2) or '').strip())
+
+# Full sample -> URL map (all samples in the index).
+with open(out, 'w') as o:
+    for s, (u1, u2) in rows.items():
+        o.write(f"{s}\t{u1}\t{u2}\n")
+sys.stderr.write(f"[hprc] wrote {len(rows)} sample URL rows -> {out}\n")
+
+# Classify available samples by super-population, then pick a balanced set.
+avail = {"AFR": [], "EAS": []}
+for s in rows:
+    sp = superpop.get(s)
+    if sp in avail:
+        avail[sp].append(s)
+
+n = min(len(avail["AFR"]), len(avail["EAS"]), npp)
+sys.stderr.write(f"[hprc] available AFR={len(avail['AFR'])} "
+                 f"EAS={len(avail['EAS'])} -> balanced n={n} per pop\n")
+if n == 0:
+    sys.stderr.write("[hprc] ERROR: could not select a balanced AFR/EAS set\n")
+    sys.exit(3)
+
+for pop in ("AFR", "EAS"):
+    sel = sorted(avail[pop])[:n]
+    with open(os.path.join(metadir, f"{pop.lower()}_samples.txt"), 'w') as o:
+        o.write("\n".join(sel) + "\n")
+    sys.stderr.write(f"[hprc] {pop} selected ({len(sel)}): {sel}\n")
 PYEOF
+
+# Read the balanced selections the Python step just wrote.
+mapfile -t AFR_SAMPLES < "$METADATA_DIR/afr_samples.txt"
+mapfile -t EAS_SAMPLES < "$METADATA_DIR/eas_samples.txt"
+echo "[hprc] AFR samples (${#AFR_SAMPLES[@]}): ${AFR_SAMPLES[*]}"
+echo "[hprc] EAS samples (${#EAS_SAMPLES[@]}): ${EAS_SAMPLES[*]}"
 
 # ─────────────────────────────────────────────────────────────
 # 4. Download assemblies (both haplotypes per sample)
@@ -178,16 +197,16 @@ download_sample() {
 export -f download_sample
 export ASSEMBLY_DIR URLMAP
 
-# Download AFR samples in parallel
+# Download AFR samples in parallel (lists are already balanced + size-capped)
 echo "[hprc] Downloading AFR assemblies (parallel, $NCPU jobs)..."
 mkdir -p "$ASSEMBLY_DIR/AFR"
-printf '%s\n' "${AFR_SAMPLES[@]:0:$N_PER_POP}" | \
+printf '%s\n' "${AFR_SAMPLES[@]}" | \
     xargs -P "$NCPU" -I{} bash -c 'download_sample "$@"' _ {} AFR
 
 # Download EAS samples in parallel
 echo "[hprc] Downloading EAS assemblies (parallel, $NCPU jobs)..."
 mkdir -p "$ASSEMBLY_DIR/EAS"
-printf '%s\n' "${EAS_SAMPLES[@]:0:$N_PER_POP}" | \
+printf '%s\n' "${EAS_SAMPLES[@]}" | \
     xargs -P "$NCPU" -I{} bash -c 'download_sample "$@"' _ {} EAS
 
 # ─────────────────────────────────────────────────────────────
@@ -197,8 +216,8 @@ echo ""
 echo "[hprc] Verifying downloads..."
 AFR_COUNT=$(find "$ASSEMBLY_DIR/AFR" -name "*.fa.gz" -size +1M | wc -l)
 EAS_COUNT=$(find "$ASSEMBLY_DIR/EAS" -name "*.fa.gz" -size +1M | wc -l)
-echo "[hprc] AFR assemblies found: $AFR_COUNT (expected: $((N_PER_POP * 2)))"
-echo "[hprc] EAS assemblies found: $EAS_COUNT (expected: $((N_PER_POP * 2)))"
+echo "[hprc] AFR assemblies found: $AFR_COUNT (expected: $((${#AFR_SAMPLES[@]} * 2)))"
+echo "[hprc] EAS assemblies found: $EAS_COUNT (expected: $((${#EAS_SAMPLES[@]} * 2)))"
 echo "[hprc] Total disk usage: $(du -sh "$ASSEMBLY_DIR")"
 
 if [[ "$AFR_COUNT" -eq 0 && "$EAS_COUNT" -eq 0 ]]; then
