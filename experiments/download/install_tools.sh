@@ -79,13 +79,21 @@ fi
 #    Cactus via conda-forge (the only no-sudo method)
 # ─────────────────────────────────────────────────────────────
 echo "[tools] Installing Cactus (minigraph-cactus pipeline)..."
+# mash is a runtime dependency of cactus-pangenome's minigraph step
+# (cactus shells out to `mash sketch`); the bioconda cactus package does NOT
+# pull it in, so install it explicitly or the build dies with exit 127.
 conda install -y -c bioconda -c conda-forge \
     cactus \
     minigraph \
-    gfatools
+    gfatools \
+    mash
 
 echo "[tools] Verifying cactus installation..."
 cactus --version || echo "[tools] WARNING: cactus not found — may need manual install"
+for t in mash minigraph gfatools; do
+    command -v "$t" &>/dev/null && echo "[tools] $t: $(command -v $t)" || \
+        echo "[tools] WARNING: $t not found on PATH"
+done
 
 # ─────────────────────────────────────────────────────────────
 # 3. gfatools — GFA manipulation (needed for pangenome prep)
