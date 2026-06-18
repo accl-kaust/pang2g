@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash --login
 # ============================================================
 # SLURM — Experiment 3 (Throughput Scaling)
 #
@@ -13,7 +13,7 @@
 #SBATCH --job-name=g2g_exp3_throughput
 #SBATCH --output=logs/exp3_%j.out
 #SBATCH --error=logs/exp3_%j.err
-#SBATCH --partition=compute          # <-- change to your partition
+#SBATCH --partition=mc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-G2G_ROOT="$HOME/Research/G2G"
+G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p "$G2G_ROOT/logs"
 
 source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \

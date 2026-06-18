@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash --login
 # SLURM — HPRC assembly download (Stage 1 of Exp6)
 #SBATCH --job-name=g2g_exp6_download
 #SBATCH --output=logs/exp6_download_%j.out
 #SBATCH --error=logs/exp6_download_%j.err
-#SBATCH --partition=compute          # <-- change to your partition
+#SBATCH --partition=mc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -13,7 +13,7 @@
 #SBATCH --mail-user=shakleyaahmed@gmail.com
 
 set -euo pipefail
-G2G_ROOT="$HOME/Research/G2G"
+G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p "$G2G_ROOT/logs"
 source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \
     source "$HOME/miniconda/etc/profile.d/conda.sh"
