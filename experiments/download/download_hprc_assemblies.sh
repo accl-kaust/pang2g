@@ -81,10 +81,65 @@ printf '%s\n' "${AFR_SAMPLES[@]}" > "$METADATA_DIR/afr_samples.txt"
 printf '%s\n' "${EAS_SAMPLES[@]}" > "$METADATA_DIR/eas_samples.txt"
 
 # ─────────────────────────────────────────────────────────────
-# 3. Download assemblies (both haplotypes per sample)
+# 3. Resolve real per-haplotype fasta URLs from the HPRC index
 # ─────────────────────────────────────────────────────────────
-# HPRC public S3 base URL (no credentials needed)
-S3_BASE="https://s3-us-west-2.amazonaws.com/human-pangenomics/working/HPRC_PLUS"
+# The assembly fasta locations are NOT a guessable S3 path — they are listed
+# (as s3:// URLs) inside the index file we just downloaded, in columns whose
+# names contain "hap1"/"hap2" and "fasta". We parse them into a simple
+# sample -> hap1_url, hap2_url map and convert s3:// to https.
+INDEX="$METADATA_DIR/hprc_v2_index.tsv"
+URLMAP="$METADATA_DIR/assembly_urls.tsv"
+
+python3 - "$INDEX" "$URLMAP" <<'PYEOF'
+import sys, csv
+idx, out = sys.argv[1], sys.argv[2]
+with open(idx, newline='') as f:
+    reader = csv.DictReader(f, delimiter='\t')
+    cols = reader.fieldnames or []
+
+    def find(hap):
+        # prefer a column that is clearly an AWS/S3 fasta URL for this hap
+        for want in (lambda c: hap in c and 'fasta' in c and ('aws' in c or 's3' in c),
+                     lambda c: hap in c and 'fasta' in c):
+            for c in cols:
+                if want(c.lower()):
+                    return c
+        return None
+
+    c1, c2 = find('hap1'), find('hap2')
+    scol = next((c for c in cols if c.lower() in
+                 ('sample', 'sample_id', 'sampleid')), cols[0] if cols else None)
+
+    sys.stderr.write(f"[hprc] index columns: {cols}\n")
+    sys.stderr.write(f"[hprc] using sample='{scol}' hap1='{c1}' hap2='{c2}'\n")
+    if not (c1 and c2 and scol):
+        sys.stderr.write("[hprc] ERROR: could not locate fasta-URL columns in index\n")
+        sys.exit(2)
+
+    n = 0
+    with open(out, 'w') as o:
+        for row in reader:
+            s = (row.get(scol) or '').strip()
+            u1 = (row.get(c1) or '').strip()
+            u2 = (row.get(c2) or '').strip()
+            if s:
+                o.write(f"{s}\t{u1}\t{u2}\n"); n += 1
+    sys.stderr.write(f"[hprc] wrote {n} sample URL rows -> {out}\n")
+PYEOF
+
+# ─────────────────────────────────────────────────────────────
+# 4. Download assemblies (both haplotypes per sample)
+# ─────────────────────────────────────────────────────────────
+to_https() {
+    local u="$1"
+    if [[ "$u" == s3://* ]]; then
+        local rest="${u#s3://}"
+        echo "https://${rest%%/*}.s3.amazonaws.com/${rest#*/}"
+    else
+        echo "$u"
+    fi
+}
+export -f to_https
 
 download_sample() {
     local sample="$1"
@@ -92,31 +147,36 @@ download_sample() {
     local out_dir="$ASSEMBLY_DIR/$pop/$sample"
     mkdir -p "$out_dir"
 
+    local row; row=$(grep -m1 -P "^${sample}\t" "$URLMAP" || true)
+    if [[ -z "$row" ]]; then
+        echo "[hprc] WARNING: $sample not found in index URL map"
+        return
+    fi
+    local u1 u2
+    u1=$(cut -f2 <<< "$row"); u2=$(cut -f3 <<< "$row")
+
     for hap in 1 2; do
-        local fa_gz="${sample}.paternal.fa.gz"
-        [[ "$hap" == "2" ]] && fa_gz="${sample}.maternal.fa.gz"
-        local url="${S3_BASE}/${sample}/assemblies/${fa_gz}"
+        local url; [[ "$hap" == "1" ]] && url=$(to_https "$u1") || url=$(to_https "$u2")
         local out_file="$out_dir/${sample}_hap${hap}.fa.gz"
 
         if [[ -f "$out_file" ]] && [[ $(stat -c%s "$out_file") -gt 1000000 ]]; then
             echo "[hprc] SKIP (exists): $out_file"
             continue
         fi
+        if [[ -z "$url" ]]; then
+            echo "[hprc] WARNING: no hap$hap URL for $sample"
+            continue
+        fi
 
         echo "[hprc] Downloading: $sample hap$hap ($pop)"
         wget -q --show-progress --retry-connrefused --tries=5 \
-             --waitretry=30 -O "$out_file" "$url" || {
-            # Fallback URL pattern
-            local alt_url="${S3_BASE}/${sample}/assemblies/verkko/${sample}.hap${hap}.fa.gz"
-            wget -q --show-progress --retry-connrefused --tries=3 \
-                 --waitretry=60 -O "$out_file" "$alt_url" || \
-                echo "[hprc] WARNING: could not download $sample hap$hap"
-        }
+             --waitretry=30 -O "$out_file" "$url" || \
+            echo "[hprc] WARNING: could not download $sample hap$hap ($url)"
     done
 }
 
 export -f download_sample
-export S3_BASE ASSEMBLY_DIR
+export ASSEMBLY_DIR URLMAP
 
 # Download AFR samples in parallel
 echo "[hprc] Downloading AFR assemblies (parallel, $NCPU jobs)..."
@@ -131,7 +191,7 @@ printf '%s\n' "${EAS_SAMPLES[@]:0:$N_PER_POP}" | \
     xargs -P "$NCPU" -I{} bash -c 'download_sample "$@"' _ {} EAS
 
 # ─────────────────────────────────────────────────────────────
-# 4. Verify downloads
+# 5. Verify downloads
 # ─────────────────────────────────────────────────────────────
 echo ""
 echo "[hprc] Verifying downloads..."
@@ -140,3 +200,11 @@ EAS_COUNT=$(find "$ASSEMBLY_DIR/EAS" -name "*.fa.gz" -size +1M | wc -l)
 echo "[hprc] AFR assemblies found: $AFR_COUNT (expected: $((N_PER_POP * 2)))"
 echo "[hprc] EAS assemblies found: $EAS_COUNT (expected: $((N_PER_POP * 2)))"
 echo "[hprc] Total disk usage: $(du -sh "$ASSEMBLY_DIR")"
+
+if [[ "$AFR_COUNT" -eq 0 && "$EAS_COUNT" -eq 0 ]]; then
+    echo "[hprc] ERROR: no assemblies downloaded. Inspect the index header" >&2
+    echo "[hprc]        and URL map: $URLMAP" >&2
+    echo "[hprc]        First rows of the index:" >&2
+    head -2 "$INDEX" >&2 || true
+    exit 1
+fi
