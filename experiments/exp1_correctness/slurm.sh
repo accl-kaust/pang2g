@@ -35,6 +35,7 @@ conda activate g2g_eval
 cd "$G2G_ROOT"
 
 # Record start time
+mkdir -p "results/phase5/exp1"
 echo "exp1_start_epoch=$(date +%s)" >> "results/phase5/exp1/slurm_timing_${SLURM_JOB_ID}.txt"
 
 bash experiments/exp1_correctness/run.sh

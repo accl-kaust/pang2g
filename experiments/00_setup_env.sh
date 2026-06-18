@@ -54,7 +54,8 @@ conda run -n "$ENV_NAME" pip install \
     memory_profiler \
     psutil \
     tqdm \
-    pysam
+    pysam \
+    requests   # needed by the cluster's `jobstats` tool when run under this env
 
 # ── perf stat wrapper (user-space; no sudo needed for basic events) ───
 # perf is in the kernel tools, should be available on HPC nodes
