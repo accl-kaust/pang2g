@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/bash --login
 # SLURM — Build HPRC pangenomes (Stage 2 of Exp6)
 # ~48 CPU-hours per pangenome, 2 pangenomes = ~4–5 days
 #SBATCH --job-name=g2g_exp6_build
 #SBATCH --output=logs/exp6_build_%j.out
 #SBATCH --error=logs/exp6_build_%j.err
-#SBATCH --partition=compute          # <-- change to your partition
+#SBATCH --partition=mc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
@@ -14,7 +14,7 @@
 #SBATCH --mail-user=shakleyaahmed@gmail.com
 
 set -euo pipefail
-G2G_ROOT="$HOME/Research/G2G"
+G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p "$G2G_ROOT/logs"
 source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \
     source "$HOME/miniconda/etc/profile.d/conda.sh"

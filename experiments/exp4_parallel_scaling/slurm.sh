@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash --login
 # ============================================================
 # SLURM — Experiment 4 (Parallel Scaling)
 # Needs 128 CPUs and 256 GB RAM for HPRC-scale graph.
@@ -9,7 +9,7 @@
 #SBATCH --job-name=g2g_exp4_parallel
 #SBATCH --output=logs/exp4_%j.out
 #SBATCH --error=logs/exp4_%j.err
-#SBATCH --partition=compute          # <-- change to your partition
+#SBATCH --partition=mc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128
@@ -20,7 +20,7 @@
 
 set -euo pipefail
 
-G2G_ROOT="$HOME/Research/G2G"
+G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p "$G2G_ROOT/logs"
 
 source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \

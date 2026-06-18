@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash --login
 # ============================================================
 # SLURM job script — Experiment 1 (Correctness)
 #
@@ -10,7 +10,7 @@
 #SBATCH --job-name=g2g_exp1_correctness
 #SBATCH --output=logs/exp1_%j.out
 #SBATCH --error=logs/exp1_%j.err
-#SBATCH --partition=compute          # <-- change to your partition
+#SBATCH --partition=mc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-G2G_ROOT="$HOME/Research/G2G"
+G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p "$G2G_ROOT/logs"
 
 echo "[slurm] Job $SLURM_JOB_ID started on $(hostname) at $(date)"

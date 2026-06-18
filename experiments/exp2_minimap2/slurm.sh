@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash --login
 # SLURM — Experiment 2 (Minimap2 Consistency)
 #SBATCH --job-name=g2g_exp2_minimap2
 #SBATCH --output=logs/exp2_%j.out
 #SBATCH --error=logs/exp2_%j.err
-#SBATCH --partition=compute
+#SBATCH --partition=mc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -13,7 +13,7 @@
 #SBATCH --mail-user=shakleyaahmed@gmail.com
 
 set -euo pipefail
-G2G_ROOT="$HOME/Research/G2G"
+G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p "$G2G_ROOT/logs"
 source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \
     source "$HOME/miniconda/etc/profile.d/conda.sh"
