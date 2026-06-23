@@ -41,6 +41,19 @@ if [[ "$HOST" != mcmgt* ]]; then
     sleep 5
 fi
 
+# Preflight: the download/extraction toolchain must be on PATH. The most
+# common failure is running in the (base) conda env instead of g2g_eval, which
+# makes bcftools/tabix vanish and silently yields empty BED files.
+MISSING=()
+for tool in bcftools bgzip tabix wget python3; do
+    command -v "$tool" &>/dev/null || MISSING+=("$tool")
+done
+if [[ ${#MISSING[@]} -gt 0 ]]; then
+    echo "[dl] ERROR: missing tools on PATH: ${MISSING[*]}" >&2
+    echo "[dl]        Run 'conda activate g2g_eval' first." >&2
+    exit 1
+fi
+
 echo "[dl] ============================================================"
 echo "[dl] Exp6 dataset download (login node)"
 echo "[dl] Host:       $HOST"
@@ -63,6 +76,7 @@ run_stage() {
 }
 
 run_stage "HPRC assemblies" "$G2G_ROOT/experiments/download/download_hprc_assemblies.sh"
+run_stage "GRCh38 reference" "$G2G_ROOT/experiments/download/download_grch38.sh"
 run_stage "gnomAD-SV v4.1"  "$G2G_ROOT/experiments/download/download_gnomad_sv.sh"
 run_stage "ClinVar (GRCh38)" "$G2G_ROOT/experiments/download/download_clinvar.sh"
 

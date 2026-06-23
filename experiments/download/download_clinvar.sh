@@ -17,15 +17,32 @@ mkdir -p "$OUT_DIR"
 
 NCBI_FTP="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38"
 
+# Fail loudly if the toolchain isn't on PATH — otherwise bcftools errors get
+# swallowed by `|| true` and we silently write empty BEDs. The usual cause is
+# forgetting to `conda activate g2g_eval` before running.
+for tool in bcftools tabix wget; do
+    if ! command -v "$tool" &>/dev/null; then
+        echo "[clinvar] ERROR: '$tool' not found on PATH." >&2
+        echo "[clinvar]        Did you 'conda activate g2g_eval' first?" >&2
+        exit 1
+    fi
+done
+
 echo "[clinvar] Output: $OUT_DIR"
 
 # ─────────────────────────────────────────────────────────────
 # 1. Download ClinVar VCF (GRCh38)
 # ─────────────────────────────────────────────────────────────
 echo "[clinvar] Downloading ClinVar VCF (GRCh38)..."
-wget -q --show-progress --tries=5 --waitretry=30 \
-    -O "$OUT_DIR/clinvar.vcf.gz" \
-    "${NCBI_FTP}/clinvar.vcf.gz"
+if [[ -f "$OUT_DIR/clinvar.vcf.gz" ]] && \
+   [[ $(stat -c%s "$OUT_DIR/clinvar.vcf.gz") -gt 50000000 ]] && \
+   bcftools view -h "$OUT_DIR/clinvar.vcf.gz" &>/dev/null; then
+    echo "[clinvar] SKIP download (valid VCF already present, $(stat -c%s "$OUT_DIR/clinvar.vcf.gz") bytes)."
+else
+    wget -q --show-progress --tries=5 --waitretry=30 \
+        -O "$OUT_DIR/clinvar.vcf.gz" \
+        "${NCBI_FTP}/clinvar.vcf.gz"
+fi
 
 wget -q -O "$OUT_DIR/clinvar.vcf.gz.tbi" \
     "${NCBI_FTP}/clinvar.vcf.gz.tbi" || \

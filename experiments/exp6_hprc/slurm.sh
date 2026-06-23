@@ -31,7 +31,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=400G
-#SBATCH --time=48:00:00
+#SBATCH --time=14:00:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=shakleyaahmed@gmail.com
 
@@ -51,10 +51,14 @@ export THREADS="$SLURM_CPUS_ON_NODE"
 echo "[slurm] Job $SLURM_JOB_ID  CPUs=$SLURM_CPUS_ON_NODE  RAM=$(free -h | awk '/Mem/{print $2}')  date=$(date)"
 
 # ── Stage 1: Stratify samples ─────────────────────────────────
+# Classifies strictly from the authoritative 1KGP panel fetched during
+# download (1kgp_pops.panel); regenerates the same balanced lists the
+# download wrote, filtered to samples whose assemblies are on disk.
 echo "[slurm] Stratifying HPRC samples..."
 python3 experiments/exp6_hprc/01_stratify_hprc_samples.py \
-    --metadata "$G2G_DATA_ROOT/hprc/metadata/hprc_v2_index.tsv" \
-    --out-dir  "$G2G_DATA_ROOT/hprc/metadata/" \
+    --panel        "$G2G_DATA_ROOT/hprc/metadata/1kgp_pops.panel" \
+    --index        "$G2G_DATA_ROOT/hprc/metadata/hprc_v2_index.tsv" \
+    --out-dir      "$G2G_DATA_ROOT/hprc/metadata/" \
     --assembly-dir "$G2G_DATA_ROOT/hprc/assemblies/"
 
 # ── Stage 2: Run G2G on HPRC pangenomes ──────────────────────
@@ -65,8 +69,16 @@ bash experiments/exp6_hprc/03_run_g2g_on_hprc.sh
 echo "[slurm] Intersecting with gnomAD-SV..."
 bash experiments/exp6_hprc/04_intersect_gnomad_sv.sh
 
-# ── Stage 4: Intersect with ClinVar ──────────────────────────
-echo "[slurm] Intersecting with ClinVar..."
-bash experiments/exp6_hprc/05_intersect_clinvar.sh
+# ── Stage 4: Intersect with ClinVar (OPTIONAL) ───────────────
+# ClinVar is a bonus annotation layer; the core result is the gnomAD-SV
+# enrichment above. Don't let a missing/empty ClinVar BED abort the job.
+CLINVAR_BED="$G2G_DATA_ROOT/clinvar/clinvar_pathogenic_svs.bed"
+if [[ -s "$CLINVAR_BED" ]]; then
+    echo "[slurm] Intersecting with ClinVar..."
+    bash experiments/exp6_hprc/05_intersect_clinvar.sh || \
+        echo "[slurm] WARNING: ClinVar step failed (non-fatal) — skipping."
+else
+    echo "[slurm] SKIP ClinVar: $CLINVAR_BED missing/empty (optional layer)."
+fi
 
 echo "[slurm] Exp6 completed at $(date)"

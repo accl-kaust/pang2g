@@ -14,6 +14,16 @@ DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 OUT_DIR="$DATA_ROOT/gnomad_sv"
 mkdir -p "$OUT_DIR"
 
+# Fail loudly if the toolchain isn't on PATH (usual cause: forgot to
+# `conda activate g2g_eval`) rather than silently producing empty output.
+for tool in bcftools bgzip tabix wget; do
+    if ! command -v "$tool" &>/dev/null; then
+        echo "[gnomad] ERROR: '$tool' not found on PATH." >&2
+        echo "[gnomad]        Did you 'conda activate g2g_eval' first?" >&2
+        exit 1
+    fi
+done
+
 echo "[gnomad] Output: $OUT_DIR"
 
 # ─────────────────────────────────────────────────────────────
