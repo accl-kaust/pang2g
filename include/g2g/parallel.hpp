@@ -66,12 +66,20 @@ struct SnarlPairTask {
 
 struct RunStats {
     uint64_t tasks_executed{0};
-    uint64_t tasks_ready_peak{0};
+    uint64_t tasks_ready_peak{0};   // high-water mark of the ready queue
+    uint64_t steals{0};             // tasks run by a thread other than their
+                                    // static round-robin owner (ti % P) — a
+                                    // proxy for dynamic load redistribution
+                                    // vs. a static partition
+    double   imbalance{1.0};        // load-imbalance factor:
+                                    // max_thread_busy / mean_thread_busy (>=1)
     double   wall_seconds{0.0};
     uint32_t num_threads{0};
 
     double   parallel_efficiency{0.0};
     double   sequential_seconds{0.0};
+
+    PhaseTimes phases;              // index / decompose / dp breakdown
 };
 
 // ── Parallel aligner ──────────────────────────────────────────────────────────

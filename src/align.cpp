@@ -18,21 +18,36 @@
 #include <g2g/sequence.hpp>
 #include <g2g/matching.hpp>
 
+#include <chrono>
+
 namespace g2g {
 
 AlignmentResult GraphAligner::align(const VariationGraph& ga,
                                      const VariationGraph& gb) const {
     AlignmentResult result;
 
+    using Clock = std::chrono::steady_clock;
+    auto secs = [](Clock::time_point a, Clock::time_point b) {
+        return std::chrono::duration<double>(b - a).count();
+    };
+
     // Step 1 — anchor detection
+    auto t_idx0 = Clock::now();
     result.anchors = find_anchors(ga, gb, params_.anchor);
+    auto t_idx1 = Clock::now();
 
     // Step 2 — snarl decomposition (allele paths now stored in SnarlTree)
     SnarlTree ta = SnarlDecomposer(ga).decompose();
     SnarlTree tb = SnarlDecomposer(gb).decompose();
+    auto t_dec1 = Clock::now();
 
     // Step 3 — snarl alignment
     result.snarl_alignments = align_snarls(ga, gb, ta, tb, result.anchors);
+    auto t_dp1 = Clock::now();
+
+    phase_times_.index_seconds     = secs(t_idx0, t_idx1);
+    phase_times_.decompose_seconds = secs(t_idx1, t_dec1);
+    phase_times_.dp_seconds        = secs(t_dec1, t_dp1);
 
     // Step 4 — total score: anchor contributions + snarl scores
     for (const auto& a : result.anchors)

@@ -28,9 +28,11 @@
 #include <g2g/io.hpp>
 #include <g2g/parallel.hpp>
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -47,6 +49,7 @@ struct Args {
     fs::path vcf_out;       // empty = not written
     int      threads    = 0;  // 0 = auto
     bool     sequential = false;
+    bool     verbose_timing = false;
     g2g::AlignerParams params;
 };
 
@@ -63,6 +66,9 @@ static void print_help(const char* prog) {
         "  --gamma <f>        W_struct weight[default: 2.0]\n"
         "  --gap   <f>        Gap penalty    [default: 0.5]\n"
         "  --sequential       Use single-threaded aligner\n"
+        "  --verbose-timing   Print [timing] (io/index/decompose/dp) and, for\n"
+        "                     the parallel runtime, [runstats] (tasks/steals/\n"
+        "                     imbalance) lines to stderr\n"
         "  -h, --help         Show this help\n";
 }
 
@@ -94,6 +100,7 @@ static Args parse_args(int argc, char** argv) {
         else if (flag == "--gamma") a.params.gamma = std::stof(need_next());
         else if (flag == "--gap")   a.params.gap   = std::stof(need_next());
         else if (flag == "--sequential") a.sequential = true;
+        else if (flag == "--verbose-timing") a.verbose_timing = true;
         else if (flag == "-h" || flag == "--help") { print_help(argv[0]); std::exit(0); }
         else { std::cerr << "Unknown option: " << flag << "\n"; std::exit(1); }
     }
@@ -112,13 +119,18 @@ static Args parse_args(int argc, char** argv) {
 int main(int argc, char** argv) {
     Args args = parse_args(argc, argv);
 
+    using Clock = std::chrono::steady_clock;
+
     // ── Load graphs ───────────────────────────────────────────
     g2g::VariationGraph ga, gb;
+    double io_seconds = 0.0;
     try {
+        auto io_t0 = Clock::now();
         std::cerr << "[g2g] reading " << args.gfa_a << " ...\n";
         ga = g2g::read_gfa(args.gfa_a);
         std::cerr << "[g2g] reading " << args.gfa_b << " ...\n";
         gb = g2g::read_gfa(args.gfa_b);
+        io_seconds = std::chrono::duration<double>(Clock::now() - io_t0).count();
     } catch (const std::exception& e) {
         std::cerr << "ERROR reading GFA: " << e.what() << "\n";
         return 1;
@@ -128,11 +140,15 @@ int main(int argc, char** argv) {
 
     // ── Run alignment ─────────────────────────────────────────
     g2g::AlignmentResult result;
+    g2g::RunStats run_stats{};   // .phases filled in both paths; scheduler
+                                 // fields (steals/imbalance/...) only parallel
+    bool have_runstats = false;
     try {
         if (args.sequential) {
             std::cerr << "[g2g] running sequential aligner\n";
             g2g::GraphAligner aligner(args.params);
             result = aligner.align(ga, gb);
+            run_stats.phases = aligner.last_phase_times();
         } else {
             int nthreads = args.threads > 0
                 ? args.threads
@@ -140,6 +156,8 @@ int main(int argc, char** argv) {
             std::cerr << "[g2g] running parallel aligner (" << nthreads << " threads)\n";
             g2g::ParallelAligner aligner(args.params, nthreads);
             result = aligner.align(ga, gb);
+            run_stats     = aligner.last_stats();
+            have_runstats = true;
         }
     } catch (const std::exception& e) {
         std::cerr << "ERROR during alignment: " << e.what() << "\n";
@@ -151,6 +169,26 @@ int main(int argc, char** argv) {
               << "  a_only="          << result.a_only_alleles.size()
               << "  b_only="          << result.b_only_alleles.size()
               << "\n";
+
+    // ── Verbose timing / runtime stats ────────────────────────
+    if (args.verbose_timing) {
+        std::cerr << std::fixed << std::setprecision(6)
+                  << "[timing] io="    << io_seconds
+                  << " index="         << run_stats.phases.index_seconds
+                  << " decompose="     << run_stats.phases.decompose_seconds
+                  << " dp="            << run_stats.phases.dp_seconds
+                  << "\n";
+        if (have_runstats) {
+            std::cerr << std::setprecision(4)
+                      << "[runstats] tasks=" << run_stats.tasks_executed
+                      << " steals="          << run_stats.steals
+                      << " imbalance="       << run_stats.imbalance
+                      << " ready_peak="      << run_stats.tasks_ready_peak
+                      << " threads="         << run_stats.num_threads
+                      << "\n";
+        }
+        std::cerr.unsetf(std::ios::floatfield);
+    }
 
     // ── Decompose for writers (need SnarlTree with node names) ─
     g2g::SnarlTree ta = g2g::SnarlDecomposer(ga).decompose();

@@ -208,6 +208,13 @@ ParallelAligner::Result ParallelAligner::align_snarls(
 
     std::atomic<uint64_t> tasks_executed{0};
     std::atomic<uint32_t> done_count{0};
+    std::atomic<uint64_t> steals{0};
+
+    // Per-thread busy time (sum of execute_task durations).  Each thread writes
+    // only its own slot, so no synchronisation is needed; we reduce after the
+    // parallel region to derive the load-imbalance factor.
+    std::vector<double> thread_busy(num_threads_, 0.0);
+    uint64_t ready_peak = 0;   // guarded by queue_mtx (and the pre-launch seed)
 
     // Shared ready queue protected by mutex + condvar
 #ifdef G2G_STEAL_RANDOM
@@ -224,9 +231,16 @@ ParallelAligner::Result ParallelAligner::align_snarls(
             ready_queue.push({ti, tasks[ti].priority});
         }
     }
+    ready_peak = ready_queue.size();
 
     // Worker function: pull tasks from the ready queue until all done
     auto worker = [&]() {
+        const uint32_t tid =
+#ifdef G2G_HAVE_OPENMP
+            static_cast<uint32_t>(omp_get_thread_num());
+#else
+            0u;
+#endif
         while (true) {
             ReadyEntry entry{};
             bool got_task = false;
@@ -259,8 +273,20 @@ ParallelAligner::Result ParallelAligner::align_snarls(
             uint32_t ti = entry.task_idx;
             const SnarlPairTask& task = tasks[ti];
 
-            // Execute
+            // Steal accounting: a task whose static round-robin owner
+            // (ti % P) differs from the executing thread was redistributed
+            // by the dynamic scheduler rather than handled by a static
+            // partition.  (For the current flat snarl DAGs this captures
+            // initial work distribution; it also covers dynamically-enqueued
+            // child tasks once nested snarls are produced.)
+            if (static_cast<uint32_t>(ti % num_threads_) != tid)
+                steals.fetch_add(1, std::memory_order_relaxed);
+
+            // Execute (timed, to derive per-thread load imbalance)
+            auto exec_t0 = Clock::now();
             results[ti] = execute_task(ga, gb, ta, tb, task);
+            thread_busy[tid] +=
+                std::chrono::duration<double>(Clock::now() - exec_t0).count();
             result_ready[ti].store(true, std::memory_order_release);
 
             tasks_executed.fetch_add(1, std::memory_order_relaxed);
@@ -275,6 +301,9 @@ ParallelAligner::Result ParallelAligner::align_snarls(
                     {
                         std::lock_guard<std::mutex> lk(queue_mtx);
                         ready_queue.push({pi, tasks[pi].priority});
+                        ready_peak = std::max(
+                            ready_peak,
+                            static_cast<uint64_t>(ready_queue.size()));
                     }
                     queue_cv.notify_one();
                 }
@@ -306,8 +335,22 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     for (uint32_t ti = 0; ti < ntasks; ++ti)
         alignments.push_back(std::move(results[ti]));
 
+    // Load-imbalance factor: max thread busy-time over the mean.  Equals 1.0
+    // for a perfectly balanced run and approaches P in the worst case.
+    double busy_total = std::accumulate(thread_busy.begin(),
+                                        thread_busy.end(), 0.0);
+    double busy_max   = thread_busy.empty()
+        ? 0.0
+        : *std::max_element(thread_busy.begin(), thread_busy.end());
+    double busy_mean  = num_threads_ > 0
+        ? busy_total / static_cast<double>(num_threads_)
+        : 0.0;
+
     RunStats stats;
     stats.tasks_executed   = tasks_executed.load();
+    stats.tasks_ready_peak = ready_peak;
+    stats.steals           = steals.load();
+    stats.imbalance        = busy_mean > 0.0 ? busy_max / busy_mean : 1.0;
     stats.wall_seconds     = wall;
     stats.num_threads      = num_threads_;
 
@@ -323,13 +366,25 @@ AlignmentResult ParallelAligner::align(
 {
     AlignmentResult result;
 
+    using Clock = std::chrono::steady_clock;
+    auto secs = [](Clock::time_point a, Clock::time_point b) {
+        return std::chrono::duration<double>(b - a).count();
+    };
+
+    auto t_idx0 = Clock::now();
     result.anchors = find_anchors(ga, gb, params_.anchor);
+    auto t_idx1 = Clock::now();
 
     SnarlTree ta = SnarlDecomposer(ga).decompose();
     SnarlTree tb = SnarlDecomposer(gb).decompose();
+    auto t_dec1 = Clock::now();
 
     auto [alignments, stats] = align_snarls(ga, gb, ta, tb, result.anchors);
     result.snarl_alignments  = std::move(alignments);
+
+    stats.phases.index_seconds     = secs(t_idx0, t_idx1);
+    stats.phases.decompose_seconds = secs(t_idx1, t_dec1);
+    stats.phases.dp_seconds        = stats.wall_seconds;  // align_snarls wall
     last_stats_              = stats;
 
     for (const auto& a : result.anchors)
