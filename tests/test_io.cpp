@@ -335,10 +335,22 @@ TEST_F(GfaRoundTrip, WriteGafDoesNotThrow) {
     EXPECT_NE(out.str().find("G2G alignment GAF"), std::string::npos);
 }
 
-TEST_F(GfaRoundTrip, WriteDeltaVcfDoesNotThrow) {
-    SnarlTree ta = SnarlDecomposer(ga_).decompose();
+TEST_F(GfaRoundTrip, WriteDeltaVcfEmitsUniqueSequences) {
     std::ostringstream out;
-    EXPECT_NO_THROW(write_delta_vcf(out, result_, ga_, ta));
-    // Output should start with the VCF header
-    EXPECT_NE(out.str().find("##fileformat=G2GdeltaVCF"), std::string::npos);
+    EXPECT_NO_THROW(write_delta_vcf(out, result_));
+    const std::string s = out.str();
+
+    // Header present
+    EXPECT_NE(s.find("##fileformat=G2GdeltaVCF"), std::string::npos);
+
+    // The ACTUAL differing sequences must appear (not a placeholder):
+    //   b2c = "CTTAGGAATCG" is unique to A, b2d = "GATTAC" is unique to B.
+    EXPECT_NE(s.find("CTTAGGAATCG"), std::string::npos)
+        << "A-only sequence missing from delta output";
+    EXPECT_NE(s.find("GATTAC"), std::string::npos)
+        << "B-only sequence missing from delta output";
+
+    // Both graphs are represented in the delta.
+    EXPECT_NE(s.find("GRAPH=A"), std::string::npos);
+    EXPECT_NE(s.find("GRAPH=B"), std::string::npos);
 }

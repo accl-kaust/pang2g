@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
     if (!args.vcf_out.empty()) {
         std::ofstream f(args.vcf_out);
         if (!f) { std::cerr << "ERROR: cannot open " << args.vcf_out << "\n"; return 1; }
-        g2g::write_delta_vcf(f, result, ga, ta);
+        g2g::write_delta_vcf(f, result);
         std::cerr << "[g2g] delta VCF written to " << args.vcf_out << "\n";
     }
 

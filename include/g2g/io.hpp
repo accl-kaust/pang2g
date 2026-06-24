@@ -55,13 +55,12 @@ void write_alignment_gaf(std::ostream& out,
                           const SnarlTree& tb);
 
 /**
- * Write A-only alleles (delta graph ΔA→B) in VCF-inspired format.
- * CHROM = snarl id, POS = 0 (placeholder until coordinate map added),
- * REF = source/sink boundary seqs, ALT = allele sequence.
+ * Write the delta graph in VCF-inspired format: one record per allele present
+ * in only one of the two graphs.  ALT carries the actual unique sequence;
+ * GRAPH=A marks alleles unique to the first input, GRAPH=B the second.
+ * CHROM = snarl id; POS = 0 (graph space, no reference coordinate); REF = ".".
  */
 void write_delta_vcf(std::ostream& out,
-                      const AlignmentResult& result,
-                      const VariationGraph& ga,
-                      const SnarlTree& ta);
+                      const AlignmentResult& result);
 
 } // namespace g2g
