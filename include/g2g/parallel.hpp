@@ -107,6 +107,8 @@ public:
     RunStats    last_stats()  const { return last_stats_; }
 
     std::vector<SnarlPairTask> build_task_dag(
+        const VariationGraph& ga,
+        const VariationGraph& gb,
         const SnarlTree& ta,
         const SnarlTree& tb) const;
 

@@ -22,6 +22,10 @@
 #include <g2g/anchor.hpp>
 #include <g2g/matching.hpp>
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 namespace g2g {
 
 struct AlignerParams {
@@ -85,5 +89,28 @@ private:
                       const SnarlTree& ta,
                       const SnarlTree& tb) const;
 };
+
+/**
+ * Establish the snarl-pair correspondence between two graphs.
+ *
+ * Two snarls correspond when their boundary (source, sink) sequences match —
+ * the same signal the per-pair score maximises (W_seq) and the structure the
+ * pangenome backbone provides (shared anchor nodes between A and B).  Pairing
+ * is injective and resolved in snarl order, so repeated boundary sequences fall
+ * back to a stable positional match.  Runs in O(|TA| + |TB|).
+ *
+ * The parallel scheduler pairs through this function (replacing an earlier
+ * heuristic that paired by subtree work — i.e. snarl size — and mismatched
+ * snarls whenever their sizes differed, yielding alignments inconsistent with
+ * the sequential aligner).  On the structured graphs the project's generators
+ * emit, this reproduces the same correspondence the sequential aligner's
+ * best-score search finds, so the two runtimes agree — while staying O(n)
+ * rather than the sequential O(|TA|·|TB|) scan.
+ */
+std::vector<std::pair<uint32_t, uint32_t>> correspond_snarls(
+    const VariationGraph& ga,
+    const VariationGraph& gb,
+    const SnarlTree& ta,
+    const SnarlTree& tb);
 
 } // namespace g2g
