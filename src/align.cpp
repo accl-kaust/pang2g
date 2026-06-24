@@ -18,9 +18,55 @@
 #include <g2g/sequence.hpp>
 #include <g2g/matching.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <deque>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 namespace g2g {
+
+// ── Snarl correspondence ──────────────────────────────────────────────────────
+
+std::vector<std::pair<uint32_t, uint32_t>> correspond_snarls(
+    const VariationGraph& ga,
+    const VariationGraph& gb,
+    const SnarlTree& ta,
+    const SnarlTree& tb) {
+
+    // Key a snarl by the bytes of its source and sink sequences.  '\x01' is a
+    // separator that cannot occur in DNA, so distinct (source, sink) pairs map
+    // to distinct keys.
+    auto boundary_key = [](const VariationGraph& vg, const Snarl& s) {
+        std::string_view src = vg.seq(s.source);
+        std::string_view snk = vg.seq(s.sink);
+        std::string key;
+        key.reserve(src.size() + snk.size() + 1);
+        key.append(src.data(), src.size());
+        key.push_back('\x01');
+        key.append(snk.data(), snk.size());
+        return key;
+    };
+
+    // Index B's snarls by boundary key, preserving snarl order so that
+    // colliding keys are consumed positionally (FIFO).
+    std::unordered_map<std::string, std::deque<uint32_t>> b_by_boundary;
+    for (uint32_t ib = 0; ib < tb.snarls.size(); ++ib)
+        b_by_boundary[boundary_key(gb, tb.snarls[ib])].push_back(ib);
+
+    std::vector<std::pair<uint32_t, uint32_t>> pairs;
+    pairs.reserve(std::min(ta.snarls.size(), tb.snarls.size()));
+    for (uint32_t ia = 0; ia < ta.snarls.size(); ++ia) {
+        auto it = b_by_boundary.find(boundary_key(ga, ta.snarls[ia]));
+        if (it != b_by_boundary.end() && !it->second.empty()) {
+            pairs.emplace_back(ia, it->second.front());
+            it->second.pop_front();
+        }
+        // No matching boundary in B → snarl is left unpaired.
+    }
+    return pairs;
+}
 
 AlignmentResult GraphAligner::align(const VariationGraph& ga,
                                      const VariationGraph& gb) const {

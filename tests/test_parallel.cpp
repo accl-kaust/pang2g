@@ -22,8 +22,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 namespace g2g {
 namespace {
@@ -74,6 +76,43 @@ static VariationGraph make_bubbles(const std::string& name,
                         {src, alleles[a], snk});
         }
 
+        prev_sink = snk;
+    }
+    vg.finalise();
+    return vg;
+}
+
+/**
+ * Build a chain of bubbles whose allele counts vary per bubble (given by `ks`).
+ * Allele sequences depend only on (bubble, allele) — NOT on `name` — so two
+ * graphs built from the same `ks` have byte-identical corresponding snarls and
+ * must align position-for-position.  Because the bubble sizes differ, a
+ * scheduler that paired snarls by subtree work (size) would cross-pair them.
+ */
+static VariationGraph make_varying_bubbles(const std::string& name,
+                                           const std::vector<uint32_t>& ks) {
+    VariationGraph vg;
+    vg.name = name;
+
+    NodeId prev_sink = vg.add_node(name + "_root", "N");
+
+    for (uint32_t b = 0; b < ks.size(); ++b) {
+        NodeId src = prev_sink;
+        std::vector<NodeId> alleles;
+        for (uint32_t a = 0; a < ks[b]; ++a) {
+            // Distinct, deterministic 3-char sequence per (bubble, allele),
+            // identical across graphs so corresponding snarls match perfectly.
+            std::string seq(3, static_cast<char>('A' + (b * 7 + a) % 26));
+            NodeId an = vg.add_node(
+                name + "_b" + std::to_string(b) + "a" + std::to_string(a), seq);
+            vg.add_edge(src, an);
+            alleles.push_back(an);
+        }
+        NodeId snk = vg.add_node(name + "_snk" + std::to_string(b), "N");
+        for (NodeId an : alleles) vg.add_edge(an, snk);
+        for (uint32_t a = 0; a < ks[b]; ++a)
+            vg.add_path(name + "_p" + std::to_string(b) + "_" + std::to_string(a),
+                        {src, alleles[a], snk});
         prev_sink = snk;
     }
     vg.finalise();
@@ -162,6 +201,29 @@ TEST(ParallelMulti, MaxHardwareThreads) {
     EXPECT_NEAR(par.total_score, seq.total_score, 1e-2f);
 }
 
+// Regression: corresponding snarls of *different* sizes must still pair
+// position-for-position.  The earlier subtree-work pairing cross-matched them
+// (e.g. the smallest A-snarl with the largest B-snarl), producing a different —
+// often negative — total score than the sequential aligner.
+TEST(ParallelMulti, HeterogeneousSnarlSizesMatchSequential) {
+    std::vector<uint32_t> ks = {2, 6, 3, 8, 4, 5};
+    auto ga = make_varying_bubbles("A", ks);
+    auto gb = make_varying_bubbles("B", ks);
+
+    AlignmentResult seq = seq_align(ga, gb);
+    ParallelAligner pa({}, 4);
+    AlignmentResult par = pa.align(ga, gb);
+
+    EXPECT_EQ(par.snarl_alignments.size(), seq.snarl_alignments.size());
+    ASSERT_NE(seq.total_score, 0.f);
+    float rel_err = std::abs(par.total_score - seq.total_score)
+                    / std::abs(seq.total_score);
+    EXPECT_LT(rel_err, 1e-3f)
+        << "par=" << par.total_score << " seq=" << seq.total_score;
+    EXPECT_EQ(par.a_only_alleles.size(), seq.a_only_alleles.size());
+    EXPECT_EQ(par.b_only_alleles.size(), seq.b_only_alleles.size());
+}
+
 // ── TaskDag: structural properties of the task DAG ───────────────────────────
 
 TEST(TaskDag, FlatTreeAllTasksReadyImmediately) {
@@ -173,7 +235,7 @@ TEST(TaskDag, FlatTreeAllTasksReadyImmediately) {
     SnarlTree tb = SnarlDecomposer(gb).decompose();
 
     ParallelAligner pa({}, 1);
-    auto tasks = pa.build_task_dag(ta, tb);
+    auto tasks = pa.build_task_dag(ga, gb, ta, tb);
 
     for (const auto& t : tasks) {
         EXPECT_EQ(t.dep_count.load(), 0)
@@ -189,7 +251,7 @@ TEST(TaskDag, PrioritiesAreNonNegative) {
     SnarlTree tb = SnarlDecomposer(gb).decompose();
 
     ParallelAligner pa({}, 1);
-    auto tasks = pa.build_task_dag(ta, tb);
+    auto tasks = pa.build_task_dag(ga, gb, ta, tb);
 
     for (const auto& t : tasks)
         EXPECT_GT(t.priority, 0u);
@@ -203,7 +265,7 @@ TEST(TaskDag, TaskCountMatchesAlignmentCount) {
     SnarlTree tb = SnarlDecomposer(gb).decompose();
 
     ParallelAligner pa({}, 1);
-    auto tasks = pa.build_task_dag(ta, tb);
+    auto tasks = pa.build_task_dag(ga, gb, ta, tb);
 
     // Tasks should not exceed the smaller tree
     EXPECT_LE(tasks.size(),
@@ -238,7 +300,7 @@ TEST(TaskDag, HigherKHigherPriority) {
 
     SnarlTree ta = SnarlDecomposer(ga).decompose();
     ParallelAligner pa({}, 1);
-    auto tasks = pa.build_task_dag(ta, ta);  // pair A with itself
+    auto tasks = pa.build_task_dag(ga, ga, ta, ta);  // pair A with itself
 
     if (tasks.size() >= 2) {
         // At least one task should have priority >= 5^3 = 125

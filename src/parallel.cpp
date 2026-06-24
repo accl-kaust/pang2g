@@ -113,40 +113,32 @@ SnarlAlignment ParallelAligner::execute_task(
 // ── Task DAG construction ─────────────────────────────────────────────────────
 
 std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
+    const VariationGraph& ga,
+    const VariationGraph& gb,
     const SnarlTree& ta,
     const SnarlTree& tb) const
 {
     const uint32_t na = static_cast<uint32_t>(ta.snarls.size());
-    const uint32_t nb = static_cast<uint32_t>(tb.snarls.size());
 
-    std::vector<bool>    used_b(nb, false);
     std::vector<int32_t> task_idx_for_ia(na, -1);
 
+    // Pair snarls by boundary correspondence (shared with the sequential
+    // aligner's intent) rather than by subtree size.  subtree_work is used
+    // only as the scheduler priority below.
+    std::vector<std::pair<uint32_t, uint32_t>> corr =
+        correspond_snarls(ga, gb, ta, tb);
+
     std::vector<SnarlPairTask> tasks;
-    tasks.reserve(std::min(na, nb));
+    tasks.reserve(corr.size());
 
-    for (uint32_t ia = 0; ia < na; ++ia) {
-        int32_t  best_ib  = -1;
-        uint64_t best_pri = 0;
-        for (uint32_t ib = 0; ib < nb; ++ib) {
-            if (used_b[ib]) continue;
-            uint64_t pri = ta.snarls[ia].subtree_work + tb.snarls[ib].subtree_work;
-            if (best_ib < 0 || pri > best_pri) {
-                best_pri = pri;
-                best_ib  = static_cast<int32_t>(ib);
-            }
-        }
-        if (best_ib < 0) break;
-
-        used_b[static_cast<uint32_t>(best_ib)] = true;
-
+    for (const auto& [ia, ib] : corr) {
         uint32_t task_idx = static_cast<uint32_t>(tasks.size());
         task_idx_for_ia[ia] = static_cast<int32_t>(task_idx);
 
         SnarlPairTask& t = tasks.emplace_back();
         t.ia         = ia;
-        t.ib         = static_cast<uint32_t>(best_ib);
-        t.priority   = best_pri;
+        t.ib         = ib;
+        t.priority   = ta.snarls[ia].subtree_work + tb.snarls[ib].subtree_work;
         t.parent_idx = -1;
         t.dep_count.store(0, std::memory_order_relaxed);
     }
@@ -198,7 +190,7 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     using Clock = std::chrono::steady_clock;
     auto t0 = Clock::now();
 
-    std::vector<SnarlPairTask> tasks = build_task_dag(ta, tb);
+    std::vector<SnarlPairTask> tasks = build_task_dag(ga, gb, ta, tb);
     const uint32_t ntasks = static_cast<uint32_t>(tasks.size());
 
     // Per-task result slots
@@ -309,8 +301,14 @@ ParallelAligner::Result ParallelAligner::align_snarls(
                 }
             }
 
-            // If all done, wake everyone so they can exit
+            // If all done, wake everyone so they can exit.  done_count is
+            // updated outside queue_mtx (line above), so the notify must be
+            // issued while holding the lock: otherwise a worker that read the
+            // pre-increment done_count in its wait predicate could go to sleep
+            // *after* this notify fires and never be woken again (lost wakeup →
+            // the OpenMP region never joins and the run hangs).
             if (new_done >= ntasks) {
+                std::lock_guard<std::mutex> lk(queue_mtx);
                 queue_cv.notify_all();
             }
         }
