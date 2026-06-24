@@ -93,11 +93,16 @@ inline int lapjv(int n,
                 }
             }
 
-            // Update potentials
+            // Update potentials.  Column j (1..n) stores its potential at
+            // v[j-1], matching the reduced-cost convention above (line uses
+            // v[j-1]).  j == 0 is the sentinel start column and has no v entry,
+            // so only its row potential u[p[0]-1] is updated.  Updating v[j]
+            // here instead would both read/write one past the n-element buffer
+            // (heap overflow at j == n) and shift every column potential.
             for (int j = 0; j <= n; ++j) {
                 if (used[j]) {
                     u[p[j] - 1] += delta;
-                    v[j]        -= delta;
+                    if (j >= 1) v[j - 1] -= delta;
                 } else {
                     minval[j] -= delta;
                 }

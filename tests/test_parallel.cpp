@@ -295,6 +295,66 @@ TEST(ScalingProxy, StatsFieldsPopulated) {
     EXPECT_EQ(s.num_threads,    2u);
 }
 
+// ── RunStats instrumentation: steals, imbalance, ready_peak, phases ──────────
+
+TEST(RunStats, ImbalanceIsAtLeastOneAndStealsBounded) {
+    auto ga = make_bubbles("A", 40, 4);
+    auto gb = make_bubbles("B", 40, 4);
+
+    ParallelAligner pa({}, 4);
+    pa.align(ga, gb);
+    RunStats s = pa.last_stats();
+
+    // Imbalance = max/mean is >= 1 by construction (allow fp slack).
+    EXPECT_GE(s.imbalance, 1.0 - 1e-6);
+    // Can never run more "stolen" tasks than tasks executed.
+    EXPECT_LE(s.steals, s.tasks_executed);
+    // Ready queue held at least the seed tasks at its peak.
+    EXPECT_GE(s.tasks_ready_peak, 1u);
+}
+
+TEST(RunStats, SingleThreadHasNoStealsAndUnitImbalance) {
+    auto ga = make_bubbles("A", 12, 3);
+    auto gb = make_bubbles("B", 12, 3);
+
+    ParallelAligner pa({}, 1);
+    pa.align(ga, gb);
+    RunStats s = pa.last_stats();
+
+    // With one thread every task's static owner (ti % 1 == 0) is that thread,
+    // so nothing is "stolen" and the single thread carries all the work.
+    EXPECT_EQ(s.steals, 0u);
+    EXPECT_NEAR(s.imbalance, 1.0, 1e-6);
+}
+
+TEST(RunStats, PhaseBreakdownPopulated) {
+    auto ga = make_bubbles("A", 16, 3);
+    auto gb = make_bubbles("B", 16, 3);
+
+    ParallelAligner pa({}, 2);
+    pa.align(ga, gb);
+    RunStats s = pa.last_stats();
+
+    EXPECT_GE(s.phases.index_seconds,     0.0);
+    EXPECT_GE(s.phases.decompose_seconds, 0.0);
+    EXPECT_GE(s.phases.dp_seconds,        0.0);
+    // dp phase mirrors the align_snarls wall time.
+    EXPECT_NEAR(s.phases.dp_seconds, s.wall_seconds, 1e-9);
+}
+
+TEST(RunStats, SequentialAlignerExposesPhaseTimes) {
+    auto ga = make_bubbles("A", 16, 3);
+    auto gb = make_bubbles("B", 16, 3);
+
+    GraphAligner aligner;
+    aligner.align(ga, gb);
+    PhaseTimes pt = aligner.last_phase_times();
+
+    EXPECT_GE(pt.index_seconds,     0.0);
+    EXPECT_GE(pt.decompose_seconds, 0.0);
+    EXPECT_GT(pt.dp_seconds,        0.0);  // DP always does real work here
+}
+
 // ── EnvOverride ───────────────────────────────────────────────────────────────
 
 TEST(EnvOverride, EnvVariableHonoured) {

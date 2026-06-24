@@ -34,6 +34,16 @@ struct AlignerParams {
     MatchParams  match;
 };
 
+// ── Per-phase wall-clock breakdown ────────────────────────────────────────────
+// Populated by the aligners so the CLI can emit a `[timing]` line under
+// --verbose-timing.  (I/O time is measured separately in main, since GFA
+// reading happens before the aligner is invoked.)
+struct PhaseTimes {
+    double index_seconds     = 0.0;  // anchor detection / minimizer index
+    double decompose_seconds = 0.0;  // snarl-tree decomposition (both graphs)
+    double dp_seconds        = 0.0;  // snarl-pair DP (align_snarls)
+};
+
 class GraphAligner {
 public:
     explicit GraphAligner(const AlignerParams& params = {})
@@ -47,8 +57,12 @@ public:
     AlignmentResult align(const VariationGraph& ga,
                           const VariationGraph& gb) const;
 
+    // Per-phase wall-clock breakdown of the most recent align() call.
+    PhaseTimes last_phase_times() const { return phase_times_; }
+
 private:
     AlignerParams params_;
+    mutable PhaseTimes phase_times_;
 
     std::vector<SnarlAlignment> align_snarls(
         const VariationGraph& ga,
