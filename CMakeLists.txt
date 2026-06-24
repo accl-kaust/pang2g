@@ -66,6 +66,7 @@ set(G2G_SOURCES
   src/graph.cpp
   src/sequence.cpp
   src/decompose.cpp
+  src/snarls_vg.cpp
   src/anchor.cpp
   src/matching.cpp
   src/align.cpp

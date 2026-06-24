@@ -50,6 +50,7 @@ struct Args {
     int      threads    = 0;  // 0 = auto
     bool     sequential = false;
     bool     verbose_timing = false;
+    std::string snarls;     // "vg" | "builtin" | "" (default = builtin)
     g2g::AlignerParams params;
 };
 
@@ -66,6 +67,9 @@ static void print_help(const char* prog) {
         "  --gamma <f>        W_struct weight[default: 2.0]\n"
         "  --gap   <f>        Gap penalty    [default: 0.5]\n"
         "  --sequential       Use single-threaded aligner\n"
+        "  --snarls <backend> Snarl decomposition: 'builtin' (default, DAG-only)\n"
+        "                     or 'vg' (use the vg toolkit; needs vg on PATH or\n"
+        "                     $G2G_VG; falls back to builtin if unavailable)\n"
         "  --verbose-timing   Print [timing] (io/index/decompose/dp) and, for\n"
         "                     the parallel runtime, [runstats] (tasks/steals/\n"
         "                     imbalance) lines to stderr\n"
@@ -100,6 +104,13 @@ static Args parse_args(int argc, char** argv) {
         else if (flag == "--gamma") a.params.gamma = std::stof(need_next());
         else if (flag == "--gap")   a.params.gap   = std::stof(need_next());
         else if (flag == "--sequential") a.sequential = true;
+        else if (flag == "--snarls") {
+            a.snarls = need_next();
+            if (a.snarls != "vg" && a.snarls != "builtin") {
+                std::cerr << "ERROR: --snarls expects 'vg' or 'builtin'\n";
+                std::exit(1);
+            }
+        }
         else if (flag == "--verbose-timing") a.verbose_timing = true;
         else if (flag == "-h" || flag == "--help") { print_help(argv[0]); std::exit(0); }
         else { std::cerr << "Unknown option: " << flag << "\n"; std::exit(1); }
@@ -118,6 +129,12 @@ static Args parse_args(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     Args args = parse_args(argc, argv);
+
+    // --snarls drives the decomposer back-end via the environment (read inside
+    // SnarlDecomposer::decompose()); the explicit flag overrides any inherited
+    // G2G_SNARLS.
+    if (!args.snarls.empty())
+        ::setenv("G2G_SNARLS", args.snarls.c_str(), /*overwrite=*/1);
 
     using Clock = std::chrono::steady_clock;
 

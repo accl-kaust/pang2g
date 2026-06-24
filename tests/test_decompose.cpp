@@ -18,10 +18,13 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <numeric>
 #include <random>
+#include <set>
 #include <string>
 #include <unordered_set>
+#include <utility>
 
 using namespace g2g;
 
@@ -414,5 +417,54 @@ TEST(AnchorIndex, SensitivitySweep) {
         EXPECT_EQ(hits, expected)
             << "k=" << static_cast<int>(k) << " w=" << static_cast<int>(w)
             << " expected " << expected << " hits, got " << hits;
+    }
+}
+
+// ── Vg snarl back-end (snarls_vg.cpp) ─────────────────────────
+// These tests exercise the optional vg-toolkit decomposer.  They self-skip
+// when vg is not available (set $G2G_VG to the vg binary, or put vg on PATH);
+// in CI without vg they are skipped rather than failed.
+
+TEST(VgSnarls, DecomposeMatchesBuiltinOnDemoGraph) {
+    VariationGraph g = make_demo_graph_a();
+    // Gate on vg actually producing boundaries (not just env being set) so a
+    // broken/missing vg skips instead of silently passing via fallback.
+    if (!vg_snarl_boundaries(g).has_value())
+        GTEST_SKIP() << "vg unavailable (set G2G_VG to the vg binary)";
+
+    auto boundary_set = [&](const SnarlTree& t) {
+        std::set<std::pair<std::string, std::string>> s;
+        for (const auto& sn : t.snarls)
+            s.insert({g.node_names[sn.source], g.node_names[sn.sink]});
+        return s;
+    };
+
+    ::unsetenv("G2G_SNARLS");
+    SnarlTree builtin = SnarlDecomposer(g).decompose();
+
+    ::setenv("G2G_SNARLS", "vg", 1);
+    SnarlTree viavg = SnarlDecomposer(g).decompose();
+    ::unsetenv("G2G_SNARLS");
+
+    EXPECT_EQ(viavg.snarls.size(), builtin.snarls.size());
+    EXPECT_EQ(boundary_set(viavg), boundary_set(builtin));
+}
+
+TEST(VgSnarls, BoundariesContainBuiltinSnarls) {
+    VariationGraph g = make_demo_graph_a();
+    auto vb = vg_snarl_boundaries(g);
+    if (!vb.has_value())
+        GTEST_SKIP() << "vg unavailable (set G2G_VG to the vg binary)";
+
+    std::set<std::pair<std::string, std::string>> vgset;
+    for (auto [s, t] : *vb)
+        vgset.insert({g.node_names[s], g.node_names[t]});
+
+    SnarlTree builtin = SnarlDecomposer(g).decompose();
+    for (const auto& sn : builtin.snarls) {
+        std::pair<std::string, std::string> key{g.node_names[sn.source],
+                                                g.node_names[sn.sink]};
+        EXPECT_TRUE(vgset.count(key))
+            << "vg missing built-in snarl " << key.first << ">" << key.second;
     }
 }
