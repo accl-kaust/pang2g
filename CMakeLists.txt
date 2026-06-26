@@ -94,5 +94,10 @@ add_executable(g2g src/main.cpp)
 target_link_libraries(g2g PRIVATE g2g_lib)
 
 # ── Tests ─────────────────────────────────────────────────────
+# Off-by-flag so a from-source build (e.g. the demo) doesn't need to fetch
+# googletest or have network access: -DG2G_BUILD_TESTS=OFF.
+option(G2G_BUILD_TESTS "Build the unit tests (fetches googletest)" ON)
 enable_testing()
-add_subdirectory(tests)
+if(G2G_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
