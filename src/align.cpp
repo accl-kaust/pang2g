@@ -222,7 +222,7 @@ void GraphAligner::build_deltas(
     };
 
     auto inner_seq = [](const VariationGraph& vg,
-                         std::span<const NodeId> full_path) -> std::string {
+                         g2g::span<const NodeId> full_path) -> std::string {
         std::string seq;
         if (full_path.size() > 2) {
             auto inner = full_path.subspan(1, full_path.size() - 2);

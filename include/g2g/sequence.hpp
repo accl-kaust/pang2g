@@ -19,7 +19,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <span>           // add this
+#include <g2g/span.hpp>   // portable g2g::span (falls back on GCC 9)
 
 namespace g2g {
 
@@ -45,12 +45,12 @@ inline float seq_similarity(std::string_view a, std::string_view b) {
  * Appends to out_buf (does not clear first) so callers can reuse allocations.
  */
 void path_sequence(const VariationGraph& vg,
-                   std::span<const NodeId> path,
+                   g2g::span<const NodeId> path,
                    std::string& out_buf);
 
 /** Convenience overload returning a new string. */
 inline std::string path_sequence(const VariationGraph& vg,
-                                  std::span<const NodeId> path) {
+                                  g2g::span<const NodeId> path) {
     std::string buf;
     path_sequence(vg, path, buf);
     return buf;
