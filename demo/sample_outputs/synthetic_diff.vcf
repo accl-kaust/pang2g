@@ -1,0 +1,12 @@
+##fileformat=G2GdeltaVCF-0.2
+##source=G2G graph-to-graph diff
+##note=ALT holds the sequence unique to one graph; REF is undefined (no designated reference allele) and POS is 0 (graph space, no reference coordinate is assigned).
+##INFO=<ID=GRAPH,Number=1,Type=String,Description="Graph the allele is unique to (A=first input, B=second input)">
+##INFO=<ID=SNARL,Number=1,Type=String,Description="Snarl region, source>sink">
+##INFO=<ID=LEN,Number=1,Type=Integer,Description="ALT sequence length">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+GRCh38	31	A_0	C	A	.	PASS	GRAPH=A;SNARL=GRCh38:31;LEN=1
+GRCh38	37	A_1	A	G	.	PASS	GRAPH=A;SNARL=GRCh38:37;LEN=1
+GRCh38	43	A_2	G	C	.	PASS	GRAPH=A;SNARL=GRCh38:43;LEN=1
+GRCh38	33	B_0	C	G	.	PASS	GRAPH=B;SNARL=GRCh38:33;LEN=1
+GRCh38	39	B_1	A	C	.	PASS	GRAPH=B;SNARL=GRCh38:39;LEN=1
