@@ -70,6 +70,7 @@ set(G2G_SOURCES
   src/anchor.cpp
   src/matching.cpp
   src/align.cpp
+  src/refdiff.cpp
   src/io.cpp
   src/parallel.cpp
 )

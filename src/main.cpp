@@ -27,6 +27,7 @@
 #include <g2g/decompose.hpp>
 #include <g2g/io.hpp>
 #include <g2g/parallel.hpp>
+#include <g2g/refdiff.hpp>
 
 #include <chrono>
 #include <cstdlib>
@@ -51,6 +52,7 @@ struct Args {
     bool     sequential = false;
     bool     verbose_timing = false;
     std::string snarls;     // "vg" | "builtin" | "" (default = builtin)
+    std::string ref;        // reference path name → reference-coordinate diff
     g2g::AlignerParams params;
 };
 
@@ -66,7 +68,11 @@ static void print_help(const char* prog) {
         "  --beta  <f>        W_topo weight  [default: 0.5]\n"
         "  --gamma <f>        W_struct weight[default: 2.0]\n"
         "  --gap   <f>        Gap penalty    [default: 0.5]\n"
-        "  --sequential       Use single-threaded aligner\n"
+        "  --ref <path>       Reference-coordinate diff: match snarls by their\n"
+        "                     position along the embedded reference path <path>\n"
+        "                     (robust to differing node segmentation; emits real\n"
+        "                     coordinates). Both graphs must contain that path.\n"
+        "  --sequential       Use single-threaded aligner (ignored with --ref)\n"
         "  --snarls <backend> Snarl decomposition: 'builtin' (default, DAG-only)\n"
         "                     or 'vg' (use the vg toolkit; needs vg on PATH or\n"
         "                     $G2G_VG; falls back to builtin if unavailable)\n"
@@ -103,6 +109,7 @@ static Args parse_args(int argc, char** argv) {
         else if (flag == "--beta")  a.params.beta  = std::stof(need_next());
         else if (flag == "--gamma") a.params.gamma = std::stof(need_next());
         else if (flag == "--gap")   a.params.gap   = std::stof(need_next());
+        else if (flag == "--ref") a.ref = need_next();
         else if (flag == "--sequential") a.sequential = true;
         else if (flag == "--snarls") {
             a.snarls = need_next();
@@ -155,13 +162,33 @@ int main(int argc, char** argv) {
     std::cerr << "[g2g] GA: " << ga.num_nodes() << " nodes"
               << "  GB: " << gb.num_nodes() << " nodes\n";
 
-    // ── Run alignment ─────────────────────────────────────────
+    // ── Decompose both graphs (shared by the diff and the writers) ─
+    g2g::SnarlTree ta, tb;
+    try {
+        ta = g2g::SnarlDecomposer(ga).decompose();
+        tb = g2g::SnarlDecomposer(gb).decompose();
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR during snarl decomposition: " << e.what() << "\n";
+        return 1;
+    }
+
+    // ── Run alignment / diff ──────────────────────────────────
     g2g::AlignmentResult result;
     g2g::RunStats run_stats{};   // .phases filled in both paths; scheduler
                                  // fields (steals/imbalance/...) only parallel
     bool have_runstats = false;
     try {
-        if (args.sequential) {
+        if (!args.ref.empty()) {
+            std::cerr << "[g2g] reference-coordinate diff along path '"
+                      << args.ref << "'\n";
+            auto rd = g2g::reference_diff(ga, gb, ta, tb, args.ref);
+            if (!rd) {
+                std::cerr << "ERROR: reference path '" << args.ref
+                          << "' not found in both graphs\n";
+                return 1;
+            }
+            result = std::move(*rd);
+        } else if (args.sequential) {
             std::cerr << "[g2g] running sequential aligner\n";
             g2g::GraphAligner aligner(args.params);
             result = aligner.align(ga, gb);
@@ -207,9 +234,7 @@ int main(int argc, char** argv) {
         std::cerr.unsetf(std::ios::floatfield);
     }
 
-    // ── Decompose for writers (need SnarlTree with node names) ─
-    g2g::SnarlTree ta = g2g::SnarlDecomposer(ga).decompose();
-    g2g::SnarlTree tb = g2g::SnarlDecomposer(gb).decompose();
+    // (ta, tb already decomposed above and reused by the writers.)
 
     // ── Write GAF ─────────────────────────────────────────────
     if (args.gaf_out.empty()) {

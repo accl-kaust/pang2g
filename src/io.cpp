@@ -385,9 +385,11 @@ void write_delta_vcf(std::ostream& out,
     auto emit = [&](const std::vector<DeltaAllele>& deltas, const char* graph) {
         std::size_t i = 0;
         for (const auto& d : deltas) {
-            out << d.snarl_id                          // CHROM = snarl region
-                << "\t0"                               // POS (see header note)
-                << "\t" << graph << '_' << i++         // ID
+            // CHROM/POS: real reference coordinates when the diff supplied them
+            // (reference-coordinate mode), else the snarl id with POS 0.
+            if (d.pos >= 0) out << d.chrom << "\t" << d.pos;
+            else            out << d.snarl_id << "\t0";
+            out << "\t" << graph << '_' << i++         // ID
                 << "\t."                               // REF (undefined)
                 << "\t" << (d.sequence.empty() ? "." : d.sequence)  // ALT
                 << "\t.\tPASS"
