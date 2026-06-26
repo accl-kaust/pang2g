@@ -390,7 +390,7 @@ void write_delta_vcf(std::ostream& out,
             if (d.pos >= 0) out << d.chrom << "\t" << d.pos;
             else            out << d.snarl_id << "\t0";
             out << "\t" << graph << '_' << i++         // ID
-                << "\t."                               // REF (undefined)
+                << "\t" << (d.ref.empty() ? "." : d.ref)            // REF
                 << "\t" << (d.sequence.empty() ? "." : d.sequence)  // ALT
                 << "\t.\tPASS"
                 << "\tGRAPH=" << graph

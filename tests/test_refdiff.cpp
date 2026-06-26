@@ -34,11 +34,11 @@ TEST(ReferenceDiff, SharedAndUniqueVariants) {
     A.add_path("ref", {a, rc, m, ra, z});
     A.finalise();
 
-    // Graph B: bubble 1 identical (shared G); bubble 2 alt is "CC" (B-only)
+    // Graph B: bubble 1 identical (shared G); bubble 2 alt is "C" (B-only SNP)
     VariationGraph B;
     NodeId ba = B.add_node("a", "AAAAAAAA"), brc = B.add_node("rc", "C"),
            bgc = B.add_node("gc", "G"), bm = B.add_node("m", "TTTTTTTT"),
-           bra = B.add_node("ra", "A"), bcc = B.add_node("cc", "CC"),
+           bra = B.add_node("ra", "A"), bcc = B.add_node("cc", "C"),
            bz = B.add_node("z", "GGGGGGGG");
     for (auto e : {std::pair{ba, brc}, {ba, bgc}, {brc, bm}, {bgc, bm},
                    {bm, bra}, {bm, bcc}, {bra, bz}, {bcc, bz}})
@@ -51,15 +51,18 @@ TEST(ReferenceDiff, SharedAndUniqueVariants) {
     auto rd = reference_diff(A, B, ta, tb, "ref");
     ASSERT_TRUE(rd.has_value());
 
+    // Atomic variants: bubble 1 SNP C>G is shared; bubble 2 is A>T in A and
+    // A>C in B (different alleles → each graph's is unique).
     ASSERT_EQ(rd->a_only_alleles.size(), 1u);
     ASSERT_EQ(rd->b_only_alleles.size(), 1u);
     EXPECT_EQ(rd->a_only_alleles[0].sequence, "T");
-    EXPECT_EQ(rd->b_only_alleles[0].sequence, "CC");
+    EXPECT_EQ(rd->a_only_alleles[0].ref, "A");
+    EXPECT_EQ(rd->b_only_alleles[0].sequence, "C");
     EXPECT_EQ(rd->a_only_alleles[0].chrom, "ref");
     EXPECT_EQ(rd->a_only_alleles[0].pos, 17);   // 8 (a) + 1 (C) + 8 (m)
     EXPECT_EQ(rd->b_only_alleles[0].pos, 17);
-    // Both sites present in both graphs → 2 alignments; one shared alt (G).
-    EXPECT_EQ(rd->snarl_alignments.size(), 2u);
+    // One shared atomic variant (C>G) → one matched snarl pair.
+    EXPECT_EQ(rd->snarl_alignments.size(), 1u);
     EXPECT_FLOAT_EQ(rd->total_score, 1.0f);
 }
 
@@ -141,7 +144,7 @@ TEST(ReferenceDiff, ResolvesPanSNReferenceBySampleAndContig) {
     }
 
     // A differing alt becomes a delta tagged with the resolved contig name.
-    VariationGraph C = build("TT");
+    VariationGraph C = build("T");
     SnarlTree tc = SnarlDecomposer(C).decompose();
     auto rd2 = reference_diff(A, C, ta, tc, "GRCh38");
     ASSERT_TRUE(rd2.has_value());
@@ -149,5 +152,42 @@ TEST(ReferenceDiff, ResolvesPanSNReferenceBySampleAndContig) {
     EXPECT_EQ(rd2->a_only_alleles[0].sequence, "G");
     EXPECT_EQ(rd2->a_only_alleles[0].chrom, "chr1");   // contig, not mangled name
     ASSERT_EQ(rd2->b_only_alleles.size(), 1u);
-    EXPECT_EQ(rd2->b_only_alleles[0].sequence, "TT");
+    EXPECT_EQ(rd2->b_only_alleles[0].sequence, "T");
+}
+
+// ── The fix: a merged bubble matches the split bubbles ───────
+
+TEST(ReferenceDiff, MergedBubbleMatchesSplitBubbles) {
+    // Graph A: ONE bubble spanning two SNPs — ref "CAT", alt "GAG"
+    //   (C>G at offset 4, T>G at offset 6).
+    VariationGraph A;
+    NodeId a1 = A.add_node("a1", "AAAA"), cat = A.add_node("cat", "CAT"),
+           gag = A.add_node("gag", "GAG"), a2 = A.add_node("a2", "GGGG");
+    for (auto e : {std::pair{a1, cat}, {a1, gag}, {cat, a2}, {gag, a2}})
+        A.add_edge(e.first, e.second);
+    A.add_path("ref", {a1, cat, a2});
+    A.finalise();
+
+    // Graph B: the SAME two SNPs as TWO separate bubbles around a shared base.
+    VariationGraph B;
+    NodeId b1 = B.add_node("b1", "AAAA"), c = B.add_node("c", "C"),
+           g1 = B.add_node("g1", "G"), mid = B.add_node("mid", "A"),
+           t = B.add_node("t", "T"), g2 = B.add_node("g2", "G"),
+           b2 = B.add_node("b2", "GGGG");
+    for (auto e : {std::pair{b1, c}, {b1, g1}, {c, mid}, {g1, mid},
+                   {mid, t}, {mid, g2}, {t, b2}, {g2, b2}})
+        B.add_edge(e.first, e.second);
+    B.add_path("ref", {b1, c, mid, t, b2});
+    B.finalise();
+
+    SnarlTree ta = SnarlDecomposer(A).decompose();
+    SnarlTree tb = SnarlDecomposer(B).decompose();
+    auto rd = reference_diff(A, B, ta, tb, "ref");
+    ASSERT_TRUE(rd.has_value());
+
+    // Both decompose to the SAME atomic variants (4:C>G, 6:T>G) → all shared,
+    // nothing unique — even though A has one bubble and B has two.
+    EXPECT_EQ(rd->a_only_alleles.size(), 0u) << "merged vs split should match";
+    EXPECT_EQ(rd->b_only_alleles.size(), 0u);
+    EXPECT_FLOAT_EQ(rd->total_score, 2.0f);   // two shared SNPs
 }
