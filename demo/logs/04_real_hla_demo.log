@@ -22,13 +22,13 @@
     cg_B: nodes	3742 edges	5240  acyclic
 
 === 6. Diff:  g2g cg_A.gfa cg_B.gfa --ref GRCh38 --vcf hla_diff.vcf ===
-[g2g] reading "/home/user/G2G/demo/work/hla/cg_A.gfa" ...
-[g2g] reading "/home/user/G2G/demo/work/hla/cg_B.gfa" ...
+[g2g] reading "/home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/hla/cg_A.gfa" ...
+[g2g] reading "/home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/hla/cg_B.gfa" ...
 [g2g] GA: 4500 nodes  GB: 3742 nodes
 [g2g] reference-coordinate diff along path 'GRCh38'
 [g2g] total_score=911  snarl_pairs=863  a_only=266  b_only=93
-[g2g] alignment written to "/home/user/G2G/demo/work/hla/hla_diff.gaf"
-[g2g] delta VCF written to "/home/user/G2G/demo/work/hla/hla_diff.vcf"
+[g2g] alignment written to "/home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/hla/hla_diff.gaf"
+[g2g] delta VCF written to "/home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/hla/hla_diff.vcf"
 
 === 7. Sample of the variant-level diff (real chr coordinates) ===
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
@@ -39,8 +39,3 @@ GRCh38	1540	A_3	T	C	.	PASS	GRAPH=A;SNARL=GRCh38:1540;LEN=1
 GRCh38	1576	A_4	C	T	.	PASS	GRAPH=A;SNARL=GRCh38:1576;LEN=1
 GRCh38	1603	A_5	A	G	.	PASS	GRAPH=A;SNARL=GRCh38:1603;LEN=1
 GRCh38	1713	A_6	G	T	.	PASS	GRAPH=A;SNARL=GRCh38:1713;LEN=1
-
-=== 8. Self-diff (cg_A vs cg_A) — must be zero differences ===
-  a_only=0  b_only=0
-
-OK — real HLA demo complete (outputs in /home/user/G2G/demo/work/hla)

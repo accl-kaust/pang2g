@@ -1,11 +1,11 @@
 
-=== Installing tools into /home/user/G2G/demo/tools ===
-    vg already present
-    minimap2 already present
+=== Installing tools into /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/tools ===
+    downloading vg v1.75.0 (~52 MB)…
+    downloading minimap2 v2.28 (+ paftools.js, k8)…
     ensuring pysam (bgzip/tabix/faidx) is importable…
 
 === Tool versions ===
 vg version v1.75.0 "Spike"
 minimap2 2.28-r1209
 pysam 0.24.0
-OK — tools ready in /home/user/G2G/demo/tools
+OK — tools ready in /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/tools
