@@ -89,7 +89,13 @@ struct AnchorMatch {
 struct DeltaAllele {
     std::string          snarl_id;    // "<source>><sink>" string label
     std::vector<NodeId>  path;        // full allele path (source..sink inclusive)
-    std::string          sequence;    // concatenated inner-node sequence
+    std::string          sequence;    // alternate sequence (ALT)
+
+    // Reference coordinates (set by the reference-coordinate diff; -1 = unknown,
+    // e.g. the snarl-alignment path which has no reference frame).
+    std::string          chrom;       // reference path name
+    int64_t              pos{-1};     // 0-based reference offset of the site
+    std::string          ref;         // reference allele (REF); empty = insertion
 };
 
 struct AlignmentResult {

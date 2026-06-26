@@ -6,7 +6,7 @@ FetchContent_Declare(googletest
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
-foreach(t sequence matching align io)
+foreach(t sequence matching align io refdiff)
   add_executable(test_${t} test_${t}.cpp)
   target_link_libraries(test_${t} PRIVATE g2g_lib GTest::gtest_main)
   gtest_discover_tests(test_${t})

@@ -1,11 +1,16 @@
 #include <g2g/decompose.hpp>
 #include <algorithm>
+#include <atomic>
+#include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <numeric>
 #include <optional>
 #include <queue>
 #include <set>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 namespace g2g {
 
@@ -227,37 +232,34 @@ void SnarlDecomposer::apply_veb_order(SnarlTree& tree) {
         r = old_to_new[r];
 }
 
-// ── SnarlDecomposer::decompose() ──────────────────────────────────────────────
+// ── build_tree_from_boundaries ────────────────────────────────────────────────
+//
+// Given snarl boundaries (source, sink) — from either the built-in dominator
+// approximation or the vg back-end — enumerate each snarl's alleles, drop
+// snarls nested inside another (keep top-level only), build the flat allele
+// store, annotate work, and apply the vEB layout.
 
-SnarlTree SnarlDecomposer::decompose() const {
-    std::vector<NodeId> topo = topological_sort(vg_);
-    std::vector<uint32_t> topo_pos(vg_.num_nodes());
-    for (uint32_t i = 0; i < topo.size(); ++i)
-        topo_pos[topo[i]] = i;
+SnarlTree SnarlDecomposer::build_tree_from_boundaries(
+        const VariationGraph& vg,
+        const std::vector<std::pair<NodeId, NodeId>>& boundaries,
+        const std::vector<uint32_t>& topo_pos) {
 
     SnarlTree tree;
-    std::vector<bool> visited(vg_.num_nodes(), false);
 
-    // Detect all candidate snarls and store their allele paths temporarily
     struct RawSnarl {
         Snarl snarl;
         std::vector<std::vector<NodeId>> alleles;
     };
     std::vector<RawSnarl> raw;
 
-    for (NodeId s : topo) {
-        if (visited[s]) continue;
-        if (vg_.out_degree(s) < 2) continue;
-
-        auto sink_opt = find_sink(s, vg_, topo, topo_pos);
-        if (!sink_opt) continue;
-        NodeId t = *sink_opt;
+    for (const auto& [s, t] : boundaries) {
+        if (s >= vg.num_nodes() || t >= vg.num_nodes()) continue;
 
         std::vector<std::vector<NodeId>> alleles;
         std::function<void(NodeId, std::vector<NodeId>&)> dfs =
             [&](NodeId u, std::vector<NodeId>& path) {
                 if (u == t) { alleles.push_back(path); return; }
-                for (NodeId v : vg_.successors(u)) {
+                for (NodeId v : vg.successors(u)) {
                     if (topo_pos[v] > topo_pos[t]) continue;
                     path.push_back(v);
                     dfs(v, path);
@@ -270,16 +272,15 @@ SnarlTree SnarlDecomposer::decompose() const {
         if (alleles.size() < 2) continue;
 
         Snarl snarl{};
-        snarl.source       = s;
-        snarl.sink         = t;
-        snarl.alleles_begin = 0;
-        snarl.alleles_end   = static_cast<uint32_t>(alleles.size());
+        snarl.source         = s;
+        snarl.sink           = t;
+        snarl.alleles_begin  = 0;
+        snarl.alleles_end    = static_cast<uint32_t>(alleles.size());
         snarl.children_begin = 0;
         snarl.children_end   = 0;
         snarl.subtree_work   = 0;
 
-        raw.push_back({snarl, alleles});
-        visited[s] = true;
+        raw.push_back({snarl, std::move(alleles)});
     }
 
     // Collect interior nodes for nesting filter
@@ -325,6 +326,47 @@ SnarlTree SnarlDecomposer::decompose() const {
 #endif
 
     return tree;
+}
+
+// ── SnarlDecomposer::decompose() ──────────────────────────────────────────────
+
+SnarlTree SnarlDecomposer::decompose() const {
+    std::vector<NodeId> topo = topological_sort(vg_);
+    std::vector<uint32_t> topo_pos(vg_.num_nodes());
+    for (uint32_t i = 0; i < topo.size(); ++i)
+        topo_pos[topo[i]] = i;
+
+    std::vector<std::pair<NodeId, NodeId>> boundaries;
+
+    // Boundary source: vg snarl finder (opt-in, G2G_SNARLS=vg) or the built-in
+    // dominator approximation.  vg falls back to built-in if unavailable.
+    const char* mode = std::getenv("G2G_SNARLS");
+    bool have_vg = false;
+    if (mode && std::string(mode) == "vg") {
+        if (auto vb = vg_snarl_boundaries(vg_)) {
+            boundaries = std::move(*vb);
+            have_vg    = true;
+        } else {
+            // decompose() runs several times per alignment; warn only once.
+            static std::atomic<bool> warned{false};
+            if (!warned.exchange(true))
+                std::fprintf(stderr,
+                    "[g2g] G2G_SNARLS=vg requested but vg snarls produced "
+                    "nothing (is vg installed / on PATH or $G2G_VG?); falling "
+                    "back to the built-in decomposer\n");
+        }
+    }
+
+    if (!have_vg) {
+        for (NodeId s : topo) {
+            if (vg_.out_degree(s) < 2) continue;
+            auto sink_opt = find_sink(s, vg_, topo, topo_pos);
+            if (!sink_opt) continue;
+            boundaries.emplace_back(s, *sink_opt);
+        }
+    }
+
+    return build_tree_from_boundaries(vg_, boundaries, topo_pos);
 }
 
 } // namespace g2g

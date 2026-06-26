@@ -1,0 +1,12 @@
+
+=== Building G2G (Release) ===
+-- Found OpenMP 4.5
+-- libhandlegraph not found — snarl decomposition will use built-in stub
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/user/G2G/build
+ninja: no work to do.
+Usage: /home/user/G2G/build/g2g <graph_a.gfa> <graph_b.gfa> [options]
+
+Options:
+OK — built /home/user/G2G/build/g2g

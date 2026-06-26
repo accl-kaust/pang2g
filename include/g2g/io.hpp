@@ -5,11 +5,12 @@
  * GFA v1.1 reader/writer and GAF-like output format.
  *
  * GFA reader:
- *   - Parses S (segment), L (link), P (path) lines.
+ *   - Parses S (segment), L (link), P (path) and W (walk) lines.
  *   - Stores sequences in flat VariationGraph::seq_data.
- *   - Ignores W (walk) lines for now (GFA 1.1 extension; TODO).
- *   - Handles both GFA 1.0 (P-lines) and GFA 1.1 (W-lines) by
- *     falling back gracefully.
+ *   - W (walk) lines are stored as paths named PanSN-style
+ *     "<sample>#<hap>#<seqid>:<start>-<end>"; resolve them with --ref by
+ *     sample or contig (see refdiff).
+ *   - Handles both GFA 1.0 (P-lines) and GFA 1.1 (W-lines).
  *
  * Output format:
  *   write_alignment_gaf()  — one line per matched snarl pair:
@@ -55,13 +56,12 @@ void write_alignment_gaf(std::ostream& out,
                           const SnarlTree& tb);
 
 /**
- * Write A-only alleles (delta graph ΔA→B) in VCF-inspired format.
- * CHROM = snarl id, POS = 0 (placeholder until coordinate map added),
- * REF = source/sink boundary seqs, ALT = allele sequence.
+ * Write the delta graph in VCF-inspired format: one record per allele present
+ * in only one of the two graphs.  ALT carries the actual unique sequence;
+ * GRAPH=A marks alleles unique to the first input, GRAPH=B the second.
+ * CHROM = snarl id; POS = 0 (graph space, no reference coordinate); REF = ".".
  */
 void write_delta_vcf(std::ostream& out,
-                      const AlignmentResult& result,
-                      const VariationGraph& ga,
-                      const SnarlTree& ta);
+                      const AlignmentResult& result);
 
 } // namespace g2g

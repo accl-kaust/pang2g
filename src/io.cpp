@@ -364,40 +364,43 @@ void write_alignment_gaf(std::ostream& out,
 }
 
 void write_delta_vcf(std::ostream& out,
-                      const AlignmentResult& result,
-                      const VariationGraph& ga,
-                      const SnarlTree& ta) {
-    out << "##fileformat=G2GdeltaVCF-0.1\n";
-    out << "##INFO=<ID=GRAPH,Number=1,Type=String,Description=\"Source graph name\">\n";
-    out << "##INFO=<ID=SNARL,Number=1,Type=String,Description=\"Snarl source>sink\">\n";
+                      const AlignmentResult& result) {
+    out << "##fileformat=G2GdeltaVCF-0.2\n";
+    out << "##source=G2G graph-to-graph diff\n";
+    out << "##note=ALT holds the sequence unique to one graph; REF is undefined "
+           "(no designated reference allele) and POS is 0 (graph space, no "
+           "reference coordinate is assigned).\n";
+    out << "##INFO=<ID=GRAPH,Number=1,Type=String,Description=\"Graph the allele "
+           "is unique to (A=first input, B=second input)\">\n";
+    out << "##INFO=<ID=SNARL,Number=1,Type=String,Description=\"Snarl region, "
+           "source>sink\">\n";
+    out << "##INFO=<ID=LEN,Number=1,Type=Integer,Description=\"ALT sequence "
+           "length\">\n";
     out << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n";
 
-    for (const auto& sa : result.snarl_alignments) {
-        if (sa.a_only.empty()) continue;
-        if (sa.snarl_a_idx >= ta.snarls.size()) continue;
-
-        const Snarl& snarl = ta.snarls[sa.snarl_a_idx];
-        std::string src_name = (snarl.source < ga.node_names.size())
-                               ? ga.node_names[snarl.source]
-                               : std::to_string(snarl.source);
-        std::string snk_name = (snarl.sink < ga.node_names.size())
-                               ? ga.node_names[snarl.sink]
-                               : std::to_string(snarl.sink);
-        std::string snarl_id = src_name + ">" + snk_name;
-
-        for (uint16_t allele_idx : sa.a_only) {
-            out << snarl_id        // CHROM
-                << "\t0"           // POS (placeholder)
-                << "\t."           // ID
-                << "\t"  << ga.seq(snarl.source)  // REF = source sequence
-                << "\t.";          // ALT = TODO once allele paths wired (P3-6)
-            out << "\t.\tPASS"
-                << "\tGRAPH=" << ga.name
-                << ";SNARL=" << snarl_id
-                << ";ALLELE_IDX=" << allele_idx
+    // Emit every allele present in only one of the two graphs.  The sequences
+    // come straight from AlignmentResult's delta lists (DeltaAllele::sequence),
+    // which build_deltas() already populated — so the actual differing bases
+    // are written out, not a placeholder.
+    auto emit = [&](const std::vector<DeltaAllele>& deltas, const char* graph) {
+        std::size_t i = 0;
+        for (const auto& d : deltas) {
+            // CHROM/POS: real reference coordinates when the diff supplied them
+            // (reference-coordinate mode), else the snarl id with POS 0.
+            if (d.pos >= 0) out << d.chrom << "\t" << d.pos;
+            else            out << d.snarl_id << "\t0";
+            out << "\t" << graph << '_' << i++         // ID
+                << "\t" << (d.ref.empty() ? "." : d.ref)            // REF
+                << "\t" << (d.sequence.empty() ? "." : d.sequence)  // ALT
+                << "\t.\tPASS"
+                << "\tGRAPH=" << graph
+                << ";SNARL="  << d.snarl_id
+                << ";LEN="    << d.sequence.size()
                 << "\n";
         }
-    }
+    };
+    emit(result.a_only_alleles, "A");
+    emit(result.b_only_alleles, "B");
 }
 
 } // namespace g2g

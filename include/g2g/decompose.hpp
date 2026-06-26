@@ -24,6 +24,7 @@
 #include <g2g/graph.hpp>
 #include <optional>   // add this line
 #include <cstdint>
+#include <utility>
 #include <vector>
 #include <span>
 
@@ -91,12 +92,30 @@ public:
 private:
     const VariationGraph& vg_;
 
+    // Build the flat SnarlTree from (source, sink) boundaries: enumerate
+    // alleles via DFS, drop nested (non-top-level) snarls, annotate work, and
+    // apply the vEB layout.  Shared by the built-in and vg boundary back-ends.
+    static SnarlTree build_tree_from_boundaries(
+        const VariationGraph& vg,
+        const std::vector<std::pair<NodeId, NodeId>>& boundaries,
+        const std::vector<uint32_t>& topo_pos);
+
     // Convert a list of snarls (DFS order) to vEB order in-place.
     static void apply_veb_order(SnarlTree& tree);
 
     // Compute subtree_work for each snarl (sum of k^3 over all descendants).
     static void annotate_work(SnarlTree& tree);
 };
+
+// ── External snarl back-end (snarls_vg.cpp) ───────────────────
+//
+// Ask the `vg` toolkit for snarl boundaries (source, sink) in NodeId space,
+// shelling out to `vg snarls | vg view -Rj`.  Returns std::nullopt if vg is
+// unavailable or yields nothing, so callers can fall back to the built-in
+// decomposer.  Enabled at runtime via G2G_SNARLS=vg; vg located via $G2G_VG
+// or PATH.  See snarls_vg.cpp.
+std::optional<std::vector<std::pair<NodeId, NodeId>>>
+vg_snarl_boundaries(const VariationGraph& vg);
 
 // ── Topology helpers ──────────────────────────────────────────
 
