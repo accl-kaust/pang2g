@@ -5,11 +5,12 @@
  * GFA v1.1 reader/writer and GAF-like output format.
  *
  * GFA reader:
- *   - Parses S (segment), L (link), P (path) lines.
+ *   - Parses S (segment), L (link), P (path) and W (walk) lines.
  *   - Stores sequences in flat VariationGraph::seq_data.
- *   - Ignores W (walk) lines for now (GFA 1.1 extension; TODO).
- *   - Handles both GFA 1.0 (P-lines) and GFA 1.1 (W-lines) by
- *     falling back gracefully.
+ *   - W (walk) lines are stored as paths named PanSN-style
+ *     "<sample>#<hap>#<seqid>:<start>-<end>"; resolve them with --ref by
+ *     sample or contig (see refdiff).
+ *   - Handles both GFA 1.0 (P-lines) and GFA 1.1 (W-lines).
  *
  * Output format:
  *   write_alignment_gaf()  — one line per matched snarl pair:

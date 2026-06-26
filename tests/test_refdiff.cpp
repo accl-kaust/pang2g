@@ -111,3 +111,43 @@ TEST(ReferenceDiff, MissingReferencePathReturnsNullopt) {
     SnarlTree ta = SnarlDecomposer(A).decompose();
     EXPECT_FALSE(reference_diff(A, A, ta, ta, "no_such_path").has_value());
 }
+
+// ── PanSN / W-line reference resolution ──────────────────────
+
+TEST(ReferenceDiff, ResolvesPanSNReferenceBySampleAndContig) {
+    // Reference path named PanSN-style, as produced from a GFA W-line.
+    auto build = [](const char* alt_seq) {
+        VariationGraph g;
+        NodeId a = g.add_node("a", "ACGTACGT"), r = g.add_node("r", "C"),
+               v = g.add_node("v", alt_seq), z = g.add_node("z", "ACGTACGT");
+        for (auto e : {std::pair{a, r}, {a, v}, {r, z}, {v, z}})
+            g.add_edge(e.first, e.second);
+        g.add_path("GRCh38#0#chr1:0-17", {a, r, z});
+        g.finalise();
+        return g;
+    };
+
+    VariationGraph A = build("G");
+    VariationGraph B = build("G");   // same alt → nothing unique
+    SnarlTree ta = SnarlDecomposer(A).decompose();
+    SnarlTree tb = SnarlDecomposer(B).decompose();
+
+    // Resolvable by sample, by contig, and by the full mangled name.
+    for (const char* q : {"GRCh38", "chr1", "GRCh38#0#chr1:0-17"}) {
+        auto rd = reference_diff(A, B, ta, tb, q);
+        ASSERT_TRUE(rd.has_value()) << "query '" << q << "' did not resolve";
+        EXPECT_EQ(rd->snarl_alignments.size(), 1u) << "query " << q;
+        EXPECT_EQ(rd->a_only_alleles.size(), 0u);
+    }
+
+    // A differing alt becomes a delta tagged with the resolved contig name.
+    VariationGraph C = build("TT");
+    SnarlTree tc = SnarlDecomposer(C).decompose();
+    auto rd2 = reference_diff(A, C, ta, tc, "GRCh38");
+    ASSERT_TRUE(rd2.has_value());
+    ASSERT_EQ(rd2->a_only_alleles.size(), 1u);
+    EXPECT_EQ(rd2->a_only_alleles[0].sequence, "G");
+    EXPECT_EQ(rd2->a_only_alleles[0].chrom, "chr1");   // contig, not mangled name
+    ASSERT_EQ(rd2->b_only_alleles.size(), 1u);
+    EXPECT_EQ(rd2->b_only_alleles[0].sequence, "TT");
+}
