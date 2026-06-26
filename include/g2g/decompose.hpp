@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <utility>
 #include <vector>
-#include <span>
+#include <g2g/span.hpp>   // portable g2g::span (falls back on GCC 9)
 
 namespace g2g {
 
@@ -68,7 +68,7 @@ struct SnarlTree {
 
     // Return the k-th allele path of snarl with alleles_begin=base.
     // allele_index is 0-based within the snarl (0 .. allele_count()-1).
-    std::span<const NodeId> allele_path(uint32_t alleles_begin,
+    g2g::span<const NodeId> allele_path(uint32_t alleles_begin,
                                          uint32_t allele_index) const {
         uint32_t flat = alleles_begin + allele_index;
         return {allele_paths_data.data() + allele_path_offsets[flat],

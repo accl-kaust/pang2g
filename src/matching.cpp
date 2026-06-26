@@ -30,8 +30,8 @@ namespace g2g {
 // ── Helpers ───────────────────────────────────────────────────
 
 static std::vector<float>
-build_sim_matrix_flat(std::span<const std::string_view> seqs_a,
-                      std::span<const std::string_view> seqs_b,
+build_sim_matrix_flat(g2g::span<const std::string_view> seqs_a,
+                      g2g::span<const std::string_view> seqs_b,
                       int na, int nb) {
     // Row-major: flat[i*nb + j] = sim(a[i], b[j])
     std::vector<float> flat(static_cast<size_t>(na) * static_cast<size_t>(nb));
@@ -85,8 +85,8 @@ build_result_from_sim_flat(const std::vector<float>& sim,
 //
 // Complexity: O(min(na,nb)! * C(max,min)) — feasible only for k ≤ 8.
 
-MatchResult brute_match(std::span<const std::string_view> seqs_a,
-                         std::span<const std::string_view> seqs_b,
+MatchResult brute_match(g2g::span<const std::string_view> seqs_a,
+                         g2g::span<const std::string_view> seqs_b,
                          const MatchParams& params) {
     const int na = static_cast<int>(seqs_a.size());
     const int nb = static_cast<int>(seqs_b.size());
@@ -204,8 +204,8 @@ MatchResult brute_match(std::span<const std::string_view> seqs_a,
 
 // ── Greedy approximation ──────────────────────────────────────
 
-MatchResult greedy_match(std::span<const std::string_view> seqs_a,
-                          std::span<const std::string_view> seqs_b,
+MatchResult greedy_match(g2g::span<const std::string_view> seqs_a,
+                          g2g::span<const std::string_view> seqs_b,
                           const MatchParams& params) {
     const int na = static_cast<int>(seqs_a.size());
     const int nb = static_cast<int>(seqs_b.size());
@@ -246,8 +246,8 @@ MatchResult greedy_match(std::span<const std::string_view> seqs_a,
 // This encodes gap penalties directly in the LAP objective, so the solver
 // simultaneously optimises matches and gaps in a single O(n³) pass.
 
-MatchResult hungarian_match(std::span<const std::string_view> seqs_a,
-                             std::span<const std::string_view> seqs_b,
+MatchResult hungarian_match(g2g::span<const std::string_view> seqs_a,
+                             g2g::span<const std::string_view> seqs_b,
                              const MatchParams& params) {
     const int na = static_cast<int>(seqs_a.size());
     const int nb = static_cast<int>(seqs_b.size());
@@ -309,8 +309,8 @@ MatchResult hungarian_match(std::span<const std::string_view> seqs_a,
 
 // ── Dispatcher ────────────────────────────────────────────────
 
-MatchResult allele_match(std::span<const std::string_view> seqs_a,
-                          std::span<const std::string_view> seqs_b,
+MatchResult allele_match(g2g::span<const std::string_view> seqs_a,
+                          g2g::span<const std::string_view> seqs_b,
                           const MatchParams& params) {
     int k = static_cast<int>(std::max(seqs_a.size(), seqs_b.size()));
     if (k > params.lapjv_limit)

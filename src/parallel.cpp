@@ -399,7 +399,7 @@ AlignmentResult ParallelAligner::align(
         return node_name(vg, s.source) + ">" + node_name(vg, s.sink);
     };
     auto inner_seq = [](const VariationGraph& vg,
-                         std::span<const NodeId> full_path) -> std::string {
+                         g2g::span<const NodeId> full_path) -> std::string {
         std::string seq;
         if (full_path.size() > 2) {
             for (NodeId n : full_path.subspan(1, full_path.size() - 2)) {

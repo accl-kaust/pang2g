@@ -25,7 +25,7 @@
 
 #include <cstdint>
 #include <vector>
-#include <span>
+#include <g2g/span.hpp>   // portable g2g::span (falls back on GCC 9)
 
 namespace g2g {
 
@@ -50,8 +50,8 @@ struct MatchParams {
  * Dispatches to hungarian_match or greedy_match based on k and params.
  * seqs_a / seqs_b: one string_view per allele (inner-node sequence).
  */
-MatchResult allele_match(std::span<const std::string_view> seqs_a,
-                         std::span<const std::string_view> seqs_b,
+MatchResult allele_match(g2g::span<const std::string_view> seqs_a,
+                         g2g::span<const std::string_view> seqs_b,
                          const MatchParams& params = {});
 
 /**
@@ -59,8 +59,8 @@ MatchResult allele_match(std::span<const std::string_view> seqs_a,
  * Builds the k_a × k_b similarity matrix then solves the assignment problem.
  * Pairs with sim < params.min_sim are treated as if their cost is -∞.
  */
-MatchResult hungarian_match(std::span<const std::string_view> seqs_a,
-                             std::span<const std::string_view> seqs_b,
+MatchResult hungarian_match(g2g::span<const std::string_view> seqs_a,
+                             g2g::span<const std::string_view> seqs_b,
                              const MatchParams& params = {});
 
 /**
@@ -68,8 +68,8 @@ MatchResult hungarian_match(std::span<const std::string_view> seqs_a,
  * Sort all (i,j) pairs by sim descending; greedily assign while neither
  * index is used and sim ≥ min_sim.
  */
-MatchResult greedy_match(std::span<const std::string_view> seqs_a,
-                          std::span<const std::string_view> seqs_b,
+MatchResult greedy_match(g2g::span<const std::string_view> seqs_a,
+                          g2g::span<const std::string_view> seqs_b,
                           const MatchParams& params = {});
 
 /**
@@ -77,8 +77,8 @@ MatchResult greedy_match(std::span<const std::string_view> seqs_a,
  * Used as a test oracle to verify hungarian_match output.
  * Mirrors bipartite_allele_match() from align.py exactly.
  */
-MatchResult brute_match(std::span<const std::string_view> seqs_a,
-                         std::span<const std::string_view> seqs_b,
+MatchResult brute_match(g2g::span<const std::string_view> seqs_a,
+                         g2g::span<const std::string_view> seqs_b,
                          const MatchParams& params = {});
 
 } // namespace g2g

@@ -42,12 +42,18 @@ Logs from a real run are committed under [`logs/`](logs/); example outputs under
 
 | For | You need |
 |-----|----------|
-| Building G2G | a C++20 compiler, `cmake`, `ninja` |
+| Building G2G | a C++20 compiler (GCC ≥ 9 or Clang ≥ 10), `cmake`, `ninja` |
 | Synthetic demo | the above + `python3` |
 | Real HLA demo | the above + outbound HTTPS (the setup script fetches `vg`, `minimap2`, `paftools`, and `pysam`) |
 
 The setup downloads pinned, static binaries into `demo/tools/` — nothing is
 installed system-wide. `tools/` and `work/` are git-ignored.
+
+> **Older clusters (GCC 9):** GCC 9's libstdc++ has no `<span>` header. G2G
+> ships a header-only `g2g::span` shim (`include/g2g/span.hpp`) that transparently
+> falls back to a built-in view when `std::span` is unavailable, so the stock
+> system compiler on e.g. Ubuntu 20.04 (GCC 9.4) builds the demo as-is — no
+> `module load` or conda compiler required.
 
 ---
 

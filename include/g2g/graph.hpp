@@ -25,8 +25,8 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-#include <span>           // add this
-#include <initializer_list>   // add this
+#include <g2g/span.hpp>   // portable g2g::span (falls back on GCC 9)
+#include <initializer_list>
 
 namespace g2g {
 
@@ -66,12 +66,12 @@ public:
     }
 
     // Out-neighbours of node n
-    std::span<const NodeId> successors(NodeId n) const {
+    g2g::span<const NodeId> successors(NodeId n) const {
         return {adj_out_data.data() + adj_out_ptr[n],
                 adj_out_ptr[n + 1] - adj_out_ptr[n]};
     }
     // In-neighbours of node n
-    std::span<const NodeId> predecessors(NodeId n) const {
+    g2g::span<const NodeId> predecessors(NodeId n) const {
         return {adj_in_data.data() + adj_in_ptr[n],
                 adj_in_ptr[n + 1] - adj_in_ptr[n]};
     }
@@ -80,7 +80,7 @@ public:
     uint32_t in_degree (NodeId n) const { return adj_in_ptr[n+1]  - adj_in_ptr[n]; }
 
     // Path node IDs as a span
-    std::span<const NodeId> path_nodes(uint32_t path_idx) const {
+    g2g::span<const NodeId> path_nodes(uint32_t path_idx) const {
         return {path_node_ids.data() + path_offsets[path_idx],
                 path_offsets[path_idx + 1] - path_offsets[path_idx]};
     }

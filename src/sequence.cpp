@@ -44,7 +44,7 @@ int edit_distance(std::string_view a, std::string_view b) {
 }
 
 void path_sequence(const VariationGraph& vg,
-                   std::span<const NodeId> path,
+                   g2g::span<const NodeId> path,
                    std::string& out) {
     for (NodeId n : path) {
         auto sv = vg.seq(n);
