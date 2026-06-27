@@ -27,7 +27,7 @@ build() {  # $1 = CMake flag ("" = baseline) -> echoes binary path
     local key="${1:-baseline}" d="$ABL/b_${1:-baseline}"
     local fl=(); [ -n "$1" ] && fl=("-D$1=ON")
     if [ ! -x "$d/g2g" ]; then
-        note "  building $key …"
+        note "  building $key …" >&2    # progress to stderr; only the path on stdout
         cmake -B "$d" -G "$GEN" -DCMAKE_BUILD_TYPE=Release -DG2G_BUILD_TESTS=OFF \
               "${fl[@]}" "$REPO_DIR" >/dev/null 2>&1
         cmake --build "$d" -j"$NPROC" --target g2g >/dev/null 2>&1
@@ -53,11 +53,14 @@ note "building baseline + ablation binaries into $ABL (a few minutes)…"
 BASE=$(build "")
 
 note "generating control + treatment graphs…"
-gen --outdir "$ABL/g_small"   --length 60000  --n-shared 400  --n-a 20 --n-b 20
-gen --outdir "$ABL/g_bignode" --length 250000 --n-shared 400  --n-a 20 --n-b 20
+# Anchor control is sized BELOW the minimiser's internal threshold (≈1e6 naïve
+# comparisons, i.e. ~1000 backbone nodes) so the baseline also uses the naïve
+# scan there → a true ~1.0× control; the treatment is well above it.
+gen --outdir "$ABL/g_small"   --length 18000  --n-shared 200  --n-a 20 --n-b 20
+gen --outdir "$ABL/g_bignode" --length 150000 --n-shared 200  --n-a 20 --n-b 20
 gen --outdir "$ABL/g_k2"      --length 200000 --n-shared 3000 --n-a 30 --n-b 30
 gen --outdir "$ABL/g_k7"      --length 200000 --n-shared 2000 --n-a 30 --n-b 30 --max-k 7  --complex-frac 1.0 --alt-len 20
-gen --outdir "$ABL/g_sv_s"    --length 100000 --n-shared 400  --n-a 20 --n-b 20 --max-k 40 --complex-frac 1.0 --alt-len 200
+gen --outdir "$ABL/g_sv_s"    --length 50000  --n-shared 120  --n-a 20 --n-b 20 --max-k 40 --complex-frac 1.0 --alt-len 200
 gen --outdir "$ABL/g_sv_b"    --length 400000 --n-shared 3000 --n-a 50 --n-b 50 --max-k 40 --complex-frac 1.0 --alt-len 200
 
 row() {  # $1=label $2=flag $3=metric $4=runflags $5=ctl-dir $6=trt-dir

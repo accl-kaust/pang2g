@@ -303,16 +303,49 @@ def fig_scaling(path, csv=None):
         _placeholder(path, "Parallel scaling (preliminary)", "threads", "speedup", s)
 
 
-def fig_ablation(path):
-    def s(ax):
-        labels = ["vEB", "steal-LF", "minimiser", "LAPJV"]
-        ctrl = [1.0, 1.0, 1.4, 1.5]; treat = [1.8, 1.7, 3.2, 6.0]
+def fig_ablation(path, csv=None):
+    """csv = 08_ablation.sh TSV
+    (label,flag,phase,ctrl_base,ctrl_disabled,trt_base,trt_disabled)."""
+    if csv and os.path.exists(csv):
+        import csv as _csv
+        short = {"LAPJV matching": "LAPJV", "minimiser anchor index": "minimiser",
+                 "steal-largest policy": "steal", "vEB layout": "vEB"}
+        def rat(b, d):
+            try:
+                b, d = float(b), float(d); return d / b if b > 0 else float("nan")
+            except (TypeError, ValueError):
+                return float("nan")
+        labels, ctrl, treat = [], [], []
+        with open(csv) as f:
+            for r in _csv.DictReader(f, delimiter="\t"):
+                labels.append(short.get(r["label"], r["label"]))
+                ctrl.append(rat(r["ctrl_base"], r["ctrl_disabled"]))
+                treat.append(rat(r["trt_base"], r["trt_disabled"]))
+        fig, ax = plt.subplots(figsize=(3.6, 2.6))
         x = np.arange(len(labels))
-        ax.bar(x-0.2, ctrl, 0.4, label="control (fits L3)", color="#b9c9e0")
-        ax.bar(x+0.2, treat, 0.4, label="treatment (>L3)", color=BLUE)
-        ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=7); ax.legend(loc="upper left")
-        ax.set_yscale("linear")
-    _placeholder(path, "Ablations (preliminary)", "", "speedup vs. off", s)
+        ax.bar(x - 0.2, ctrl, 0.4, label="control", color="#b9c9e0")
+        ax.bar(x + 0.2, treat, 0.4, label="treatment", color=BLUE)
+        ax.axhline(1, ls="--", color=GREY, lw=0.8)
+        ax.set_yscale("log")
+        ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=7.5, rotation=12)
+        ax.set_ylabel("slowdown when disabled (×)")
+        ax.set_title("Ablation of design choices")
+        ax.legend(fontsize=7.5, loc="upper left")
+        ax.grid(True, axis="y", which="both", ls=":", alpha=0.4)
+        for xi, t in zip(x, treat):
+            if np.isfinite(t):
+                ax.annotate(f"{t:.0f}×" if t >= 10 else f"{t:.2f}×", (xi + 0.2, t),
+                            ha="center", va="bottom", fontsize=6.5)
+        fig.savefig(path); plt.close(fig)
+    else:
+        def s(ax):
+            labels = ["vEB", "steal", "minimiser", "LAPJV"]
+            ctrl = [1.0, 1.0, 1.4, 1.5]; treat = [1.8, 1.7, 3.2, 6.0]
+            x = np.arange(len(labels))
+            ax.bar(x - 0.2, ctrl, 0.4, label="control", color="#b9c9e0")
+            ax.bar(x + 0.2, treat, 0.4, label="treatment", color=BLUE)
+            ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=7); ax.legend(loc="upper left")
+        _placeholder(path, "Ablations (preliminary)", "", "slowdown when off", s)
 
 
 def fig_biology(path):
@@ -340,12 +373,14 @@ def main():
     ap.add_argument("--gini-csv", default=None, help="real fig_workload(a) data (snarls,gini)")
     ap.add_argument("--alleles-csv", default=None, help="real fig_workload(b) data (k,count)")
     ap.add_argument("--scaling-csv", default=None, help="07_parallel_scaling.sh TSV for fig_scaling")
+    ap.add_argument("--ablation-csv", default=None, help="08_ablation.sh TSV for fig_ablation")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     extra = {
         "fig_matching": dict(csv=a.matching_csv),
         "fig_workload": dict(gini_csv=a.gini_csv, alleles_csv=a.alleles_csv),
         "fig_scaling":  dict(csv=a.scaling_csv),
+        "fig_ablation": dict(csv=a.ablation_csv),
     }
     for name, fn in FIGURES.items():
         p = os.path.join(a.outdir, name + ".pdf")
