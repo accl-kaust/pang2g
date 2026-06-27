@@ -162,6 +162,22 @@ bash demo/06_scaling_limit.sh 2>&1 | tee demo/logs/06_scaling_limit.log
 # knobs: BUDGET_SEC (default 9 h), MEM_CEIL_MB (default 80% RAM), START_MB, MAX_MB
 ```
 
+### Plotting the curve
+
+`plot_scaling.py` turns the `05` / `06` result TSVs into a log-log figure (fitted
+power-law exponent + an ideal-linear guide):
+
+```bash
+python3 demo/plot_scaling.py            # auto-finds demo/work/*.tsv
+# -> demo/sample_outputs/scaling_curve.png   (needs matplotlib)
+```
+
+![G2G --ref scaling](sample_outputs/scaling_curve.png)
+
+Across 100 kb → 256 Mb (9 points, ~10⁴ → 3×10⁷ nodes) wall time scales as
+**N^1.12** and peak memory as **N^0.91** — both within a hair of linear, and the
+snarl-decomposition phase is now exactly **N^1.00** (the old quadratic is gone).
+
 ---
 
 ## Using G2G on your own graphs
@@ -228,6 +244,7 @@ variants match. Variants present in only one graph become that graph's delta.
 | `04_real_hla_demo.sh` | real HLA-DRB1 pangenome diff |
 | `05_scaling_demo.sh` | scaling sweep (100 kb → 8 Mb) with timing + peak memory |
 | `06_scaling_limit.sh` | push scaling to the node's RAM / time limit (Demo 3b) |
+| `plot_scaling.py` | log-log scaling figure from the `05`/`06` result TSVs |
 | `make_synthetic_pair.py` | generator for the controlled / scaling pairs |
 | `lib.sh` | shared paths/helpers |
 | `logs/` | captured logs from a real run |
