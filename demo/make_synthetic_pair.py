@@ -16,6 +16,7 @@ Plants:
 Outputs demoA.gfa, demoB.gfa and truth.tsv (the ground truth).
 """
 import argparse
+import os
 import random
 
 DNA = "ACGT"
@@ -111,6 +112,7 @@ def main():
                     help="max length of multi-allele alt sequences (long = SV-like, "
                          "heavy O(L^2) per-pair edit distance for the aligner DP)")
     a = ap.parse_args()
+    os.makedirs(a.outdir, exist_ok=True)
 
     rng = random.Random(a.seed)
     # Random reference, generated in chunks so multi-megabase references stay
