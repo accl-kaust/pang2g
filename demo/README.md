@@ -155,7 +155,7 @@ genome — before hitting the RAM ceiling, exact at every step:
 
 That's **~971 M nodes / 41 M variants** diffed exactly on a single core in ~72
 min — **~2.6× the human genome (3.1 Gb)** — the next doubling (16 Gb) is the only
-thing the node's RAM can't hold. Across the full 10⁴ → 9.7×10⁸-node sweep time
+thing the node's RAM can't hold. Across the full 10⁶ → 9.7×10⁸-node sweep time
 and memory stay linear (~226k nodes/s, one core); a smaller node simply stops
 proportionally sooner (a 16 GB box tops out at ~256 Mb / 30 M nodes).
 
@@ -177,11 +177,12 @@ python3 demo/plot_scaling.py            # auto-finds demo/work/*.tsv
 
 ![G2G --ref scaling](sample_outputs/scaling_curve.png)
 
-Across 100 kb → 8 Gb (~10⁴ → 9.7×10⁸ nodes) wall time scales as **N^1.05** and
-peak memory as **N^0.99** — both within a hair of linear — and snarl
-decomposition is exactly **N^1.00** (the old quadratic is gone). The full-range
-cluster figure is [`fig_refdiffscaling.pdf`](sample_outputs/fig_refdiffscaling.pdf)
-(the inline PNG above is a 16 GB-box excerpt to 256 Mb).
+Across 8 Mb → 8 Gb (11 points, ~10⁶ → 9.7×10⁸ nodes) wall time scales as
+**N^1.04** and peak memory as **N^0.99** — both within a hair of linear — and
+snarl decomposition is exactly **N^1.00** (the old quadratic is gone). The same
+curve is also committed as
+[`fig_refdiffscaling.pdf`](sample_outputs/fig_refdiffscaling.pdf) for the paper.
+(Run `03`/`05` on the same machine first to extend the curve down to 100 kb.)
 
 ---
 
