@@ -28,11 +28,14 @@ breaks naive bubble-boundary matching on real graphs.
 ## Quick start
 
 ```bash
-# 1. everything (build + synthetic demo + fetch tools + real HLA demo)
+# 1. everything (build + synthetic + scaling sweep + fetch tools + real HLA demo)
 bash demo/run_all.sh
 
-# or, synthetic demo only (no downloads, no extra tools):
+# synthetic + scaling only (no downloads, no extra tools):
 SKIP_REAL=1 bash demo/run_all.sh
+
+# skip just the scaling sweep (it adds a few seconds):
+SKIP_SCALING=1 bash demo/run_all.sh
 ```
 
 Logs from a real run are committed under [`logs/`](logs/); example outputs under
@@ -101,6 +104,80 @@ self-diff (cg_A vs cg_A)  ->  a_only=0  b_only=0
 The output is a variant-level VCF with real `GRCh38:pos` coordinates, including
 indels (see [`sample_outputs/hla_diff_sample.vcf`](sample_outputs/hla_diff_sample.vcf)).
 
+## Demo 3 — scaling beyond the gene region
+
+`05_scaling_demo.sh` → [`logs/05_scaling_demo.log`](logs/05_scaling_demo.log)
+
+The same controlled diff, driven across graphs growing from ~100 kb to **8 Mb**
+(~700× the HLA gene region) at a dense ~1 variant / 200 bp. At every size g2g
+must still recover the planted A-only / B-only set **exactly** — so this measures
+speed and memory *without giving up correctness*. Wall time and peak RSS are
+g2g's own (`--verbose-timing` → `[timing] wall=`, `[mem] peak_rss_mb=`), so no
+external profiler is needed.
+
+| ref bp | nodes (A+B) | snarls | a_only / b_only | exact? | wall | peak RSS |
+|-------:|------------:|-------:|----------------:|:------:|-----:|---------:|
+| 100 kb |        12 k |    400 | 50 / 50         |   ✓    | 0.02 s |   8 MB |
+| 500 kb |        59 k |  2 000 | 250 / 250       |   ✓    | 0.10 s |  20 MB |
+| 2 Mb   |       237 k |  8 000 | 1 000 / 1 000   |   ✓    | 0.49 s |  68 MB |
+| 8 Mb   |       948 k | 32 000 | 4 000 / 4 000   |   ✓    | 2.27 s | 258 MB |
+
+Time and memory both scale ~linearly (each 4× in size costs ~4.6× time):
+~18 k variants/s, ~420 k nodes/s on a single core. Push further with
+`SCALE_MAX_MB=32` or a custom `SCALE_SIZES="bp:variants ..."`.
+
+> The built-in snarl finder used to be quadratic here (a whole-graph reachability
+> search per bubble). It now uses an exact, topologically-windowed sink search —
+> falling back to the full search only for bubbles larger than the window — which
+> cut the 4 Mb point from ~52 s to ~1 s with byte-identical boundaries.
+
+## Demo 3b — pushing to the machine's limit
+
+`06_scaling_limit.sh` → [`logs/06_scaling_limit.log`](logs/06_scaling_limit.log)
+
+Where `05` runs a fixed sweep, `06` keeps **doubling** the reference size until
+the next point would exceed the node's RAM (or a wall-clock budget), then stops
+cleanly and reports the ceiling. It projects each point's peak memory from the
+previous one and refuses to *attempt* a point it expects to OOM, so an
+unattended cluster run is never killed mid-way and wastes an allocation — and
+the diff is checked exact at every size.
+
+On a commodity **16 GB** box it reaches a chromosome-scale graph before the RAM
+ceiling:
+
+| ref | nodes (A+B) | bubbles | exact? | wall | peak RSS |
+|----:|------------:|--------:|:------:|-----:|---------:|
+|  64 Mb |  7.6 M |  256 k | ✓ |  25 s | 1.9 GB |
+| 128 Mb | 15.2 M |  512 k | ✓ |  52 s | 3.9 GB |
+| 256 Mb | 30.3 M | 1.02 M | ✓ | 135 s | 7.7 GB |
+
+…then stops (the 512 Mb point would need ~15 GB). Time and memory stay linear
+throughout (~225k nodes/s on one core), so a node with more RAM climbs
+proportionally further — ≥128 GB reaches whole-human-genome scale (~3.1 Gb)
+well inside an hour.
+
+```bash
+# auto-adapts to the node's RAM; tee a log to commit as evidence
+bash demo/06_scaling_limit.sh 2>&1 | tee demo/logs/06_scaling_limit.log
+# knobs: BUDGET_SEC (default 9 h), MEM_CEIL_MB (default 80% RAM), START_MB, MAX_MB
+```
+
+### Plotting the curve
+
+`plot_scaling.py` turns the `05` / `06` result TSVs into a log-log figure (fitted
+power-law exponent + an ideal-linear guide):
+
+```bash
+python3 demo/plot_scaling.py            # auto-finds demo/work/*.tsv
+# -> demo/sample_outputs/scaling_curve.png   (needs matplotlib)
+```
+
+![G2G --ref scaling](sample_outputs/scaling_curve.png)
+
+Across 100 kb → 256 Mb (9 points, ~10⁴ → 3×10⁷ nodes) wall time scales as
+**N^1.12** and peak memory as **N^0.91** — both within a hair of linear, and the
+snarl-decomposition phase is now exactly **N^1.00** (the old quadratic is gone).
+
 ---
 
 ## Using G2G on your own graphs
@@ -138,6 +215,9 @@ variants match. Variants present in only one graph become that graph's delta.
   separate bubbles encoding the same SNPs.
 - **Real data:** runs end-to-end on real HLA-DRB1 graphs in ~0.1 s and emits a
   coordinate-stamped variant diff.
+- **Scales near-linearly:** the diff stays exact from 100 kb to 8 Mb (~950k
+  nodes, ~32k bubbles) with ~linear time and memory (Demo 3), and on to
+  chromosome scale — 256 Mb / ~30M nodes / 1.0M bubbles on a 16 GB box (Demo 3b).
 
 ## Limitations (honest)
 
@@ -147,7 +227,11 @@ variants match. Variants present in only one graph become that graph's delta.
   (e.g. `vg msga`) can produce cycles.
 - **Indels are not left-normalised**, so indel calls in repeats may differ by a
   base from a tool like `bcftools norm`.
-- Validated at gene-region scale (HLA-DRB1, ~11 kb), not yet chromosome scale.
+- Validated to chromosome scale on **synthetic** graphs (256 Mb / ~30M nodes on
+  a 16 GB box; auto-scales further with RAM — Demo 3b). Real whole-genome
+  validation on many-haplotype, HPRC-scale pangenomes is the next step.
+- The diff itself is single-threaded; the parallel work-stealing runtime
+  accelerates the snarl-correspondence aligner, not the `--ref` coordinate diff.
 
 ## Files
 
@@ -158,7 +242,10 @@ variants match. Variants present in only one graph become that graph's delta.
 | `02_build_g2g.sh` | build the `g2g` binary |
 | `03_synthetic_demo.sh` | controlled pair vs known ground truth + self-diff |
 | `04_real_hla_demo.sh` | real HLA-DRB1 pangenome diff |
-| `make_synthetic_pair.py` | generator for the controlled pair |
+| `05_scaling_demo.sh` | scaling sweep (100 kb → 8 Mb) with timing + peak memory |
+| `06_scaling_limit.sh` | push scaling to the node's RAM / time limit (Demo 3b) |
+| `plot_scaling.py` | log-log scaling figure from the `05`/`06` result TSVs |
+| `make_synthetic_pair.py` | generator for the controlled / scaling pairs |
 | `lib.sh` | shared paths/helpers |
 | `logs/` | captured logs from a real run |
 | `sample_outputs/` | example diff/truth files |

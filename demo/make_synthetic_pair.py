@@ -22,51 +22,70 @@ DNA = "ACGT"
 
 
 def write_gfa(path, ref, variants, chop, label, ref_name):
-    """variants: {pos0 -> alt_base}. Reference is chopped into `chop`-sized
+    """Stream a GFA for `ref` with a 1 bp bubble planted at each `variants`
+    position ({pos0 -> alt_base}). The reference is chopped into `chop`-sized
     nodes, always breaking at variant positions so every bubble opens at the
-    variant's exact reference coordinate regardless of `chop`."""
-    nodes, edges = [], []
-    nid = [0]
+    variant's exact reference coordinate regardless of `chop`.
 
-    def add(seq):
-        name = f"{label}{nid[0]}"
-        nid[0] += 1
-        nodes.append((name, seq))
-        return name
+    Written in O(1) memory via two deterministic walks (the P-line, then the
+    S/L lines) instead of materialising every node/edge — so the generator
+    scales to hundreds of megabases. g2g's GFA reader is two-pass / order
+    independent, so emitting P before S/L is fine.
+    """
+    positions = sorted(variants)
 
-    backbone = []  # reference-path nodes: {name, is_var, alt}
-    i = 0
-    for p in sorted(variants):
-        run = ref[i:p]                                  # invariant stretch
+    def walk():
+        """Yield (kind, seq) for every node in canonical creation order;
+        kind in {'run','ref','alt'}. The name counter advances once per yield,
+        so both passes below produce identical node names."""
+        i = 0
+        for p in positions:
+            run = ref[i:p]                              # invariant stretch
+            for c in range(0, len(run), chop):
+                yield "run", run[c:c + chop]
+            yield "ref", ref[p]                         # 1 bp reference allele
+            yield "alt", variants[p]                    # 1 bp alternate allele
+            i = p + 1
+        run = ref[i:]
         for c in range(0, len(run), chop):
-            backbone.append({"name": add(run[c:c + chop]), "is_var": False, "alt": None})
-        backbone.append({"name": add(ref[p]),           # 1bp reference allele
-                         "is_var": True,
-                         "alt": add(variants[p])})       # 1bp alternate allele
-        i = p + 1
-    run = ref[i:]
-    for c in range(0, len(run), chop):
-        backbone.append({"name": add(run[c:c + chop]), "is_var": False, "alt": None})
-
-    for k in range(len(backbone) - 1):                  # reference-path edges
-        edges.append((backbone[k]["name"], backbone[k + 1]["name"]))
-    for k, b in enumerate(backbone):                    # alt bubble edges
-        if b["is_var"]:
-            assert 0 < k < len(backbone) - 1, "variant too close to an end"
-            edges.append((backbone[k - 1]["name"], b["alt"]))
-            edges.append((b["alt"], backbone[k + 1]["name"]))
+            yield "run", run[c:c + chop]
 
     with open(path, "w") as f:
         f.write("H\tVN:Z:1.1\n")
-        for name, seq in nodes:
-            f.write(f"S\t{name}\t{seq}\n")
-        seen = set()
-        for u, v in edges:
-            if (u, v) not in seen:
-                f.write(f"L\t{u}\t+\t{v}\t+\t0M\n")
-                seen.add((u, v))
-        segs = ",".join(n["name"] + "+" for n in backbone)
-        f.write(f"P\t{ref_name}\t{segs}\t*\n")           # reference path (P-line)
+
+        # Pass 1 — reference P-line (backbone nodes only, in order).
+        f.write(f"P\t{ref_name}\t")
+        nid = 0
+        first = True
+        for kind, _ in walk():
+            nm = f"{label}{nid}"; nid += 1
+            if kind != "alt":
+                f.write(f"{nm}+" if first else f",{nm}+")
+                first = False
+        f.write("\t*\n")
+
+        # Pass 2 — S (segments) and L (links), streamed.
+        nid = 0
+        prev_bb = None        # previous backbone node (reference-path chain)
+        b_before = None       # backbone node just before the current variant
+        pending = []          # alt nodes awaiting their closing edge
+        for kind, seq in walk():
+            nm = f"{label}{nid}"; nid += 1
+            f.write(f"S\t{nm}\t{seq}\n")
+            if kind == "alt":
+                if b_before is not None:               # bubble opens
+                    f.write(f"L\t{b_before}\t+\t{nm}\t+\t0M\n")
+                pending.append(nm)
+                continue
+            # backbone node ('run' or 'ref'): extend chain, close any open bubble
+            if prev_bb is not None:
+                f.write(f"L\t{prev_bb}\t+\t{nm}\t+\t0M\n")
+            for a in pending:                          # bubble closes here
+                f.write(f"L\t{a}\t+\t{nm}\t+\t0M\n")
+            pending = []
+            if kind == "ref":
+                b_before = prev_bb
+            prev_bb = nm
 
 
 def main():
@@ -84,18 +103,28 @@ def main():
     a = ap.parse_args()
 
     rng = random.Random(a.seed)
-    ref = "".join(rng.choice(DNA) for _ in range(a.length))
+    # Random reference, generated in chunks so multi-megabase references stay
+    # fast and memory-light (a per-base Python loop dominated runtime, and a
+    # single rng.choices(k=length) would build a huge intermediate list).
+    ref_ba = bytearray(a.length)
+    pos, CHUNK = 0, 1 << 20
+    while pos < a.length:
+        k = min(CHUNK, a.length - pos)
+        ref_ba[pos:pos + k] = bytes(rng.choices(b"ACGT", k=k))
+        pos += k
+    ref = ref_ba.decode("ascii")
+    del ref_ba
 
     margin = max(a.chop_a, a.chop_b) + 2
-    pool = list(range(margin, a.length - margin))
-    rng.shuffle(pool)
-    chosen = []
-    for c in sorted(pool):                 # keep variants >=2 apart (clean bubbles)
-        if all(abs(c - x) >= 2 for x in chosen):
-            chosen.append(c)
     need = a.n_shared + a.n_a + a.n_b
-    assert len(chosen) >= need, "increase --length or lower variant counts"
-    chosen = chosen[:need]
+    usable = a.length - 2 * margin
+    # Place variants on an even grid so they are always >=2 bp apart (clean,
+    # independent bubbles) regardless of count, and spread across the whole
+    # reference. O(N) — scales to multi-megabase references (the earlier
+    # shuffle-pool + pairwise proximity check was O(length * need)).
+    assert usable >= need * 2, "increase --length or lower variant counts"
+    step = usable // need
+    chosen = [margin + i * step for i in range(need)]
     rng.shuffle(chosen)
     shared = chosen[:a.n_shared]
     aonly = chosen[a.n_shared:a.n_shared + a.n_a]

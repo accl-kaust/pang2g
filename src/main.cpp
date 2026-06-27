@@ -39,6 +39,8 @@
 #include <string>
 #include <thread>
 
+#include <sys/resource.h>   // getrusage — self-reported peak RSS (no GNU time dep)
+
 namespace fs = std::filesystem;
 
 // ── Argument parsing ──────────────────────────────────────────
@@ -76,9 +78,9 @@ static void print_help(const char* prog) {
         "  --snarls <backend> Snarl decomposition: 'builtin' (default, DAG-only)\n"
         "                     or 'vg' (use the vg toolkit; needs vg on PATH or\n"
         "                     $G2G_VG; falls back to builtin if unavailable)\n"
-        "  --verbose-timing   Print [timing] (io/index/decompose/dp) and, for\n"
-        "                     the parallel runtime, [runstats] (tasks/steals/\n"
-        "                     imbalance) lines to stderr\n"
+        "  --verbose-timing   Print [timing] (io/decompose/index/dp/wall) and\n"
+        "                     [mem] (peak_rss_mb) lines, plus [runstats] (tasks/\n"
+        "                     steals/imbalance) for the parallel runtime, to stderr\n"
         "  -h, --help         Show this help\n";
 }
 
@@ -144,6 +146,7 @@ int main(int argc, char** argv) {
         ::setenv("G2G_SNARLS", args.snarls.c_str(), /*overwrite=*/1);
 
     using Clock = std::chrono::steady_clock;
+    const auto wall_t0 = Clock::now();
 
     // ── Load graphs ───────────────────────────────────────────
     g2g::VariationGraph ga, gb;
@@ -164,9 +167,12 @@ int main(int argc, char** argv) {
 
     // ── Decompose both graphs (shared by the diff and the writers) ─
     g2g::SnarlTree ta, tb;
+    double decompose_seconds = 0.0;
     try {
+        auto dec_t0 = Clock::now();
         ta = g2g::SnarlDecomposer(ga).decompose();
         tb = g2g::SnarlDecomposer(gb).decompose();
+        decompose_seconds = std::chrono::duration<double>(Clock::now() - dec_t0).count();
     } catch (const std::exception& e) {
         std::cerr << "ERROR during snarl decomposition: " << e.what() << "\n";
         return 1;
@@ -216,12 +222,23 @@ int main(int argc, char** argv) {
 
     // ── Verbose timing / runtime stats ────────────────────────
     if (args.verbose_timing) {
+        const double wall_seconds =
+            std::chrono::duration<double>(Clock::now() - wall_t0).count();
+        // Self-reported peak resident memory — avoids depending on GNU
+        // /usr/bin/time being installed on the host. On Linux ru_maxrss is KiB.
+        struct rusage ru{};
+        getrusage(RUSAGE_SELF, &ru);
+        const double peak_rss_mb = static_cast<double>(ru.ru_maxrss) / 1024.0;
+
         std::cerr << std::fixed << std::setprecision(6)
                   << "[timing] io="    << io_seconds
+                  << " decompose="     << decompose_seconds
                   << " index="         << run_stats.phases.index_seconds
-                  << " decompose="     << run_stats.phases.decompose_seconds
                   << " dp="            << run_stats.phases.dp_seconds
+                  << " wall="          << wall_seconds
                   << "\n";
+        std::cerr << std::fixed << std::setprecision(1)
+                  << "[mem] peak_rss_mb=" << peak_rss_mb << "\n";
         if (have_runstats) {
             std::cerr << std::setprecision(4)
                       << "[runstats] tasks=" << run_stats.tasks_executed
