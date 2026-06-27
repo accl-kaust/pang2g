@@ -43,8 +43,10 @@ def write_gfa(path, ref, variants, chop, label, ref_name):
             run = ref[i:p]                              # invariant stretch
             for c in range(0, len(run), chop):
                 yield "run", run[c:c + chop]
-            yield "ref", ref[p]                         # 1 bp reference allele
-            yield "alt", variants[p]                    # 1 bp alternate allele
+            yield "ref", ref[p]                         # reference allele
+            alts = variants[p]                          # one alt (str) or a list
+            for alt in (alts,) if isinstance(alts, str) else alts:
+                yield "alt", alt                        # 1+ alternate alleles
             i = p + 1
         run = ref[i:]
         for c in range(0, len(run), chop):
@@ -100,6 +102,11 @@ def main():
     ap.add_argument("--chop-b", type=int, default=17, help="node size in graph B")
     ap.add_argument("--ref-name", default="GRCh38")
     ap.add_argument("--outdir", default=".")
+    ap.add_argument("--max-k", type=int, default=2,
+                    help="max alleles per snarl; >2 plants heavy-tailed "
+                         "multi-allele snarls (work for the parallel aligner)")
+    ap.add_argument("--complex-frac", type=float, default=0.0,
+                    help="fraction of shared sites made multi-allele when --max-k>2")
     a = ap.parse_args()
 
     rng = random.Random(a.seed)
@@ -139,8 +146,26 @@ def main():
     for p in bonly:  cls[p] = "B"
     altof = {p: alt(p) for p in cls}
 
-    varsA = {p: altof[p] for p in cls if cls[p] in ("shared", "A")}
-    varsB = {p: altof[p] for p in cls if cls[p] in ("shared", "B")}
+    # Optionally upgrade a fraction of SHARED sites into heavy-tailed multi-allele
+    # snarls (k alleles, k drawn Pareto and capped at --max-k). These give the
+    # work-stealing aligner real, skewed per-snarl matching work; the --ref diff
+    # is unaffected because A and B carry the same allele set at these sites.
+    complex_alts = {}
+    if a.max_k > 2 and a.complex_frac > 0:
+        for p in shared:
+            if rng.random() < a.complex_frac:
+                k = min(a.max_k, 2 + int(rng.paretovariate(1.3)))
+                alts = set()
+                while len(alts) < k - 1:
+                    L = rng.randint(1, 4)
+                    alts.add("".join(rng.choice(DNA) for _ in range(L)))
+                complex_alts[p] = sorted(alts)
+
+    def alleles(p):
+        return complex_alts[p] if p in complex_alts else altof[p]
+
+    varsA = {p: alleles(p) for p in cls if cls[p] in ("shared", "A")}
+    varsB = {p: alleles(p) for p in cls if cls[p] in ("shared", "B")}
 
     write_gfa(f"{a.outdir}/demoA.gfa", ref, varsA, a.chop_a, "A", a.ref_name)
     write_gfa(f"{a.outdir}/demoB.gfa", ref, varsB, a.chop_b, "B", a.ref_name)
