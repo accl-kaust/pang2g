@@ -21,20 +21,35 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # ── Ablation build flags ──────────────────────────────────────
-# Each flag disables one optimization to isolate its contribution.
+# Each flag disables one optimization to isolate its contribution.  The option
+# names are paper-facing; several map to a differently-named internal macro (the
+# toggle each optimization actually reads), so the mapping is set explicitly.
 option(G2G_BFS_LAYOUT       "Use BFS snarl-tree layout instead of van Emde Boas" OFF)
-option(G2G_STEAL_RANDOM     "Use random steal instead of largest-task-first"      OFF)
+option(G2G_STEAL_RANDOM     "Use random/FIFO steal instead of largest-task-first" OFF)
 option(G2G_NAIVE_ANCHOR     "Force naïve O(|VA||VB|) anchor detection"            OFF)
-option(G2G_BRUTE_MATCHING   "Force brute-force bipartite matching (no Hungarian)" OFF)
+option(G2G_BRUTE_MATCHING   "Force brute-force bipartite matching (k<=8)"         OFF)
 option(G2G_STATIC_PARTITION "Use static work partition instead of work-stealing"  OFF)
 
-foreach(FLAG G2G_BFS_LAYOUT G2G_STEAL_RANDOM G2G_NAIVE_ANCHOR
-             G2G_BRUTE_MATCHING G2G_STATIC_PARTITION)
-  if(${FLAG})
-    add_compile_definitions(${FLAG})
-    message(STATUS "Ablation flag: ${FLAG}=ON")
-  endif()
-endforeach()
+if(G2G_BFS_LAYOUT)
+  add_compile_definitions(G2G_DISABLE_VEB)             # decompose.cpp
+  message(STATUS "Ablation: BFS layout (-> G2G_DISABLE_VEB)")
+endif()
+if(G2G_STEAL_RANDOM)
+  add_compile_definitions(G2G_STEAL_RANDOM)            # parallel.cpp
+  message(STATUS "Ablation: random steal (-> G2G_STEAL_RANDOM)")
+endif()
+if(G2G_NAIVE_ANCHOR)
+  add_compile_definitions(G2G_DISABLE_MINIMIZER_INDEX) # anchor.cpp
+  message(STATUS "Ablation: naive anchor (-> G2G_DISABLE_MINIMIZER_INDEX)")
+endif()
+if(G2G_BRUTE_MATCHING)
+  add_compile_definitions(G2G_BRUTE_MATCHING)          # matching.cpp
+  message(STATUS "Ablation: brute matching (-> G2G_BRUTE_MATCHING)")
+endif()
+if(G2G_STATIC_PARTITION)
+  message(WARNING "G2G_STATIC_PARTITION is not implemented in the runtime yet "
+                  "-- this flag currently has no effect")
+endif()
 
 # ── Dependencies ──────────────────────────────────────────────
 find_package(Threads REQUIRED)
