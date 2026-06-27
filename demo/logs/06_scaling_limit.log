@@ -1,0 +1,17 @@
+
+=== Scaling to the limit — doubling until RAM or budget is hit ===
+    MemTotal 15.7 GB  |  mem ceiling 12860 MB  |  budget 32400s  |  density 1 var / 200 bp
+   ref_mb      nodesA      nodesB    snarls   a_only      OK decomp_s     wall_s   peak_MB elapsed_s
+        8      393601      554306     32000     4000    PASS 0.814200   2.539444     253.6         4
+       16      787201     1108632     64000     8000    PASS 1.646955   5.732283     499.9        14
+       32     1574401     2217278    128000    16000    PASS 3.514884  12.012475     994.5        35
+       64     3148801     4434532    256000    32000    PASS 6.544450  24.590346    1954.2        78
+      128     6297601     8869101    512000    64000    PASS 13.162773  51.586841    3912.3       166
+      256    12595201    17738137   1024000   128000    PASS 26.314000 134.659657    7723.1       370
+
+    results table: /home/user/G2G/demo/work/scaling_limit/scale_limit_results.tsv
+    stopped because: next point ~15446 MB would exceed mem ceiling 12860 MB
+CEILING reached on this node:
+  256 Mb  |  12595201 + 17738137 nodes  |  1024000 bubbles  |  134.659657s  |  7723.1 MB peak
+  throughput at ceiling: 9505 variants/s, 225259 nodes/s (single core)
+OK — pushed to the limit; diff stayed EXACT at every completed size
