@@ -24,7 +24,8 @@ using NodeId = uint32_t;
 constexpr NodeId kInvalidNode = ~NodeId{0};
 
 struct NodeRef {
-    uint32_t offset;   // byte offset into VariationGraph::seq_data
+    uint64_t offset;   // byte offset into VariationGraph::seq_data (64-bit:
+                       // seq_data may exceed 4 GiB for multi-Gbp graphs)
     uint16_t length;   // sequence length in bytes
     NodeId   id;       // stable external id
 };
