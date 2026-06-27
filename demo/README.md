@@ -28,11 +28,14 @@ breaks naive bubble-boundary matching on real graphs.
 ## Quick start
 
 ```bash
-# 1. everything (build + synthetic demo + fetch tools + real HLA demo)
+# 1. everything (build + synthetic + scaling sweep + fetch tools + real HLA demo)
 bash demo/run_all.sh
 
-# or, synthetic demo only (no downloads, no extra tools):
+# synthetic + scaling only (no downloads, no extra tools):
 SKIP_REAL=1 bash demo/run_all.sh
+
+# skip just the scaling sweep (it adds a few seconds):
+SKIP_SCALING=1 bash demo/run_all.sh
 ```
 
 Logs from a real run are committed under [`logs/`](logs/); example outputs under
@@ -101,6 +104,33 @@ self-diff (cg_A vs cg_A)  ->  a_only=0  b_only=0
 The output is a variant-level VCF with real `GRCh38:pos` coordinates, including
 indels (see [`sample_outputs/hla_diff_sample.vcf`](sample_outputs/hla_diff_sample.vcf)).
 
+## Demo 3 — scaling beyond the gene region
+
+`05_scaling_demo.sh` → [`logs/05_scaling_demo.log`](logs/05_scaling_demo.log)
+
+The same controlled diff, driven across graphs growing from ~100 kb to **8 Mb**
+(~700× the HLA gene region) at a dense ~1 variant / 200 bp. At every size g2g
+must still recover the planted A-only / B-only set **exactly** — so this measures
+speed and memory *without giving up correctness*. Wall time and peak RSS are
+g2g's own (`--verbose-timing` → `[timing] wall=`, `[mem] peak_rss_mb=`), so no
+external profiler is needed.
+
+| ref bp | nodes (A+B) | snarls | a_only / b_only | exact? | wall | peak RSS |
+|-------:|------------:|-------:|----------------:|:------:|-----:|---------:|
+| 100 kb |        12 k |    400 | 50 / 50         |   ✓    | 0.02 s |   8 MB |
+| 500 kb |        59 k |  2 000 | 250 / 250       |   ✓    | 0.10 s |  20 MB |
+| 2 Mb   |       237 k |  8 000 | 1 000 / 1 000   |   ✓    | 0.49 s |  68 MB |
+| 8 Mb   |       948 k | 32 000 | 4 000 / 4 000   |   ✓    | 2.27 s | 258 MB |
+
+Time and memory both scale ~linearly (each 4× in size costs ~4.6× time):
+~18 k variants/s, ~420 k nodes/s on a single core. Push further with
+`SCALE_MAX_MB=32` or a custom `SCALE_SIZES="bp:variants ..."`.
+
+> The built-in snarl finder used to be quadratic here (a whole-graph reachability
+> search per bubble). It now uses an exact, topologically-windowed sink search —
+> falling back to the full search only for bubbles larger than the window — which
+> cut the 4 Mb point from ~52 s to ~1 s with byte-identical boundaries.
+
 ---
 
 ## Using G2G on your own graphs
@@ -138,6 +168,8 @@ variants match. Variants present in only one graph become that graph's delta.
   separate bubbles encoding the same SNPs.
 - **Real data:** runs end-to-end on real HLA-DRB1 graphs in ~0.1 s and emits a
   coordinate-stamped variant diff.
+- **Scales near-linearly:** the diff stays exact from 100 kb to 8 Mb (~950k
+  nodes, ~32k bubbles) with ~linear time and memory (Demo 3).
 
 ## Limitations (honest)
 
@@ -147,7 +179,11 @@ variants match. Variants present in only one graph become that graph's delta.
   (e.g. `vg msga`) can produce cycles.
 - **Indels are not left-normalised**, so indel calls in repeats may differ by a
   base from a tool like `bcftools norm`.
-- Validated at gene-region scale (HLA-DRB1, ~11 kb), not yet chromosome scale.
+- Validated to multi-megabase scale (8 Mb synthetic, ~950k nodes, ~2 s
+  single-core; Demo 3). Whole-chromosome (50–250 Mb) and many-haplotype
+  HPRC-scale graphs are the next step.
+- The diff itself is single-threaded; the parallel work-stealing runtime
+  accelerates the snarl-correspondence aligner, not the `--ref` coordinate diff.
 
 ## Files
 
@@ -158,7 +194,8 @@ variants match. Variants present in only one graph become that graph's delta.
 | `02_build_g2g.sh` | build the `g2g` binary |
 | `03_synthetic_demo.sh` | controlled pair vs known ground truth + self-diff |
 | `04_real_hla_demo.sh` | real HLA-DRB1 pangenome diff |
-| `make_synthetic_pair.py` | generator for the controlled pair |
+| `05_scaling_demo.sh` | scaling sweep (100 kb → 8 Mb) with timing + peak memory |
+| `make_synthetic_pair.py` | generator for the controlled / scaling pairs |
 | `lib.sh` | shared paths/helpers |
 | `logs/` | captured logs from a real run |
 | `sample_outputs/` | example diff/truth files |

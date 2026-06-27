@@ -84,6 +84,72 @@ static std::optional<NodeId> find_sink(
     return std::nullopt;
 }
 
+// ── find_sink_local — fast, EXACT, window-bounded sink search ─────────────────
+//
+// The full find_sink() above is O(V) per call (a whole-graph BFS per successor
+// plus a full topo scan), so calling it for every branching node makes
+// decomposition O(branches · V) — quadratic on large graphs.  This bounded
+// variant exploits a DAG property: topological positions increase monotonically
+// along every edge, so any path from a successor of `source` to a node whose
+// topo position is ≤ base+window stays ENTIRELY within that window.  Windowed
+// reachability is therefore exact for any in-window candidate, and the first
+// in-window node reached by all successors is exactly the sink find_sink() would
+// return — when the sink is in range.
+//
+// Return contract:
+//   sink set               → definitive sink (identical to the full search)
+//   {nullopt, false}       → definitively no sink (search stayed inside window)
+//   {nullopt, true}        → sink may lie beyond the window; caller must fall back
+struct LocalSink { std::optional<NodeId> sink; bool inconclusive; };
+
+static LocalSink find_sink_local(
+        NodeId source,
+        const VariationGraph& vg,
+        const std::vector<NodeId>& topo,
+        const std::vector<uint32_t>& topo_pos,
+        uint32_t window) {
+
+    auto succs = vg.successors(source);
+    if (succs.size() < 2) return {std::nullopt, false};
+
+    const uint32_t base = topo_pos[source];
+    const uint64_t hi   = static_cast<uint64_t>(base) + window;   // inclusive
+    const uint32_t span = window + 1;
+
+    std::vector<uint32_t> reach_count(span, 0);  // # successors reaching this pos
+    std::vector<uint32_t> visited(span, 0);      // per-successor BFS stamp
+    uint32_t stamp = 0;
+    bool inconclusive = false;
+    std::queue<NodeId> q;
+
+    for (NodeId start : succs) {
+        ++stamp;
+        if (static_cast<uint64_t>(topo_pos[start]) > hi) { inconclusive = true; continue; }
+        uint32_t so = topo_pos[start] - base;
+        visited[so] = stamp;
+        ++reach_count[so];
+        q.push(start);
+        while (!q.empty()) {
+            NodeId u = q.front(); q.pop();
+            for (NodeId v : vg.successors(u)) {
+                if (static_cast<uint64_t>(topo_pos[v]) > hi) { inconclusive = true; continue; }
+                uint32_t o = topo_pos[v] - base;
+                if (visited[o] != stamp) {
+                    visited[o] = stamp;
+                    ++reach_count[o];
+                    q.push(v);
+                }
+            }
+        }
+    }
+
+    const uint32_t need = static_cast<uint32_t>(succs.size());
+    for (uint32_t o = 1; o < span && base + o < topo.size(); ++o)
+        if (reach_count[o] == need) return {topo[base + o], false};   // first = sink
+
+    return {std::nullopt, inconclusive};
+}
+
 // ── annotate_work (P3-4) ──────────────────────────────────────────────────────
 //
 // Fill Snarl::subtree_work for every snarl bottom-up.
@@ -358,9 +424,17 @@ SnarlTree SnarlDecomposer::decompose() const {
     }
 
     if (!have_vg) {
+        // Local topo-window for the fast sink search.  Reference-anchored
+        // pangenome bubbles are local (a few nodes), so the sink is almost
+        // always well within this; anything larger falls back to the exact
+        // full-graph search, so the boundaries produced are identical.
+        constexpr uint32_t kSinkWindow = 1024;
         for (NodeId s : topo) {
             if (vg_.out_degree(s) < 2) continue;
-            auto sink_opt = find_sink(s, vg_, topo, topo_pos);
+            LocalSink ls = find_sink_local(s, vg_, topo, topo_pos, kSinkWindow);
+            std::optional<NodeId> sink_opt = ls.sink;
+            if (!sink_opt && ls.inconclusive)        // sink may be beyond window
+                sink_opt = find_sink(s, vg_, topo, topo_pos);
             if (!sink_opt) continue;
             boundaries.emplace_back(s, *sink_opt);
         }

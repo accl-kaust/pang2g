@@ -87,15 +87,15 @@ def main():
     ref = "".join(rng.choice(DNA) for _ in range(a.length))
 
     margin = max(a.chop_a, a.chop_b) + 2
-    pool = list(range(margin, a.length - margin))
-    rng.shuffle(pool)
-    chosen = []
-    for c in sorted(pool):                 # keep variants >=2 apart (clean bubbles)
-        if all(abs(c - x) >= 2 for x in chosen):
-            chosen.append(c)
     need = a.n_shared + a.n_a + a.n_b
-    assert len(chosen) >= need, "increase --length or lower variant counts"
-    chosen = chosen[:need]
+    usable = a.length - 2 * margin
+    # Place variants on an even grid so they are always >=2 bp apart (clean,
+    # independent bubbles) regardless of count, and spread across the whole
+    # reference. O(N) — scales to multi-megabase references (the earlier
+    # shuffle-pool + pairwise proximity check was O(length * need)).
+    assert usable >= need * 2, "increase --length or lower variant counts"
+    step = usable // need
+    chosen = [margin + i * step for i in range(need)]
     rng.shuffle(chosen)
     shared = chosen[:a.n_shared]
     aonly = chosen[a.n_shared:a.n_shared + a.n_a]
