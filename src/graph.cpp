@@ -16,7 +16,7 @@ NodeId VariationGraph::add_node(const std::string& external_id,
     NodeId id = static_cast<NodeId>(node_seq_offsets.size());
     id_map[external_id] = id;
     node_names.push_back(external_id);
-    node_seq_offsets.push_back(static_cast<uint32_t>(seq_data.size()));
+    node_seq_offsets.push_back(static_cast<uint64_t>(seq_data.size()));
     node_seq_lengths.push_back(static_cast<uint16_t>(sequence.size()));
     seq_data.insert(seq_data.end(), sequence.begin(), sequence.end());
     return id;

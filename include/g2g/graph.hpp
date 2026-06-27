@@ -37,7 +37,9 @@ public:
     // ── Sequence storage ──────────────────────────────────────
     // All node sequences packed into one flat array.
     std::vector<char>     seq_data;
-    std::vector<uint32_t> node_seq_offsets;  // size = num_nodes
+    std::vector<uint64_t> node_seq_offsets;  // size = num_nodes; 64-bit so a
+                                             // single graph's seq_data may
+                                             // exceed 4 GiB (multi-Gbp graphs)
     std::vector<uint16_t> node_seq_lengths;  // size = num_nodes
 
     // ── Adjacency (CSR format) ─────────────────────────────────
