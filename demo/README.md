@@ -142,19 +142,22 @@ previous one and refuses to *attempt* a point it expects to OOM, so an
 unattended cluster run is never killed mid-way and wastes an allocation — and
 the diff is checked exact at every size.
 
-On a commodity **16 GB** box it reaches a chromosome-scale graph before the RAM
-ceiling:
+On a **512 GB** node it climbs to an **8 Gbp** graph pair — past the whole human
+genome — before hitting the RAM ceiling, exact at every step:
 
-| ref | nodes (A+B) | bubbles | exact? | wall | peak RSS |
-|----:|------------:|--------:|:------:|-----:|---------:|
-|  64 Mb |  7.6 M |  256 k | ✓ |  25 s | 1.9 GB |
-| 128 Mb | 15.2 M |  512 k | ✓ |  52 s | 3.9 GB |
-| 256 Mb | 30.3 M | 1.02 M | ✓ | 135 s | 7.7 GB |
+| ref | nodes (A+B) | variants | exact? | wall | peak RSS |
+|----:|------------:|---------:|:------:|-----:|---------:|
+| 256 Mb | 30.3 M | 1.28 M | ✓ |  104 s |   7.7 GiB |
+|   1 Gb |  121 M  | 5.12 M | ✓ |  415 s |    31 GiB |
+|   2 Gb |  243 M  | 10.2 M | ✓ |  817 s |    60 GiB |
+|   4 Gb |  485 M  | 20.5 M | ✓ | 1880 s |   121 GiB |
+|   8 Gb |  971 M  | 41.0 M | ✓ | 4292 s |   242 GiB |
 
-…then stops (the 512 Mb point would need ~15 GB). Time and memory stay linear
-throughout (~225k nodes/s on one core), so a node with more RAM climbs
-proportionally further — ≥128 GB reaches whole-human-genome scale (~3.1 Gb)
-well inside an hour.
+That's **~971 M nodes / 41 M variants** diffed exactly on a single core in ~72
+min — **~2.6× the human genome (3.1 Gb)** — the next doubling (16 Gb) is the only
+thing the node's RAM can't hold. Across the full 10⁶ → 9.7×10⁸-node sweep time
+and memory stay linear (~226k nodes/s, one core); a smaller node simply stops
+proportionally sooner (a 16 GB box tops out at ~256 Mb / 30 M nodes).
 
 ```bash
 # auto-adapts to the node's RAM; tee a log to commit as evidence
@@ -174,9 +177,12 @@ python3 demo/plot_scaling.py            # auto-finds demo/work/*.tsv
 
 ![G2G --ref scaling](sample_outputs/scaling_curve.png)
 
-Across 100 kb → 256 Mb (9 points, ~10⁴ → 3×10⁷ nodes) wall time scales as
-**N^1.12** and peak memory as **N^0.91** — both within a hair of linear, and the
-snarl-decomposition phase is now exactly **N^1.00** (the old quadratic is gone).
+Across 8 Mb → 8 Gb (11 points, ~10⁶ → 9.7×10⁸ nodes) wall time scales as
+**N^1.04** and peak memory as **N^0.99** — both within a hair of linear — and
+snarl decomposition is exactly **N^1.00** (the old quadratic is gone). The same
+curve is also committed as
+[`fig_refdiffscaling.pdf`](sample_outputs/fig_refdiffscaling.pdf) for the paper.
+(Run `03`/`05` on the same machine first to extend the curve down to 100 kb.)
 
 ---
 
@@ -216,8 +222,9 @@ variants match. Variants present in only one graph become that graph's delta.
 - **Real data:** runs end-to-end on real HLA-DRB1 graphs in ~0.1 s and emits a
   coordinate-stamped variant diff.
 - **Scales near-linearly:** the diff stays exact from 100 kb to 8 Mb (~950k
-  nodes, ~32k bubbles) with ~linear time and memory (Demo 3), and on to
-  chromosome scale — 256 Mb / ~30M nodes / 1.0M bubbles on a 16 GB box (Demo 3b).
+  nodes) with ~linear time and memory (Demo 3), and on to **8 Gbp / ~971M nodes /
+  41M variants** on a 512 GB node — ~2.6× the human genome, diffed exactly in
+  ~72 min single-core (Demo 3b).
 
 ## Limitations (honest)
 
@@ -227,9 +234,9 @@ variants match. Variants present in only one graph become that graph's delta.
   (e.g. `vg msga`) can produce cycles.
 - **Indels are not left-normalised**, so indel calls in repeats may differ by a
   base from a tool like `bcftools norm`.
-- Validated to chromosome scale on **synthetic** graphs (256 Mb / ~30M nodes on
-  a 16 GB box; auto-scales further with RAM — Demo 3b). Real whole-genome
-  validation on many-haplotype, HPRC-scale pangenomes is the next step.
+- Validated past whole-genome scale on **synthetic** graphs (8 Gbp / ~971M nodes
+  on a 512 GB node, RAM-bound; Demo 3b). Real whole-genome validation on
+  many-haplotype, HPRC-scale pangenomes is the next step.
 - The diff itself is single-threaded; the parallel work-stealing runtime
   accelerates the snarl-correspondence aligner, not the `--ref` coordinate diff.
 
