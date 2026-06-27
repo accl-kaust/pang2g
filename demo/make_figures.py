@@ -311,7 +311,8 @@ def fig_ablation(path, csv=None):
     if csv and os.path.exists(csv):
         import csv as _csv
         short = {"LAPJV matching": "LAPJV", "minimiser anchor index": "minimiser",
-                 "steal-largest policy": "steal", "vEB layout": "vEB"}
+                 "steal-largest policy": "steal", "static work partition": "static-part",
+                 "vEB layout": "vEB"}
         def rat(b, d):
             try:
                 b, d = float(b), float(d); return d / b if b > 0 else float("nan")

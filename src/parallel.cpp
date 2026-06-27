@@ -17,6 +17,11 @@
  * G2G_STEAL_RANDOM ablation: when compiled with -DG2G_STEAL_RANDOM=1,
  * the priority queue is replaced with a FIFO std::queue (tasks popped
  * in insertion order rather than by priority).
+ *
+ * G2G_STATIC_PARTITION ablation: when compiled with -DG2G_STATIC_PARTITION=1,
+ * the shared queue and stealing are removed entirely — each thread owns a
+ * fixed (cyclic) slice of the tasks and runs only those.  This exposes the
+ * per-snarl load imbalance that work-stealing hides; results are unchanged.
  */
 
 #include <g2g/parallel.hpp>
@@ -199,7 +204,6 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     for (auto& f : result_ready) f.store(false, std::memory_order_relaxed);
 
     std::atomic<uint64_t> tasks_executed{0};
-    std::atomic<uint32_t> done_count{0};
     std::atomic<uint64_t> steals{0};
 
     // Per-thread busy time (sum of execute_task durations).  Each thread writes
@@ -208,6 +212,60 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     std::vector<double> thread_busy(num_threads_, 0.0);
     uint64_t ready_peak = 0;   // guarded by queue_mtx (and the pre-launch seed)
 
+#ifdef G2G_STATIC_PARTITION
+    // ── Static work-partition scheduler (ablation) ────────────────────────────
+    // No shared queue and no stealing: thread `tid` of a P-thread team owns
+    // exactly the tasks with (ti % P == tid) and runs only those, re-scanning its
+    // own set until each owned task's dependencies are met.  Dependencies are
+    // still honoured, so the results are byte-identical to the work-stealing path
+    // — but a thread that draws several heavy snarls cannot shed them, so the DP
+    // phase inherits the per-snarl load imbalance that work-stealing removes.  By
+    // construction no task ever crosses its static owner, so `steals` stays 0 and
+    // `imbalance` reports the static skew.
+    ready_peak = ntasks;                 // every task is "owned" from the start
+    auto worker = [&]() {
+        const uint32_t P =
+#ifdef G2G_HAVE_OPENMP
+            static_cast<uint32_t>(omp_get_num_threads());
+#else
+            1u;
+#endif
+        const uint32_t tid =
+#ifdef G2G_HAVE_OPENMP
+            static_cast<uint32_t>(omp_get_thread_num());
+#else
+            0u;
+#endif
+        if (P == 0 || tid >= num_threads_) return;
+        std::vector<uint32_t> mine;
+        for (uint32_t ti = tid; ti < ntasks; ti += P) mine.push_back(ti);
+        std::vector<char> finished(mine.size(), 0);
+        uint32_t remaining = static_cast<uint32_t>(mine.size());
+        while (remaining > 0) {
+            bool progressed = false;
+            for (std::size_t k = 0; k < mine.size(); ++k) {
+                if (finished[k]) continue;
+                const uint32_t ti = mine[k];
+                if (tasks[ti].dep_count.load(std::memory_order_acquire) != 0)
+                    continue;            // a child (maybe on another thread) is pending
+                auto exec_t0 = Clock::now();
+                results[ti] = execute_task(ga, gb, ta, tb, tasks[ti]);
+                thread_busy[tid] +=
+                    std::chrono::duration<double>(Clock::now() - exec_t0).count();
+                result_ready[ti].store(true, std::memory_order_release);
+                tasks_executed.fetch_add(1, std::memory_order_relaxed);
+                finished[k] = 1; --remaining; progressed = true;
+                if (tasks[ti].parent_idx >= 0) {
+                    uint32_t pi = static_cast<uint32_t>(tasks[ti].parent_idx);
+                    tasks[pi].dep_count.fetch_sub(1, std::memory_order_acq_rel);
+                }
+            }
+            if (!progressed && remaining > 0)
+                std::this_thread::yield();          // wait on another thread's child
+        }
+    };
+#else
+    std::atomic<uint32_t> done_count{0};
     // Shared ready queue protected by mutex + condvar
 #ifdef G2G_STEAL_RANDOM
     std::queue<ReadyEntry> ready_queue;
@@ -313,6 +371,7 @@ ParallelAligner::Result ParallelAligner::align_snarls(
             }
         }
     };
+#endif // G2G_STATIC_PARTITION scheduler select
 
     // Launch OpenMP threads
 #ifdef G2G_HAVE_OPENMP

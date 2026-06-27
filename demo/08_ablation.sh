@@ -12,13 +12,22 @@
 #     internal macro the optimization actually reads (see CMakeLists.txt).
 #   * vEB layout (G2G_BFS_LAYOUT) is a no-op on the current depth-1 snarls, so
 #     its rows should read ~1.0x — that is a real result, not a measurement bug.
-#   * Static work-partition (G2G_STATIC_PARTITION) is not implemented in the
-#     runtime, so it is omitted.
+#   * Static work-partition (G2G_STATIC_PARTITION) replaces work-stealing with a
+#     fixed cyclic (ti % P) task assignment. Its control is a BALANCED workload
+#     (every complex snarl identical, via --uniform-k) where a static split is
+#     already even (~1.0x); its treatment is a heavy-tailed workload where a few
+#     threads draw the big snarls and cannot shed them, so static loses (>1.0x).
 #
-# Env: PTHREADS  threads for the scheduler ablations (default min(nproc,32))
+# Env: PTHREADS      threads for the steal-largest ablation (default min(nproc,32))
+#      SCHED_THREADS threads for the static-partition ablation (default min(nproc,8)):
+#                    work-stealing's edge over a static split is sharpest when the
+#                    heavy-snarl count is a small multiple of P; far past that both
+#                    leave threads idle on a finite heavy tail, so it is capped for
+#                    a machine-independent result (raise it on a big node to taste).
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 ABL="$WORK/ablation"; mkdir -p "$ABL"
 NPROC="$(nproc)"; PT="${PTHREADS:-$(( NPROC < 32 ? NPROC : 32 ))}"
+ST="${SCHED_THREADS:-$(( NPROC < 8 ? NPROC : 8 ))}"
 if ninja --version >/dev/null 2>&1; then GEN="Ninja"; else GEN="Unix Makefiles"; fi
 
 gen() { python3 "$DEMO_DIR/make_synthetic_pair.py" --chop-a 25 --chop-b 25 "$@" >/dev/null; }
@@ -62,6 +71,10 @@ gen --outdir "$ABL/g_k2"      --length 200000 --n-shared 3000 --n-a 30 --n-b 30
 gen --outdir "$ABL/g_k7"      --length 200000 --n-shared 2000 --n-a 30 --n-b 30 --max-k 7  --complex-frac 1.0 --alt-len 20
 gen --outdir "$ABL/g_sv_s"    --length 50000  --n-shared 120  --n-a 20 --n-b 20 --max-k 40 --complex-frac 1.0 --alt-len 200
 gen --outdir "$ABL/g_sv_b"    --length 400000 --n-shared 3000 --n-a 50 --n-b 50 --max-k 40 --complex-frac 1.0 --alt-len 200
+# static-partition: BALANCED control (identical heavy snarls) vs SKEWED treatment
+# (heavy-tailed) — same idea, differing only in per-snarl work variance.
+gen --outdir "$ABL/g_bal"     --length 250000 --n-shared 200  --n-a 10 --n-b 10 --max-k 16 --complex-frac 1.0 --alt-len 120 --uniform-k
+gen --outdir "$ABL/g_skew"    --length 400000 --n-shared 320  --n-a 10 --n-b 10 --max-k 40 --complex-frac 1.0 --alt-len 160
 
 row() {  # $1=label $2=flag $3=metric $4=runflags $5=ctl-dir $6=trt-dir
     local bin; bin=$(build "$2")
@@ -81,11 +94,12 @@ printf '  %-26s %-9s %10s %12s\n' "-----------------------" "-----" "-------" "-
 row "LAPJV matching"          G2G_BRUTE_MATCHING dp    "--threads 1"    "$ABL/g_k2"    "$ABL/g_k7"
 row "minimiser anchor index"  G2G_NAIVE_ANCHOR   index "--threads 1"    "$ABL/g_small" "$ABL/g_bignode"
 row "steal-largest policy"    G2G_STEAL_RANDOM   dp    "--threads $PT"  "$ABL/g_sv_s"  "$ABL/g_sv_b"
+row "static work partition"   G2G_STATIC_PARTITION dp  "--threads $ST"  "$ABL/g_bal"   "$ABL/g_skew"
 row "vEB layout"              G2G_BFS_LAYOUT     dp    "--threads 1"    "$ABL/g_sv_s"  "$ABL/g_sv_b"
 
 echo
 note "slowdown = disabled / baseline   (1.00x = no effect; >1 = the optimization helps here)"
 note "results: $ABL/ablation_results.tsv"
 note "vEB rows read ~1.0x: the layout is a no-op on depth-1 snarls (honest null)."
-note "static work-partition is not implemented in the runtime — omitted."
+note "static-partition control ~1.0x (balanced work) vs treatment >1.0x (skewed work)."
 echo "OK — ablation complete"
