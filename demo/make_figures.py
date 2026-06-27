@@ -6,8 +6,10 @@ Three kinds:
   REAL DATA  : fig_matching, fig_refdiffscaling      (from measured numbers)
   SCHEMATIC  : fig_paradigm, fig_snarltree, fig_pipeline, fig_delta, fig_veb
                (conceptual diagrams — refine/redraw to taste)
-  PLACEHOLDER: fig_throughput, fig_scaling, fig_ablation, fig_biology
-               (marked PRELIMINARY — replace with real runs)
+  DATA-OR-PLACEHOLDER: fig_scaling (--scaling-csv), fig_ablation (--ablation-csv),
+               fig_biology (--biology-csv) draw real measurements when the CSV is
+               supplied, else a PRELIMINARY watermarked sketch.
+  PLACEHOLDER: fig_throughput  (marked PRELIMINARY — replace with real runs)
   ILLUSTRATIVE: fig_workload   (matches the cited stats; swap in your real
                Phase-2 profiling CSV if you have it)
 
@@ -348,12 +350,47 @@ def fig_ablation(path, csv=None):
         _placeholder(path, "Ablations (preliminary)", "", "slowdown when off", s)
 
 
-def fig_biology(path):
-    def s(ax):
-        cats = ["high-$F_{ST}$\ngnomAD-SV", "ClinVar\n(shared)"]
-        ax.bar(cats, [3.1, 2.4], color=[RED, GREEN], alpha=0.8)
-        ax.axhline(1, ls="--", color=GREY); ax.set_ylim(0, 4)
-    _placeholder(path, "HPRC enrichment (preliminary)", "", "fold enrichment", s)
+def fig_biology(path, csv=None):
+    """csv = hprc_enrich.py results TSV (category,observed,expected,fold,p).
+    Each bar is the fold-enrichment of delta alleles near a target set; bars
+    are coloured by significance (p<0.05) and annotated with the permutation p."""
+    if csv and os.path.exists(csv):
+        import csv as _csv
+        def _short(cat):
+            c = cat.lower()
+            if "f_st" in c or "fst" in c or "gnomad" in c: return "high-$F_{ST}$\ngnomAD-SV"
+            if "clinvar" in c: return "ClinVar\npathogenic"
+            return cat
+        cats, folds, ps = [], [], []
+        with open(csv) as f:
+            for r in _csv.DictReader(f, delimiter="\t"):
+                try:
+                    folds.append(float(r["fold"])); ps.append(float(r["p"]))
+                except (KeyError, ValueError, TypeError):
+                    continue
+                cats.append(_short(r.get("category", "")))
+        fig, ax = plt.subplots(figsize=(3.4, 2.5))
+        x = np.arange(len(cats))
+        colors = [RED if (p < 0.05) else GREY for p in ps]
+        ax.bar(x, folds, 0.6, color=colors, alpha=0.85)
+        ax.axhline(1, ls="--", color=GREY, lw=0.9, label="null (no enrichment)")
+        ax.set_xticks(x); ax.set_xticklabels(cats, fontsize=7.5)
+        ax.set_ylabel("fold enrichment (obs / permuted)")
+        ax.set_title("Population-differentiation enrichment")
+        top = max(folds + [1.0])
+        ax.set_ylim(0, top * 1.42)   # headroom for the 2-line fold/p annotations
+        for xi, fo, p in zip(x, folds, ps):
+            tag = f"{fo:.2f}×\n$p$={p:.1e}" if p < 1e-3 else f"{fo:.2f}×\n$p$={p:.3f}"
+            ax.annotate(tag, (xi, fo), ha="center", va="bottom", fontsize=6.8)
+        ax.legend(fontsize=7, loc="upper right")
+        ax.grid(True, axis="y", ls=":", alpha=0.4)
+        fig.savefig(path); plt.close(fig)
+    else:
+        def s(ax):
+            cats = ["high-$F_{ST}$\ngnomAD-SV", "ClinVar\n(shared)"]
+            ax.bar(cats, [3.1, 2.4], color=[RED, GREEN], alpha=0.8)
+            ax.axhline(1, ls="--", color=GREY); ax.set_ylim(0, 4)
+        _placeholder(path, "HPRC enrichment (preliminary)", "", "fold enrichment", s)
 
 
 FIGURES = {
@@ -374,6 +411,7 @@ def main():
     ap.add_argument("--alleles-csv", default=None, help="real fig_workload(b) data (k,count)")
     ap.add_argument("--scaling-csv", default=None, help="07_parallel_scaling.sh TSV for fig_scaling")
     ap.add_argument("--ablation-csv", default=None, help="08_ablation.sh TSV for fig_ablation")
+    ap.add_argument("--biology-csv", default=None, help="hprc_enrich.py results TSV for fig_biology")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     extra = {
@@ -381,6 +419,7 @@ def main():
         "fig_workload": dict(gini_csv=a.gini_csv, alleles_csv=a.alleles_csv),
         "fig_scaling":  dict(csv=a.scaling_csv),
         "fig_ablation": dict(csv=a.ablation_csv),
+        "fig_biology":  dict(csv=a.biology_csv),
     }
     for name, fn in FIGURES.items():
         p = os.path.join(a.outdir, name + ".pdf")
