@@ -119,6 +119,30 @@ static VariationGraph make_varying_bubbles(const std::string& name,
     return vg;
 }
 
+/**
+ * Backbone of distinct anchor nodes a0..a_{n-1} (each a UNIQUE sequence) with a
+ * 2-allele bubble (ref edge + one alt node) at each position in `bubbles`.
+ * Because the anchors are distinct, every bubble has a distinct boundary key, so
+ * two graphs' bubbles correspond ONLY where their positions coincide — unlike
+ * the chained builders above, whose bubbles all share the ("N","N") boundary.
+ */
+static VariationGraph make_positional(const std::string& name, int n_anchor,
+                                      const std::vector<int>& bubbles) {
+    VariationGraph vg; vg.name = name;
+    std::vector<NodeId> anc;
+    for (int i = 0; i < n_anchor; ++i)
+        anc.push_back(vg.add_node(name + "_anc" + std::to_string(i),
+                                  "ANC" + std::to_string(i)));  // seq depends on i only
+    for (int i = 0; i + 1 < n_anchor; ++i) vg.add_edge(anc[i], anc[i + 1]);
+    for (int b : bubbles) {
+        NodeId alt = vg.add_node(name + "_alt" + std::to_string(b), "TT");
+        vg.add_edge(anc[b], alt);
+        vg.add_edge(alt, anc[b + 1]);
+    }
+    vg.finalise();
+    return vg;
+}
+
 // ── Reference: sequential aligner result ─────────────────────────────────────
 
 static AlignmentResult seq_align(const VariationGraph& ga,
@@ -173,6 +197,24 @@ TEST(ParallelMulti, TwoThreadsMatchSequential) {
 
     EXPECT_NEAR(par.total_score, seq.total_score, 1e-3f);
     EXPECT_EQ(par.snarl_alignments.size(), seq.snarl_alignments.size());
+}
+
+// Regression: sequential and parallel must agree even when the graphs have
+// NON-corresponding snarls (distinct boundaries). The old greedy sequential
+// aligner force-paired A's unique bubble to B's unique bubble (a spurious
+// cross-pair) and thus reported MORE alignments than the parallel path, which
+// pairs only matching boundaries. Both should now pair only the shared bubbles.
+TEST(ParallelMulti, DistinctBoundariesMatchSequential) {
+    auto ga = make_positional("A", 8, {0, 2, 4});  // shared 0,2 ; A-only 4
+    auto gb = make_positional("B", 8, {0, 2, 6});  // shared 0,2 ; B-only 6
+
+    AlignmentResult seq = seq_align(ga, gb);
+    ParallelAligner pa({}, 4);
+    AlignmentResult par = pa.align(ga, gb);
+
+    EXPECT_EQ(seq.snarl_alignments.size(), 2u);  // only the shared bubbles pair
+    EXPECT_EQ(par.snarl_alignments.size(), seq.snarl_alignments.size());
+    EXPECT_NEAR(par.total_score, seq.total_score, 1e-3f);
 }
 
 TEST(ParallelMulti, FourThreadsMatchSequential) {

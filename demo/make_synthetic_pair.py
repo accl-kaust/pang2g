@@ -107,6 +107,9 @@ def main():
                          "multi-allele snarls (work for the parallel aligner)")
     ap.add_argument("--complex-frac", type=float, default=0.0,
                     help="fraction of shared sites made multi-allele when --max-k>2")
+    ap.add_argument("--alt-len", type=int, default=4,
+                    help="max length of multi-allele alt sequences (long = SV-like, "
+                         "heavy O(L^2) per-pair edit distance for the aligner DP)")
     a = ap.parse_args()
 
     rng = random.Random(a.seed)
@@ -157,7 +160,7 @@ def main():
                 k = min(a.max_k, 2 + int(rng.paretovariate(1.3)))
                 alts = set()
                 while len(alts) < k - 1:
-                    L = rng.randint(1, 4)
+                    L = rng.randint(1, a.alt_len)
                     alts.add("".join(rng.choice(DNA) for _ in range(L)))
                 complex_alts[p] = sorted(alts)
 

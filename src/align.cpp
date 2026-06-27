@@ -114,28 +114,18 @@ std::vector<SnarlAlignment> GraphAligner::align_snarls(
     const SnarlTree& tb,
     const std::vector<AnchorMatch>&) const {
 
+    // Pair snarls by boundary correspondence — the SAME pairing the parallel
+    // runtime uses (ParallelAligner::build_task_dag → correspond_snarls), so the
+    // sequential and parallel aligners produce identical snarl alignments and
+    // total scores at every scale.  The previous greedy best-match was
+    // O(|T_A|·|T_B|) and force-paired every A-snarl, which both blew up
+    // quadratically and diverged from the parallel path on graphs larger than
+    // the unit tests exercised.
     std::vector<SnarlAlignment> results;
-    std::vector<bool> used_b(tb.snarls.size(), false);
-
-    for (uint32_t ia = 0; ia < ta.snarls.size(); ++ia) {
-        float best_score = 0.f;
-        int   best_ib    = -1;
-
-        for (uint32_t ib = 0; ib < tb.snarls.size(); ++ib) {
-            if (used_b[ib]) continue;
-            SnarlAlignment aln = score_snarl_pair(ga, gb, ta, tb,
-                                                   ia, ib);
-            if (aln.score > best_score) {
-                best_score = aln.score;
-                best_ib    = static_cast<int>(ib);
-            }
-        }
-        if (best_ib >= 0) {
-            results.push_back(score_snarl_pair(ga, gb, ta, tb,
-                                                ia, static_cast<uint32_t>(best_ib)));
-            used_b[static_cast<size_t>(best_ib)] = true;
-        }
-    }
+    auto corr = correspond_snarls(ga, gb, ta, tb);
+    results.reserve(corr.size());
+    for (const auto& [ia, ib] : corr)
+        results.push_back(score_snarl_pair(ga, gb, ta, tb, ia, ib));
     return results;
 }
 
