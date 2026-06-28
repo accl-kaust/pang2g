@@ -879,8 +879,11 @@ plainly---the chromosome-22 delta co-localizes with structural variation
 The most likely cause is that the per-graph delta is dominated by low-frequency,
 population-private alleles (the AFR graph, built from more samples, contributes
 the larger share), which track mutable, SV-rich loci but not allele-frequency
-differentiation; a frequency-aware delta and a region-matched null are the natural
-way to isolate differentiation, and the same pipeline supports both. (As a
+differentiation. Restricting the delta to SV-sized alleles ($\geq 50$\,bp) is in
+turn too sparse on this SNV/indel panel to be conclusive (14 alleles on
+chromosome~22). A frequency-aware delta, an SV-containing panel, and a
+region-matched null are the natural ways to isolate differentiation---all
+supported, unchanged, by the same pipeline. (As a
 positive control, the identical pipeline on a synthetic fixture with planted
 differentiated SVs recovers them at $21$--$42\times$ against a null shuffled-delta
 control, so the statistic itself is sound.) What this experiment establishes is
