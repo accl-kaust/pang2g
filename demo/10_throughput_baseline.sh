@@ -59,10 +59,14 @@ CFA="$OUT/ref_${CONTIG}.fa"
 [ -s "$CFA" ] || { note "extracting reference contig $CONTIG…"; "$SAMTOOLS" faidx "$REF_FA" "$CONTIG" > "$CFA"; "$SAMTOOLS" faidx "$CFA"; }
 
 build_graph() {  # $1=sample-list  $2=out.gfa
-    "$BCFTOOLS" view -r "$CONTIG" -S "$1" --force-samples -c1 -Oz "$panel" > "$OUT/_sub.vcf.gz"
-    "$TABIX" -fp vcf "$OUT/_sub.vcf.gz"
-    "$VG" construct -r "$REF_FA" -v "$OUT/_sub.vcf.gz" -R "$CONTIG" 2>/dev/null \
-        | "$VG" convert -f - 2>/dev/null > "$2"
+    "$BCFTOOLS" view -r "$CONTIG" -S "$1" --force-samples -c1 -Oz "$panel" > "$OUT/_sub.vcf.gz" 2>"$OUT/_err" \
+        || { echo "ERROR: bcftools view failed:" >&2; cat "$OUT/_err" >&2; exit 1; }
+    "$TABIX" -fp vcf "$OUT/_sub.vcf.gz" 2>/dev/null || true
+    # vg can exit non-zero on a benign warning/SIGPIPE even when the GFA is fine,
+    # so tolerate the exit code and judge by the output file instead.
+    "$VG" construct -r "$REF_FA" -v "$OUT/_sub.vcf.gz" -R "$CONTIG" 2>"$OUT/_err" \
+        | "$VG" convert -f - 2>>"$OUT/_err" > "$2" || true
+    [ -s "$2" ] || { echo "ERROR: vg produced an empty graph ($2):" >&2; tail -3 "$OUT/_err" >&2; exit 1; }
 }
 extract_haps() {  # $1=sample-list  $2=out.fa  — one haplotype per sample
     : > "$2"
@@ -80,10 +84,12 @@ printf '  %4s %12s %10s %14s\n' "----" "----------" "------" "-------------"
 
 for H in $H_SWEEP; do
     head -n "$H" "$SAMPLES_A" > "$OUT/a.ids"; head -n "$H" "$SAMPLES_B" > "$OUT/b.ids"
+    note "[h=$H] vg construct popA + popB…"
     build_graph "$OUT/a.ids" "$OUT/popA.gfa"
     build_graph "$OUT/b.ids" "$OUT/popB.gfa"
 
     # G2G: time the whole diff; capture node counts from its own report
+    note "[h=$H] g2g diff…"
     t0=$(now)
     rep=$("$G2G" "$OUT/popA.gfa" "$OUT/popB.gfa" --ref "$CONTIG" --vcf "$OUT/delta.vcf" 2>&1 >/dev/null) || true
     t1=$(now); g2g_s=$(el "$t0" "$t1")
@@ -92,8 +98,11 @@ for H in $H_SWEEP; do
     nodes=$(( ${na:-0} + ${nb:-0} ))
 
     # baseline: extract + align h haplotypes per population (the dominant cost)
+    note "[h=$H] baseline: consensus ${H}×2 haplotypes + minimap2…"
     t0=$(now)
     extract_haps "$OUT/a.ids" "$OUT/hapsA.fa"; extract_haps "$OUT/b.ids" "$OUT/hapsB.fa"
+    { [ -s "$OUT/hapsA.fa" ] && [ -s "$OUT/hapsB.fa" ]; } \
+        || note "  warning: consensus produced no haplotypes (baseline time will be ~0)"
     "$MINIMAP2" -cx asm20 "$CFA" "$OUT/hapsA.fa" >/dev/null 2>&1 || true
     "$MINIMAP2" -cx asm20 "$CFA" "$OUT/hapsB.fa" >/dev/null 2>&1 || true
     t1=$(now); base_s=$(el "$t0" "$t1")
