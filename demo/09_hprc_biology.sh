@@ -190,6 +190,14 @@ run_real() {
     : > "$R/delta.vcf.body"
     for chrom in $CHROMS; do
         local panel; panel="${PANEL_TMPL:+${PANEL_TMPL//\{\}/$chrom}}"; panel="${panel:-${PANEL_VCF:-}}"
+        [ -s "$panel" ] || { echo "ERROR: panel VCF not found: $panel" >&2; exit 1; }
+        # bcftools -r needs a tabix/csi index; build one beside the panel if absent
+        # (the 1000G download ships no .tbi). Harmless if it already exists.
+        if [ ! -f "$panel.tbi" ] && [ ! -f "$panel.csi" ]; then
+            note "[$chrom] indexing $(basename "$panel") (one-time)…"
+            "$TABIX" -p vcf "$panel" \
+                || { echo "ERROR: tabix -p vcf failed on $panel (is it bgzip-compressed?)" >&2; exit 1; }
+        fi
         note "[$chrom] subset panel ($(basename "$panel")) by population → vg construct → GFA"
         for grp in A B; do
             local samp; samp=$([ "$grp" = A ] && echo "$SAMPLES_A" || echo "$SAMPLES_B")
