@@ -85,8 +85,9 @@ echo "[5/5] ClinVar (GRCh37)"
 get "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz" clinvar_GRCh37.vcf.gz
 
 echo
-echo "gnomAD-SV per-population AF fields — confirm the names for --afr-field/--eas-field:"
-zcat gnomad_v2.1_sv.sites.vcf.gz 2>/dev/null | grep -m 200 '^##INFO' | grep -iE 'id=(afr|eas)' \
+echo "gnomAD-SV per-population AF fields — confirm the names for AFR_FIELD/EAS_FIELD:"
+zcat gnomad_v2.1_sv.sites.vcf.gz 2>/dev/null | grep -m 400 '^##INFO' \
+    | grep -iE 'id=[A-Z_]*(afr|eas)[A-Z_]*,' \
     || echo "  (none matched 'afr/eas' — inspect: zcat gnomad_v2.1_sv.sites.vcf.gz | grep '^##INFO')"
 
 cat <<EOF
