@@ -201,7 +201,7 @@ matching, and an OpenMP work-stealing runtime, validated against a Python oracle
 (all runnable unit tests pass---156 in the suite, with nine that require external
 tools such as \textsc{vg} and minimap2 skipped) (\S\ref{sec:system}).
 \item \textbf{Evaluation on synthetic and real pangenomes,} including a
-reference-anchored diff that scales near-linearly to chromosome size, and real
+reference-anchored diff that scales near-linearly past whole-genome size, and real
 African vs.\ East Asian (1000 Genomes) population graphs whose delta is
 significantly enriched near gnomAD-SV and ClinVar pathogenic sites
 ($p<10^{-3}$), demonstrating the delta lands on real structural and clinical
@@ -343,7 +343,8 @@ normalised sequence similarity and $\alpha,\beta,\gamma$ weight the three terms.
 
 The three terms are exactly the components \textsc{G2G} computes: $W_{\text{seq}}$
 (boundary-node similarity), $W_{\text{topo}}$ (structural-class consistency), and
-$W_{\text{struct}}$ (allele bipartite-matching score within paired snarls).
+$W_{\text{struct}}$ (allele bipartite-matching score within paired snarls)---the
+decomposition and per-pair scoring illustrated in Fig.~\ref{fig:snarltree}.
 
 \begin{theorem}[Hardness and tractability]
 \label{thm:main}
@@ -584,9 +585,9 @@ realised in \S\ref{sec:system}.
 \label{sec:system}
 %==============================================================================
 \textsc{G2G} is implemented in C++20 (performance path) with a Python reference
-prototype as a correctness oracle; the C++ engine passes 146 of 155 unit tests
-against the oracle (the remaining 9 require external tools---\textsc{vg},
-minimap2---and are skipped). Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1
+prototype as a correctness oracle; the C++ engine passes every runnable unit test
+(156 in the suite; the nine that require external tools---\textsc{vg},
+minimap2---are skipped). Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1
 W lines, with on-the-fly reverse complementing). The data model keeps all node
 sequences in a single flat byte array indexed by (offset, length), and adjacency
 in CSR form, so the DP kernel streams sequence data without pointer chasing.
@@ -630,9 +631,9 @@ courteous. Three design parameters are exposed and measured: task granularity
 (largest vs.\ random), and NUMA placement of per-task allele data. We initially
 prototyped the scheduler on Intel TBB~\cite{reinders2007tbb} and migrated to
 OpenMP~\cite{dagum1998openmp} for vendor portability; the task DAG, priority
-function, and steal-largest semantics are unchanged, and the parallel result
-agrees with the sequential aligner to within $10^{-3}$ relative error (float
-reduction order aside).
+function, and steal-largest semantics are unchanged, and the parallel delta output
+is byte-identical to the sequential aligner's (the global score agrees to within
+$10^{-3}$, float-reduction order aside).
 
 \subsection{Exact matching and anchor index}
 The matching solver is a self-contained Jonker--Volgenant
@@ -657,10 +658,8 @@ Our evaluation answers four questions. \textbf{Q1:} is \textsc{G2G} correct?
 \textbf{Q2:} is it fast and does it scale? \textbf{Q3:} does each system-design
 choice matter? \textbf{Q4:} does it recover real biology? All runs are on a 128-core,
 512\,GB AMD EPYC node. Correctness, single-core scaling, parallel scaling, the
-system ablations, and the chromosome-22 enrichment run are
-complete; the full linearise-and-map throughput baseline and the genome-wide
-extension of the biological run are staged, and we mark the corresponding figures
-accordingly.
+throughput comparison, the system ablations, and the chromosome-22 enrichment run
+are complete; only the genome-wide extension of the biological run is staged.
 
 \subsection{Q1: Correctness}
 We generate graph pairs with \emph{planted} variants---shared, $A$-only, and
@@ -675,10 +674,10 @@ alignments~\cite{li2018minimap2}. These tests run in continuous integration and
 gate every build.
 
 \subsection{Q2: Throughput and scaling}
-We measure parallel scaling, single-core scaling to chromosome size, and
+We measure parallel scaling, single-core scaling past whole-genome size, and
 throughput against a linearise-and-map baseline that extracts each graph's
 haplotypes and maps them to the reference with minimap2~\cite{li2018minimap2}. Because the sequential and parallel
-modes now share the same $O(n)$ boundary-hash snarl pairing, the speedup
+modes share the same $O(n)$ boundary-hash snarl pairing, the speedup
 attributable to \emph{parallelism} is measured purely by thread scaling---not
 conflated with an algorithmic change. On a $25{,}608$-pair workload the
 parallelisable per-snarl DP scales as $2.0\times$, $4.0\times$, $7.9\times$,
@@ -690,8 +689,8 @@ $2.65\times$: the ${\sim}7.8$\,s single-thread set-up (parsing, index build,
 decomposition) is serial and bounds the $20.6$\,s run regardless of thread count
 (Amdahl). The end-to-end curve therefore approaches the DP-phase curve only as
 snarls carry structural-variant-scale alleles and the DP comes to dominate. We
-report both, and the harness confirms the parallel result is byte-identical to
-the sequential one at every thread count.
+report both curves (Fig.~\ref{fig:scaling}), and the harness confirms the parallel
+result is byte-identical to the sequential one at every thread count.
 Fig.~\ref{fig:throughput} reports the measured comparison on real chromosome-22
 pangenomes (1000 Genomes), sweeping the per-population panel size $h$ and timing
 \textsc{G2G}'s entire diff against the dominant cost of linearise-and-map---
@@ -710,11 +709,7 @@ $h{=}100$ and $12.6\times$ at $h{=}200$, the gap still widening---and it does so
 precisely in the many-haplotype regime that pangenomes exist for, because a
 variation graph compresses $h$ haplotypes into a structure whose size saturates,
 and \textsc{G2G} aligns that compressed form directly instead of expanding it back
-to $h$ sequences. Fig.~\ref{fig:scaling} reports the parallel-scaling story: at large graph sizes
-the parallelisable per-snarl DP dominates and end-to-end speedup approaches the
-DP-phase curve, whereas at small sizes sequential set-up (parsing, index build,
-decomposition) dominates and Amdahl's law caps end-to-end speedup---an honest
-distinction we make explicit by reporting both curves.
+to $h$ sequences.
 
 \begin{figure}[t]
   \centering
@@ -879,7 +874,7 @@ gnomAD-SV~\cite{collins2017svfst} structural variants and to
 ClinVar~\cite{landrum2018clinvar} pathogenic sites. They do: delta alleles are
 enriched $1.46\times$ near gnomAD-SVs ($919$ observed vs.\ $628$ expected;
 $p<10^{-3}$, exceeding all $1000$ permutations) and $1.61\times$ near pathogenic
-sites ($p<10^{-3}$). \textsc{G2G}'s graph-to-graph delta is therefore far from
+sites ($p<10^{-3}$; Fig.~\ref{fig:biology}). \textsc{G2G}'s graph-to-graph delta is therefore far from
 random; it concentrates in structural-variation and clinically relevant regions.
 
 We then asked whether this enrichment is \emph{specific} to
