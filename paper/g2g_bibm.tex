@@ -697,15 +697,16 @@ pangenomes (1000 Genomes), sweeping the per-population panel size $h$ and timing
 \textsc{G2G}'s entire diff against the dominant cost of linearise-and-map---
 extracting each population's $h$ haplotypes and aligning them to the reference
 with minimap2, \emph{before} any variant calling. Two regimes emerge.
-\textsc{G2G}'s cost is set by graph \emph{size}: even at $h{=}2$ the graph already
-carries the full ${\sim}51$\,Mb chromosome backbone (${\approx}3.6{\times}10^6$
-nodes), so its time grows only sublinearly as haplotypes are added
-($18.2{\to}24.2{\to}27.3$\,s at $h{=}2,5,10$, decelerating as common variants
-saturate). The baseline is linear in $h$ ($7.6{\to}18.3{\to}29.2$\,s): every
+\textsc{G2G}'s cost is dominated by graph \emph{size}: even at $h{=}2$ the graph
+already carries the full ${\sim}51$\,Mb chromosome backbone
+(${\approx}3.6{\times}10^6$ nodes), and adding haplotypes only saturates the
+shared variation, so its time grows sublinearly---from $18.3$\,s at $h{=}2$ to
+$54.1$\,s at $h{=}200$, a $3\times$ rise for a $100\times$ larger panel. The
+baseline is linear in $h$ ($7.9$\,s to $684$\,s over the same range): every
 haplotype is a separate sequence to materialise and align. The curves cross near
-$h{\approx}10$ and \textsc{G2G}'s margin then widens with the panel
-\PH{(${\approx}7\times$ at $h{=}100$)}---and it does so \emph{single-threaded},
-against a multi-threaded minimap2. The crossover is the point: \textsc{G2G} wins
+$h{\approx}10$, beyond which \textsc{G2G} pulls away---$6.9\times$ faster at
+$h{=}100$ and $12.6\times$ at $h{=}200$, the gap still widening---and it does so
+\emph{single-threaded}, against a multi-threaded minimap2. The crossover is the point: \textsc{G2G} wins
 precisely in the many-haplotype regime that pangenomes exist for, because a
 variation graph compresses $h$ haplotypes into a structure whose size saturates,
 and \textsc{G2G} aligns that compressed form directly instead of expanding it back
@@ -720,9 +721,10 @@ distinction we make explicit by reporting both curves.
   \includegraphics[width=\linewidth]{figs/fig_throughput.pdf}
   \caption{\textsc{G2G}'s whole graph-to-graph diff vs.\ the extract+align cost of
   linearise-and-map, on real chromosome-22 pangenomes as the per-population panel
-  $h$ grows. \textsc{G2G} (single-threaded) tracks graph size and is sublinear in
-  $h$; the baseline is linear in $h$. They cross near $h{\approx}10$, after which
-  \textsc{G2G}'s margin widens \PH{(full sweep to $h{=}100$ pending)}.}
+  $h$ grows. \textsc{G2G} (single-threaded) is sublinear in $h$ ($18.3{\to}54.1$\,s
+  over $h{=}2{\to}200$); the baseline is linear ($7.9{\to}684$\,s). They cross near
+  $h{\approx}10$; by $h{=}200$ \textsc{G2G} is $12.6\times$ faster, the gap still
+  widening.}
   \label{fig:throughput}
 \end{figure}
 
