@@ -394,6 +394,28 @@ def fig_biology(path, csv=None):
         _placeholder(path, "HPRC enrichment (preliminary)", "", "fold enrichment", s)
 
 
+def fig_fst_sweep(path, csv=None):
+    """csv = hprc_enrich.py --fst-sweep TSV (fst_threshold,n_high,observed,
+    expected,fold,p). Dose-response: enrichment vs. F_ST threshold; a rising
+    curve is direct evidence the signal is population differentiation."""
+    if not (csv and os.path.exists(csv)):
+        return
+    t, fold, p = _read_cols(csv, "fst_threshold", "fold", "p")
+    o = np.argsort(t); t, fold, p = t[o], fold[o], p[o]
+    fig, ax = plt.subplots(figsize=(3.4, 2.5))
+    ax.plot(t, fold, "-", color=BLUE, lw=1.6, zorder=1)
+    sig = p < 0.05
+    ax.scatter(t[sig], fold[sig], c=RED, s=28, zorder=2, label="$p<0.05$")
+    if (~sig).any():
+        ax.scatter(t[~sig], fold[~sig], c=GREY, s=28, zorder=2, label="n.s.")
+    ax.axhline(1, ls="--", color=GREY, lw=0.9)
+    ax.set_xlabel("$F_{ST}$ threshold"); ax.set_ylabel("fold enrichment (obs / permuted)")
+    ax.set_title("Population-differentiation dose-response")
+    ax.set_ylim(bottom=min(0.9, np.nanmin(fold) * 0.95))
+    ax.grid(True, ls=":", alpha=0.4); ax.legend(fontsize=7, loc="upper left")
+    fig.savefig(path); plt.close(fig)
+
+
 FIGURES = {
     "fig_paradigm": fig_paradigm, "fig_snarltree": fig_snarltree,
     "fig_pipeline": fig_pipeline, "fig_delta": fig_delta, "fig_veb": fig_veb,
@@ -413,6 +435,7 @@ def main():
     ap.add_argument("--scaling-csv", default=None, help="07_parallel_scaling.sh TSV for fig_scaling")
     ap.add_argument("--ablation-csv", default=None, help="08_ablation.sh TSV for fig_ablation")
     ap.add_argument("--biology-csv", default=None, help="hprc_enrich.py results TSV for fig_biology")
+    ap.add_argument("--fst-sweep-csv", default=None, help="hprc_enrich.py --fst-sweep TSV for fig_fst_sweep")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     extra = {
@@ -425,7 +448,11 @@ def main():
     for name, fn in FIGURES.items():
         p = os.path.join(a.outdir, name + ".pdf")
         fn(p, **extra.get(name, {})); print("wrote", p)
-    print(f"\n{len(FIGURES)} figures -> {a.outdir}/")
+    n = len(FIGURES)
+    if a.fst_sweep_csv:   # opt-in: only drawn when the sweep TSV is supplied
+        p = os.path.join(a.outdir, "fig_fst_sweep.pdf")
+        fig_fst_sweep(p, csv=a.fst_sweep_csv); print("wrote", p); n += 1
+    print(f"\n{n} figures -> {a.outdir}/")
 
 
 if __name__ == "__main__":
