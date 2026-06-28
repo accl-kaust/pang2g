@@ -70,11 +70,15 @@ build_graph() {  # $1=sample-list  $2=out.gfa
 }
 extract_haps() {  # $1=sample-list  $2=out.fa  — one haplotype per sample
     : > "$2"
-    while read -r s; do
+    local s
+    while IFS= read -r s || [ -n "$s" ]; do
         [ -n "$s" ] || continue
-        "$BCFTOOLS" consensus -f "$CFA" -s "$s" -H 1 "$panel" 2>/dev/null \
-            | sed "1s/.*/>${s}_h1/" >> "$2"
+        # </dev/null: keep consensus from eating the loop's stdin; capture stderr
+        # so a systematic failure (e.g. overlapping variants) is visible, not hidden.
+        "$BCFTOOLS" consensus -f "$CFA" -s "$s" -H 1 "$panel" </dev/null 2>>"$OUT/_cons.err" \
+            | sed "1s|.*|>${s}_h1|" >> "$2" || true
     done < "$1"
+    return 0
 }
 
 TSV="$OUT/throughput.tsv"
@@ -98,11 +102,14 @@ for H in $H_SWEEP; do
     nodes=$(( ${na:-0} + ${nb:-0} ))
 
     # baseline: extract + align h haplotypes per population (the dominant cost)
-    note "[h=$H] baseline: consensus ${H}×2 haplotypes + minimap2…"
+    note "[h=$H] baseline: consensus ${H} haplotypes/pop + minimap2…"
     t0=$(now)
+    : > "$OUT/_cons.err"
     extract_haps "$OUT/a.ids" "$OUT/hapsA.fa"; extract_haps "$OUT/b.ids" "$OUT/hapsB.fa"
-    { [ -s "$OUT/hapsA.fa" ] && [ -s "$OUT/hapsB.fa" ]; } \
-        || note "  warning: consensus produced no haplotypes (baseline time will be ~0)"
+    if ! { [ -s "$OUT/hapsA.fa" ] && [ -s "$OUT/hapsB.fa" ]; }; then
+        note "  warning: consensus produced no haplotypes — last error from bcftools:"
+        tail -3 "$OUT/_cons.err" 2>/dev/null | sed 's/^/      /' >&2 || true
+    fi
     "$MINIMAP2" -cx asm20 "$CFA" "$OUT/hapsA.fa" >/dev/null 2>&1 || true
     "$MINIMAP2" -cx asm20 "$CFA" "$OUT/hapsB.fa" >/dev/null 2>&1 || true
     t1=$(now); base_s=$(el "$t0" "$t1")
