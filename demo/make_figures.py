@@ -409,8 +409,8 @@ def fig_fst_sweep(path, csv=None):
     if (~sig).any():
         ax.scatter(t[~sig], fold[~sig], c=GREY, s=28, zorder=2, label="n.s.")
     ax.axhline(1, ls="--", color=GREY, lw=0.9)
-    ax.set_xlabel("$F_{ST}$ threshold"); ax.set_ylabel("fold enrichment (obs / permuted)")
-    ax.set_title("Population-differentiation dose-response")
+    ax.set_xlabel("gnomAD-SV $F_{ST}$ threshold"); ax.set_ylabel("fold enrichment (obs / permuted)")
+    ax.set_title("Delta enrichment vs.\\ SV differentiation")
     ax.set_ylim(bottom=min(0.9, np.nanmin(fold) * 0.95))
     ax.grid(True, ls=":", alpha=0.4); ax.legend(fontsize=7, loc="upper left")
     fig.savefig(path); plt.close(fig)

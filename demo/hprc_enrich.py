@@ -50,8 +50,10 @@ def _info(field):
     return d
 
 
-def read_delta(path):
-    """G2G delta VCF -> [(chrom, pos, group)]; group 'A'/'B' from INFO GRAPH=."""
+def read_delta(path, min_len=0):
+    """G2G delta VCF -> [(chrom, pos, group)]; group 'A'/'B' from INFO GRAPH=.
+    With min_len>0 keep only alleles whose INFO LEN >= min_len (SV-sized deltas),
+    the like-for-like set when the targets are structural variants."""
     out = []
     with _open(path) as f:
         for line in f:
@@ -60,8 +62,14 @@ def read_delta(path):
             c = line.rstrip("\n").split("\t")
             if len(c) < 8:
                 continue
-            grp = _info(c[7]).get("GRAPH", "?")
-            out.append((c[0], int(c[1]), grp))
+            info = _info(c[7])
+            if min_len > 0:
+                try:
+                    if int(info.get("LEN", "0")) < min_len:
+                        continue
+                except ValueError:
+                    continue
+            out.append((c[0], int(c[1]), info.get("GRAPH", "?")))
     return out
 
 
@@ -212,6 +220,9 @@ def main():
                     help="comma-separated F_ST thresholds (e.g. 0.05,0.1,0.2,0.3,0.5): "
                          "report enrichment at each to show a dose-response, reusing "
                          "the same delta (no graph rebuild). Writes a sweep TSV to --out.")
+    ap.add_argument("--min-len", type=int, default=0,
+                    help="keep only delta alleles with INFO LEN >= this (e.g. 50 for "
+                         "SV-sized deltas — the like-for-like set vs structural variants)")
     ap.add_argument("--window", type=int, default=1000)
     ap.add_argument("--perms", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
@@ -224,7 +235,11 @@ def main():
         ap.error("--delta, --gnomad-sv and --sizes are required (or use --self-test)")
 
     sizes = read_sizes(a.sizes)
-    deltas = read_delta(a.delta)
+    deltas = read_delta(a.delta, a.min_len)
+    if a.min_len:
+        print(f"[filter] kept {len(deltas)} delta alleles with LEN>={a.min_len}")
+    if not deltas:
+        print("no delta alleles to test (check --min-len / the delta VCF)"); return
 
     # ── F_ST dose-response sweep ───────────────────────────────────────────────
     if a.fst_sweep:

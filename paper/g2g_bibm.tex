@@ -102,17 +102,16 @@ reference-anchored diff
 scales near-linearly on a single core to an 8-Gbp graph pair
 ($9.7{\times}10^{8}$ nodes, ${\sim}2.6\times$ the human genome), diffed exactly
 in 72\,min; on population pangenomes the delta graph surfaces the
-population-differentiated structural variants that a sequence-to-reference
+population-specific structural variation that a sequence-to-reference
 pipeline cannot express without a linear projection.
 Ablations confirm each design choice earns its place: disabling exact LAPJV
 matching, the minimiser index, or work-stealing slows the affected phase by
 \PH{$70\times$}, \PH{$1700\times$}, and \PH{$1.9\times$} at treatment scale while
 leaving a matched control unchanged. On real African vs.\ East Asian pangenomes
-(1000 Genomes, chromosome~22) the delta graph is significantly enriched for
-population-differentiated (high-$F_{ST}$) structural variants ($1.46\times$) and
-for pathogenic ClinVar sites ($1.61\times$), both $p<10^{-3}$ against a
-permutation null---direct evidence that graph-to-graph deltas capture real
-population biology.
+(1000 Genomes, chromosome~22) the delta graph is significantly enriched near
+gnomAD-SV structural variants ($1.46\times$) and pathogenic ClinVar sites
+($1.61\times$, both $p<10^{-3}$ against a permutation null), locating the
+graph-to-graph delta on real structural and clinical variation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -204,9 +203,9 @@ tools such as \textsc{vg} and minimap2 skipped) (\S\ref{sec:system}).
 \item \textbf{Evaluation on synthetic and real pangenomes,} including a
 reference-anchored diff that scales near-linearly to chromosome size, and real
 African vs.\ East Asian (1000 Genomes) population graphs whose delta is
-significantly enriched for population-differentiated gnomAD-SV and ClinVar
-pathogenic sites ($p<10^{-3}$), demonstrating biological utility
-(\S\ref{sec:eval}).
+significantly enriched near gnomAD-SV and ClinVar pathogenic sites
+($p<10^{-3}$), demonstrating the delta lands on real structural and clinical
+variation (\S\ref{sec:eval}).
 \end{itemize}
 
 %==============================================================================
@@ -234,7 +233,9 @@ model~\cite{garrison2018vg}; GraphAligner aligns long reads to
 graphs~\cite{rautiainen2020graphaligner}; vg~giraffe genotypes known variants at
 population scale~\cite{siren2021giraffe}; HISAT2 uses a graph FM-index for
 spliced alignment~\cite{kim2019hisat2}; PanGenie genotypes from a
-pangenome by $k$-mer matching~\cite{ebler2022pangenie}. Graph construction
+pangenome by $k$-mer matching~\cite{ebler2022pangenie}; and ParSGA gives a
+work-optimal parallel algorithm for aligning sequences to genome
+graphs~\cite{xu2025parsga}. Graph construction
 itself is mature: minigraph builds SV-scale graphs~\cite{li2020minigraph},
 Minigraph--Cactus produces base-level HPRC
 graphs~\cite{hickey2023pangenome,garrison2023pangenome}, and the HPRC has
@@ -250,7 +251,31 @@ suffix structures~\cite{marcus2014splitmem}. These operate on
 synteny/gene-block granularity, not on the individual alleles of a variation
 graph, and they are not designed for the $10^7$-node human-scale graphs we
 target. \textsc{G2G} is, to our knowledge, the first to align variation graphs
-to each other allele by allele.
+to each other allele by allele (Table~\ref{tab:positioning}).
+
+\begin{table}[t]
+  \centering
+  \caption{Positioning. Sequence-to-graph aligners take a sequence query;
+  graph-comparison tools work at gene-block/synteny granularity on microbial
+  graphs. No prior tool aligns two \emph{graphs} at base-pair (allele) resolution
+  at human-genome scale---the gap \textsc{G2G} fills.}
+  \label{tab:positioning}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{llll}
+    \toprule
+    tool & inputs & resolution & scale \\
+    \midrule
+    minimap2~\cite{li2018minimap2}                 & seq.\ $\times$ seq.\ & base-pair  & genome \\
+    GraphAligner~\cite{rautiainen2020graphaligner} & seq.\ $\times$ graph & base-pair  & genome \\
+    vg~giraffe~\cite{siren2021giraffe}             & seq.\ $\times$ graph & base-pair  & genome \\
+    PanGraph~\cite{noll2023pangraph}               & graph $\times$ graph & gene block & microbial \\
+    Sibelia~\cite{minkin2013sibelia}               & graph $\times$ graph & synteny    & microbial \\
+    \midrule
+    \textbf{\textsc{G2G}} & \textbf{graph $\times$ graph} & \textbf{allele} & \textbf{human, $10^9$ nodes} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Graph-processing and parallel systems} Generic graph engines---%
 Ligra~\cite{shun2013ligra}, Galois~\cite{nguyen2013galois},
@@ -632,7 +657,7 @@ Our evaluation answers four questions. \textbf{Q1:} is \textsc{G2G} correct?
 \textbf{Q2:} is it fast and does it scale? \textbf{Q3:} does each system-design
 choice matter? \textbf{Q4:} does it recover real biology? All runs are on a 128-core,
 512\,GB AMD EPYC node. Correctness, single-core scaling, parallel scaling, the
-system ablations, and the chromosome-22 population-differentiation run are
+system ablations, and the chromosome-22 enrichment run are
 complete; the full linearise-and-map throughput baseline and the genome-wide
 extension of the biological run are staged, and we mark the corresponding figures
 accordingly.
@@ -829,43 +854,63 @@ ablated binary returns a delta graph byte-identical to the baseline, so these ar
   \label{fig:ablation}
 \end{figure}
 
-\subsection{Q4: Population-differentiation enrichment}
-The decisive test of utility is whether the delta graph recovers
-\emph{population-differentiated} variation. We build two population pangenomes
-from the 1000 Genomes Project phase-3 panel---African (AFR, $n{=}661$) and East
-Asian (EAS, $n{=}504$)---with \textsc{vg construct}, diff them with \textsc{G2G}'s
-reference-coordinate mode along chromosome~22, and test whether the delta alleles
-fall closer than chance to high-$F_{ST}$ (population-differentiated)
-gnomAD-SV~\cite{collins2017svfst} variants and to ClinVar~\cite{landrum2018clinvar}
-pathogenic sites under a permutation null (all on GRCh37 so coordinates align).
-The diff yields $587{,}010$ delta alleles---$406$k present only in the AFR graph
-and $181$k only in EAS, an asymmetry consistent with the greater diversity of
-African genomes. Against the $3{,}280$ high-$F_{ST}$ ($\geq 0.2$) gnomAD-SV sites
-on the chromosome, the delta alleles are enriched $1.46\times$ ($919$ observed
-vs.\ $628$ expected; $p<10^{-3}$, exceeding all $1000$ permutations), and
-$1.61\times$ for ClinVar pathogenic sites ($p<10^{-3}$). The magnitude is
-deliberately reported as-is: the delta is dominated by ordinary AFR/EAS variation,
-so the signal is the genuine \emph{excess} near differentiated structural
-variants---a real genome-scale enrichment, not the order-of-magnitude fold a
-planted signal would give. (As a positive control, the identical pipeline on a
-synthetic fixture with planted differentiated SVs recovers them at $21$--$42\times$
-while a shuffled-delta negative control stays null, confirming the statistic.)
-This is the experiment that answers ``why pangenomes and not some other
-graph workload?''---the delta graph surfaces population-specific structural
-variation directly, without the reference-projection step a sequence-to-reference
-pipeline would require. Extending the diff from chromosome~22 to the whole genome
-is mechanical and only increases statistical power.
+\subsection{Q4: Co-localization with structural and clinical variation}
+The decisive test of utility is whether the delta graph lands on biologically
+meaningful variation. We build two population pangenomes from the 1000 Genomes
+Project phase-3 panel---African (AFR, $n{=}661$) and East Asian (EAS, $n{=}504$)
+---with \textsc{vg construct}, diff them with \textsc{G2G}'s reference-coordinate
+mode along chromosome~22, and test (permutation null, all on GRCh37 so coordinates
+align) whether the $587{,}010$ delta alleles---$406$k present only in the AFR
+graph and $181$k only in EAS, an asymmetry consistent with the greater diversity
+of African genomes---fall closer than a uniform genome background to
+gnomAD-SV~\cite{collins2017svfst} structural variants and to
+ClinVar~\cite{landrum2018clinvar} pathogenic sites. They do: delta alleles are
+enriched $1.46\times$ near gnomAD-SVs ($919$ observed vs.\ $628$ expected;
+$p<10^{-3}$, exceeding all $1000$ permutations) and $1.61\times$ near pathogenic
+sites ($p<10^{-3}$). \textsc{G2G}'s graph-to-graph delta is therefore far from
+random; it concentrates in structural-variation and clinically relevant regions.
+
+We then asked whether this enrichment is \emph{specific} to
+population-differentiated SVs, by sweeping the gnomAD-SV $F_{ST}$ threshold
+(Fig.~\ref{fig:fstsweep}). It is not: the fold is essentially flat, $1.46\times$
+at $F_{ST}{\geq}0.05$ and $1.45\times$ at $F_{ST}{\geq}0.5$. We report this
+plainly---the chromosome-22 delta co-localizes with structural variation
+\emph{in general} rather than preferentially with the most differentiated SVs.
+The most likely cause is that the per-graph delta is dominated by low-frequency,
+population-private alleles (the AFR graph, built from more samples, contributes
+the larger share), which track mutable, SV-rich loci but not allele-frequency
+differentiation; a frequency-aware delta and a region-matched null are the natural
+way to isolate differentiation, and the same pipeline supports both. (As a
+positive control, the identical pipeline on a synthetic fixture with planted
+differentiated SVs recovers them at $21$--$42\times$ against a null shuffled-delta
+control, so the statistic itself is sound.) What this experiment establishes is
+the property that answers ``why pangenomes and not some other graph workload?''
+---the graph-to-graph delta surfaces real structural and clinical variation
+directly, without the reference-projection step a sequence-to-reference pipeline
+would require.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_biology.pdf}
-  \caption{Population-differentiation enrichment on real AFR vs.\ EAS pangenomes
-  (1000 Genomes phase-3, chromosome~22). \textsc{G2G} delta alleles are
-  significantly enriched near high-$F_{ST}$ gnomAD-SV variants ($1.46\times$) and
-  ClinVar pathogenic sites ($1.61\times$), both $p<10^{-3}$ against a permutation
-  null (fold and $p$ annotated; dashed line: no enrichment). Synthetic
-  positive/negative controls validate the statistic.}
+  \caption{\textsc{G2G} delta alleles on real AFR vs.\ EAS pangenomes (1000
+  Genomes phase-3, chromosome~22) are significantly enriched near gnomAD-SV
+  structural variants ($1.46\times$) and ClinVar pathogenic sites ($1.61\times$),
+  both $p<10^{-3}$ against a permutation null (fold and $p$ annotated; dashed
+  line: no enrichment). Synthetic positive/negative controls validate the
+  statistic.}
   \label{fig:biology}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figs/fig_fst_sweep.pdf}
+  \caption{Specificity check: delta--SV enrichment as a function of the gnomAD-SV
+  $F_{ST}$ threshold. The fold is flat ($1.45$--$1.53\times$, every point
+  $p<10^{-3}$), so the enrichment reflects co-localization with structural
+  variation in general rather than preference for the most
+  population-differentiated SVs---reported as an honest negative for
+  differentiation specificity on this chromosome.}
+  \label{fig:fstsweep}
 \end{figure}
 
 %==============================================================================
@@ -916,8 +961,8 @@ routing through a linear reference. The reference-anchored diff is exact and
 near-linear to an 8-Gbp pair on one core; the work-stealing engine scales the
 per-snarl DP to $52.6\times$ on 128 threads; ablations confirm every design
 choice earns its place; and on real African vs.\ East Asian pangenomes the delta
-graph is significantly enriched for population-differentiated structural variants
-and pathogenic sites ($p<10^{-3}$). \PH{The full linearise-and-map throughput
+graph is significantly enriched near structural variants and pathogenic sites
+($p<10^{-3}$). \PH{The full linearise-and-map throughput
 comparison and the genome-wide biological run are the remaining camera-ready
 items.} We believe graph-to-graph alignment is a
 foundational primitive for the pangenome era, and \textsc{G2G} is a first step
