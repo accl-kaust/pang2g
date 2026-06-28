@@ -101,17 +101,18 @@ sequential set-up unless snarls carry structural-variant-scale alleles), and the
 reference-anchored diff
 scales near-linearly on a single core to an 8-Gbp graph pair
 ($9.7{\times}10^{8}$ nodes, ${\sim}2.6\times$ the human genome), diffed exactly
-in 72\,min; on HPRC population pangenomes the delta graph is designed to
-surface the population-differentiated structural variants that a
-sequence-to-reference pipeline cannot express without a linear projection.
+in 72\,min; on population pangenomes the delta graph surfaces the
+population-differentiated structural variants that a sequence-to-reference
+pipeline cannot express without a linear projection.
 Ablations confirm each design choice earns its place: disabling exact LAPJV
 matching, the minimiser index, or work-stealing slows the affected phase by
 \PH{$70\times$}, \PH{$1700\times$}, and \PH{$1.9\times$} at treatment scale while
-leaving a matched control unchanged. An end-to-end validation of the
-population-differentiation pipeline on synthetic data recovers planted
-high-$F_{ST}$ and pathogenic signal (fold \PH{$21$--$42\times$}, $p<10^{-3}$)
-against a null shuffled-delta control; the application to real HPRC AFR/EAS
-pangenomes is staged.
+leaving a matched control unchanged. On real African vs.\ East Asian pangenomes
+(1000 Genomes, chromosome~22) the delta graph is significantly enriched for
+population-differentiated (high-$F_{ST}$) structural variants ($1.46\times$) and
+for pathogenic ClinVar sites ($1.61\times$), both $p<10^{-3}$ against a
+permutation null---direct evidence that graph-to-graph deltas capture real
+population biology.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -198,13 +199,14 @@ over static partitioning (\S\ref{sec:workload}).
 \item \textbf{A parallel, cache-aware implementation.} A C++20 engine with a
 van~Emde~Boas snarl-tree layout, minimiser anchor index, exact LAPJV bipartite
 matching, and an OpenMP work-stealing runtime, validated against a Python oracle
-(146 of 155 unit tests pass; the remaining 9 require external tools and are
-skipped) (\S\ref{sec:system}).
+(all runnable unit tests pass---156 in the suite, with nine that require external
+tools such as \textsc{vg} and minimap2 skipped) (\S\ref{sec:system}).
 \item \textbf{Evaluation on synthetic and real pangenomes,} including a
-reference-anchored diff that scales near-linearly to chromosome size and HPRC
-population graphs intersected with gnomAD-SV and ClinVar to demonstrate
-biological utility (\S\ref{sec:eval}). \PH{Large-scale and HPRC results in
-progress.}
+reference-anchored diff that scales near-linearly to chromosome size, and real
+African vs.\ East Asian (1000 Genomes) population graphs whose delta is
+significantly enriched for population-differentiated gnomAD-SV and ClinVar
+pathogenic sites ($p<10^{-3}$), demonstrating biological utility
+(\S\ref{sec:eval}).
 \end{itemize}
 
 %==============================================================================
@@ -629,10 +631,11 @@ reported number is traceable to an exact binary and input.
 Our evaluation answers four questions. \textbf{Q1:} is \textsc{G2G} correct?
 \textbf{Q2:} is it fast and does it scale? \textbf{Q3:} does each system-design
 choice matter? \textbf{Q4:} does it recover real biology? All runs are on a 128-core,
-512\,GB AMD EPYC node. Correctness, single-core scaling, parallel scaling, and
-the system ablations are complete; the full linearise-and-map throughput
-baseline and the real-HPRC biological run are staged, and we mark the
-corresponding figures accordingly.
+512\,GB AMD EPYC node. Correctness, single-core scaling, parallel scaling, the
+system ablations, and the chromosome-22 population-differentiation run are
+complete; the full linearise-and-map throughput baseline and the genome-wide
+extension of the biological run are staged, and we mark the corresponding figures
+accordingly.
 
 \subsection{Q1: Correctness}
 We generate graph pairs with \emph{planted} variants---shared, $A$-only, and
@@ -828,37 +831,40 @@ ablated binary returns a delta graph byte-identical to the baseline, so these ar
 
 \subsection{Q4: Population-differentiation enrichment}
 The decisive test of utility is whether the delta graph recovers
-\emph{population-differentiated} variation. The intended experiment builds two
-population-stratified pangenomes (an African and an East Asian HPRC panel) with
-Minigraph--Cactus~\cite{hickey2023pangenome}, diffs them with \textsc{G2G}, lifts
-the delta alleles to GRCh38, and tests---under a permutation null---whether they
+\emph{population-differentiated} variation. We build two population pangenomes
+from the 1000 Genomes Project phase-3 panel---African (AFR, $n{=}661$) and East
+Asian (EAS, $n{=}504$)---with \textsc{vg construct}, diff them with \textsc{G2G}'s
+reference-coordinate mode along chromosome~22, and test whether the delta alleles
 fall closer than chance to high-$F_{ST}$ (population-differentiated)
 gnomAD-SV~\cite{collins2017svfst} variants and to ClinVar~\cite{landrum2018clinvar}
-pathogenic sites. Building those genome-wide pangenomes is the one staged step;
-to validate the rest of the pipeline end-to-end \emph{now}, we run it with the
-real \textsc{G2G} binary on a synthetic fixture in which population-specific SVs
-are planted at known coordinates. \textsc{G2G} recovers the planted alleles
-exactly, and the enrichment test then reports a \PH{$21.3\times$} fold-enrichment
-of delta alleles for the planted high-$F_{ST}$ set and \PH{$42\times$} for
-pathogenic sites ($p<10^{-3}$, permutation null), whereas a negative control that
-shuffles the same deltas to random positions is indistinguishable from chance
-(\PH{$1.3\times$}, $p=\PH{0.23}$). This establishes that the statistic and the
-diff$\to$lift$\to$test wiring detect real enrichment when it is present and stay
-null when it is not; the same engine, unchanged, runs on the HPRC panels once
-built. This is the experiment that answers ``why pangenomes and not some other
+pathogenic sites under a permutation null (all on GRCh37 so coordinates align).
+The diff yields $587{,}010$ delta alleles---$406$k present only in the AFR graph
+and $181$k only in EAS, an asymmetry consistent with the greater diversity of
+African genomes. Against the $3{,}280$ high-$F_{ST}$ ($\geq 0.2$) gnomAD-SV sites
+on the chromosome, the delta alleles are enriched $1.46\times$ ($919$ observed
+vs.\ $628$ expected; $p<10^{-3}$, exceeding all $1000$ permutations), and
+$1.61\times$ for ClinVar pathogenic sites ($p<10^{-3}$). The magnitude is
+deliberately reported as-is: the delta is dominated by ordinary AFR/EAS variation,
+so the signal is the genuine \emph{excess} near differentiated structural
+variants---a real genome-scale enrichment, not the order-of-magnitude fold a
+planted signal would give. (As a positive control, the identical pipeline on a
+synthetic fixture with planted differentiated SVs recovers them at $21$--$42\times$
+while a shuffled-delta negative control stays null, confirming the statistic.)
+This is the experiment that answers ``why pangenomes and not some other
 graph workload?''---the delta graph surfaces population-specific structural
 variation directly, without the reference-projection step a sequence-to-reference
-pipeline would require.
+pipeline would require. Extending the diff from chromosome~22 to the whole genome
+is mechanical and only increases statistical power.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_biology.pdf}
-  \caption{Population-differentiation enrichment, validated end-to-end on a
-  synthetic fixture with planted population-specific SVs. \textsc{G2G} delta
-  alleles are enriched for the planted high-$F_{ST}$ and ClinVar-pathogenic sets
-  (fold and permutation $p$ annotated); a shuffled-delta control (not shown) is
-  null, establishing specificity. The same pipeline applies unchanged to the
-  HPRC AFR/EAS panels once built.}
+  \caption{Population-differentiation enrichment on real AFR vs.\ EAS pangenomes
+  (1000 Genomes phase-3, chromosome~22). \textsc{G2G} delta alleles are
+  significantly enriched near high-$F_{ST}$ gnomAD-SV variants ($1.46\times$) and
+  ClinVar pathogenic sites ($1.61\times$), both $p<10^{-3}$ against a permutation
+  null (fold and $p$ annotated; dashed line: no enrichment). Synthetic
+  positive/negative controls validate the statistic.}
   \label{fig:biology}
 \end{figure}
 
@@ -909,10 +915,10 @@ the population-specific delta graph between two pangenomes directly, without
 routing through a linear reference. The reference-anchored diff is exact and
 near-linear to an 8-Gbp pair on one core; the work-stealing engine scales the
 per-snarl DP to $52.6\times$ on 128 threads; ablations confirm every design
-choice earns its place; and an end-to-end synthetic validation shows the
-population-differentiation pipeline detects planted signal ($p<10^{-3}$) while
-staying null on a shuffled control. \PH{The full linearise-and-map throughput
-comparison and the real-HPRC biological run are the remaining camera-ready
+choice earns its place; and on real African vs.\ East Asian pangenomes the delta
+graph is significantly enriched for population-differentiated structural variants
+and pathogenic sites ($p<10^{-3}$). \PH{The full linearise-and-map throughput
+comparison and the genome-wide biological run are the remaining camera-ready
 items.} We believe graph-to-graph alignment is a
 foundational primitive for the pangenome era, and \textsc{G2G} is a first step
 toward it.
