@@ -155,11 +155,24 @@ run_real() {
     for t in vg bcftools tabix; do
         have "$t" || { echo "ERROR: '$t' not found. Install it, or run with --synthetic." >&2; exit 1; }
     done
+    # bcftools must be modern (>=1.0): the legacy samtools-0.1.x `bcftools view`
+    # rejects -r/-S/-Oz and silently mis-parses -S (you'll see "invalid option
+    # -- 'r'" and "N samples in the list but not in BCF").
+    local bcf_ver; bcf_ver=$(bcftools --version 2>/dev/null | sed -n '1{s/.*bcftools *//p}')
+    case "$bcf_ver" in
+        1.*|2.*) : ;;
+        *) echo "ERROR: bcftools >=1.0 required, found '${bcf_ver:-legacy/unknown}' ($(command -v bcftools))." >&2
+           echo "       Install a modern one and put it first on PATH, e.g.:" >&2
+           echo "         conda install -c bioconda -c conda-forge 'bcftools>=1.18' htslib" >&2
+           exit 1;;
+    esac
     : "${REF_FA:?set REF_FA to the reference fasta (with .fai) matching the panel build}"
     : "${SAMPLES_A:?set SAMPLES_A to a file of AFR sample ids (one per line)}"
     : "${SAMPLES_B:?set SAMPLES_B to a file of EAS sample ids (one per line)}"
     : "${GNOMAD_SV_VCF:?set GNOMAD_SV_VCF to a gnomAD-SV sites VCF (per-pop AF fields)}"
     : "${CHROM_SIZES:?set CHROM_SIZES to a .fai or .chrom.sizes matching the reference}"
+    [ -s "$SAMPLES_A" ] || { echo "ERROR: SAMPLES_A ($SAMPLES_A) is empty/missing" >&2; exit 1; }
+    [ -s "$SAMPLES_B" ] || { echo "ERROR: SAMPLES_B ($SAMPLES_B) is empty/missing" >&2; exit 1; }
     # The panel may be one multi-chromosome VCF (PANEL_VCF) or, as with the 1000G
     # phase-3 release, one VCF per chromosome (PANEL_TMPL, with {} for the
     # chromosome, e.g. demo/data/ALL.chr{}.phase3.genotypes.vcf.gz).
