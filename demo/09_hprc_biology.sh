@@ -152,18 +152,21 @@ PY
 #  REAL MODE — population pangenomes from a labelled panel (needs vg + bcftools)
 # ══════════════════════════════════════════════════════════════════════════════
 run_real() {
-    for t in vg bcftools tabix; do
-        have "$t" || { echo "ERROR: '$t' not found. Install it, or run with --synthetic." >&2; exit 1; }
+    # Each tool can be overridden with an explicit path (handy when PATH carries a
+    # stale binary or the tools live in a separate env): VG=, BCFTOOLS=, TABIX=.
+    local VG="${VG:-vg}" BCFTOOLS="${BCFTOOLS:-bcftools}" TABIX="${TABIX:-tabix}"
+    for t in "$VG" "$BCFTOOLS" "$TABIX"; do
+        have "$t" || { echo "ERROR: '$t' not found. Install it or set VG=/BCFTOOLS=/TABIX= to its path (or run with --synthetic)." >&2; exit 1; }
     done
     # bcftools must be modern (>=1.0): the legacy samtools-0.1.x `bcftools view`
     # rejects -r/-S/-Oz and silently mis-parses -S (you'll see "invalid option
     # -- 'r'" and "N samples in the list but not in BCF").
-    local bcf_ver; bcf_ver=$(bcftools --version 2>/dev/null | sed -n '1{s/.*bcftools *//p}')
+    local bcf_ver; bcf_ver=$("$BCFTOOLS" --version 2>/dev/null | sed -n '1{s/.*bcftools *//p}')
     case "$bcf_ver" in
         1.*|2.*) : ;;
-        *) echo "ERROR: bcftools >=1.0 required, found '${bcf_ver:-legacy/unknown}' ($(command -v bcftools))." >&2
-           echo "       Install a modern one and put it first on PATH, e.g.:" >&2
-           echo "         conda install -c bioconda -c conda-forge 'bcftools>=1.18' htslib" >&2
+        *) echo "ERROR: bcftools >=1.0 required, found '${bcf_ver:-legacy/unknown}' ($(command -v "$BCFTOOLS"))." >&2
+           echo "       Use a modern bcftools in a clean env or set BCFTOOLS=/path/to/bcftools, e.g.:" >&2
+           echo "         conda create -n g2g_bio -c bioconda -c conda-forge 'bcftools>=1.18' samtools htslib" >&2
            exit 1;;
     esac
     : "${REF_FA:?set REF_FA to the reference fasta (with .fai) matching the panel build}"
@@ -190,11 +193,11 @@ run_real() {
         note "[$chrom] subset panel ($(basename "$panel")) by population → vg construct → GFA"
         for grp in A B; do
             local samp; samp=$([ "$grp" = A ] && echo "$SAMPLES_A" || echo "$SAMPLES_B")
-            bcftools view -r "$chrom" -S "$samp" --force-samples -c1 -Oz \
+            "$BCFTOOLS" view -r "$chrom" -S "$samp" --force-samples -c1 -Oz \
                 "$panel" > "$R/pop${grp}_${chrom}.vcf.gz"
-            tabix -fp vcf "$R/pop${grp}_${chrom}.vcf.gz"
-            vg construct -r "$REF_FA" -v "$R/pop${grp}_${chrom}.vcf.gz" -R "$chrom" 2>/dev/null \
-                | vg convert -f - 2>/dev/null > "$R/pop${grp}_${chrom}.gfa"
+            "$TABIX" -fp vcf "$R/pop${grp}_${chrom}.vcf.gz"
+            "$VG" construct -r "$REF_FA" -v "$R/pop${grp}_${chrom}.vcf.gz" -R "$chrom" 2>/dev/null \
+                | "$VG" convert -f - 2>/dev/null > "$R/pop${grp}_${chrom}.gfa"
         done
         note "[$chrom] g2g --ref $chrom"
         "$G2G" "$R/popA_${chrom}.gfa" "$R/popB_${chrom}.gfa" --ref "$chrom" \
