@@ -186,6 +186,89 @@ curve is also committed as
 
 ---
 
+## Demo 4 — Q4 biological validation (population-differentiation enrichment)
+
+`09_hprc_biology.sh`  ·  engine: [`hprc_enrich.py`](hprc_enrich.py)
+
+Tests the biological claim: when G2G diffs two **population** pangenomes (here
+AFR vs EAS), the alleles it reports in one but not the other — the *delta graph*
+— should sit closer than chance to structural variants that are **highly
+differentiated** between those populations (high Hudson F_ST in gnomAD-SV), and
+should touch known **pathogenic** (ClinVar) sites. The test is a permutation
+null: observed delta-to-target proximity vs. the same count after shuffling
+every delta to a random position on its chromosome.
+
+```
+fold = observed / mean(null)      p = (#{null ≥ observed} + 1) / (perms + 1)
+```
+
+**The enrichment engine is data-independent and self-testing.** It plants a
+known enrichment (must recover fold ≫ 1, p < 0.01) and a random negative control
+(must stay fold ≈ 1):
+
+```bash
+python3 demo/hprc_enrich.py --self-test     # stdlib only — no data, no tools
+```
+
+**Synthetic end-to-end mode** runs the whole pipeline with the *real* `g2g`
+binary, no HPRC download or `vg`/`bcftools` needed — it plants a population
+difference, runs `g2g --ref`, synthesises a gnomAD-SV/ClinVar fixture around the
+recovered deltas, and checks both that the signal enriches **and** that a
+shuffled-delta control does not:
+
+```bash
+bash demo/09_hprc_biology.sh --synthetic
+```
+```
+g2g --ref chr1  ->  a_only=140  b_only=160   (recovers all 300 planted deltas)
+delta vs high-F_ST gnomAD-SV   fold=21.3x  p=0.001   [PASS]
+delta vs ClinVar pathogenic    fold=42.0x  p=0.001   [PASS]
+shuffled control (null)        fold= 1.3x  p=0.23    [PASS]   (specificity)
+```
+
+It writes `work/biology/biology_results.tsv`, which the paper figure reads:
+
+```bash
+python3 demo/make_figures.py --biology-csv demo/work/biology/biology_results.tsv
+```
+
+**Real cluster mode** (`bash demo/09_hprc_biology.sh`, no flag) builds the AFR
+and EAS pangenomes with `vg construct` from a population-labelled phased panel,
+diffs them per chromosome with `g2g --ref`, and enriches against a real
+gnomAD-SV sites VCF and ClinVar. It needs `vg`, `bcftools`, `tabix` and the data
+files, supplied via env vars (`REF_FA`, `PANEL_VCF`, `SAMPLES_A/_B`,
+`GNOMAD_SV_VCF`, `CLINVAR_VCF`, `CHROM_SIZES`, `CHROMS`) — see the header of the
+script. The analysis stage is byte-for-byte the same engine validated above.
+
+> **What is validated where (honest):** the permutation statistic and the full
+> diff→enrich→figure wiring are validated here on synthetic data with the real
+> binary. Building genome-wide AFR/EAS pangenomes and running against real
+> gnomAD-SV/ClinVar is the cluster step (needs `vg`/`bcftools` + the panels),
+> which this environment cannot download or run.
+
+---
+
+## Paper figures
+
+[`make_figures.py`](make_figures.py) regenerates every figure the paper
+references into `figs/*.pdf`. Schematic figures are drawn from scratch; the
+data figures read the result TSVs from the demos above and fall back to a
+watermarked `PRELIMINARY` sketch when no CSV is supplied:
+
+```bash
+python3 demo/make_figures.py \
+    --scaling-csv  demo/work/parallel/parallel_scaling.tsv \
+    --ablation-csv demo/work/ablation/ablation_results.tsv \
+    --biology-csv  demo/work/biology/biology_results.tsv
+```
+
+`07_parallel_scaling.sh` (DP-phase vs end-to-end speedup; baselines on one
+thread and flags the run invalid if parallel diverges from sequential) and
+`08_ablation.sh` (each design choice disabled vs the optimized baseline) produce
+the first two TSVs.
+
+---
+
 ## Using G2G on your own graphs
 
 ```bash
@@ -235,8 +318,10 @@ variants match. Variants present in only one graph become that graph's delta.
 - **Indels are not left-normalised**, so indel calls in repeats may differ by a
   base from a tool like `bcftools norm`.
 - Validated past whole-genome scale on **synthetic** graphs (8 Gbp / ~971M nodes
-  on a 512 GB node, RAM-bound; Demo 3b). Real whole-genome validation on
-  many-haplotype, HPRC-scale pangenomes is the next step.
+  on a 512 GB node, RAM-bound; Demo 3b). The Q4 biological pipeline (Demo 4) is
+  stood up and validated end-to-end on synthetic data with the real binary;
+  running it on real many-haplotype, HPRC-scale AFR/EAS pangenomes is the
+  cluster step (needs `vg`/`bcftools` + the gnomAD-SV/ClinVar panels).
 - The diff itself is single-threaded; the parallel work-stealing runtime
   accelerates the snarl-correspondence aligner, not the `--ref` coordinate diff.
 
@@ -251,7 +336,12 @@ variants match. Variants present in only one graph become that graph's delta.
 | `04_real_hla_demo.sh` | real HLA-DRB1 pangenome diff |
 | `05_scaling_demo.sh` | scaling sweep (100 kb → 8 Mb) with timing + peak memory |
 | `06_scaling_limit.sh` | push scaling to the node's RAM / time limit (Demo 3b) |
+| `07_parallel_scaling.sh` | DP-phase vs end-to-end parallel speedup sweep |
+| `08_ablation.sh` | each design choice disabled vs the optimized baseline |
+| `09_hprc_biology.sh` | Q4 population-differentiation enrichment (synthetic + real) |
+| `hprc_enrich.py` | permutation-null enrichment engine (`--self-test`) |
 | `plot_scaling.py` | log-log scaling figure from the `05`/`06` result TSVs |
+| `make_figures.py` | regenerate all paper figures (reads the demo result TSVs) |
 | `make_synthetic_pair.py` | generator for the controlled / scaling pairs |
 | `lib.sh` | shared paths/helpers |
 | `logs/` | captured logs from a real run |

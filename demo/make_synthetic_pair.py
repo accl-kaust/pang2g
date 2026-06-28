@@ -111,6 +111,11 @@ def main():
     ap.add_argument("--alt-len", type=int, default=4,
                     help="max length of multi-allele alt sequences (long = SV-like, "
                          "heavy O(L^2) per-pair edit distance for the aligner DP)")
+    ap.add_argument("--uniform-k", action="store_true",
+                    help="make every complex snarl IDENTICAL (exactly --max-k "
+                         "alleles, each exactly --alt-len long) instead of "
+                         "heavy-tailed — a balanced heavy workload, the control "
+                         "for the static-partition scheduler ablation")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
 
@@ -159,11 +164,17 @@ def main():
     if a.max_k > 2 and a.complex_frac > 0:
         for p in shared:
             if rng.random() < a.complex_frac:
-                k = min(a.max_k, 2 + int(rng.paretovariate(1.3)))
-                alts = set()
-                while len(alts) < k - 1:
-                    L = rng.randint(1, a.alt_len)
-                    alts.add("".join(rng.choice(DNA) for _ in range(L)))
+                if a.uniform_k:        # identical heavy snarls (balanced control)
+                    k = a.max_k
+                    alts = set()
+                    while len(alts) < k - 1:
+                        alts.add("".join(rng.choice(DNA) for _ in range(a.alt_len)))
+                else:                  # heavy-tailed k and length (skewed treatment)
+                    k = min(a.max_k, 2 + int(rng.paretovariate(1.3)))
+                    alts = set()
+                    while len(alts) < k - 1:
+                        L = rng.randint(1, a.alt_len)
+                        alts.add("".join(rng.choice(DNA) for _ in range(L)))
                 complex_alts[p] = sorted(alts)
 
     def alleles(p):

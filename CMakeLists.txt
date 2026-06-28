@@ -47,8 +47,8 @@ if(G2G_BRUTE_MATCHING)
   message(STATUS "Ablation: brute matching (-> G2G_BRUTE_MATCHING)")
 endif()
 if(G2G_STATIC_PARTITION)
-  message(WARNING "G2G_STATIC_PARTITION is not implemented in the runtime yet "
-                  "-- this flag currently has no effect")
+  add_compile_definitions(G2G_STATIC_PARTITION)         # parallel.cpp
+  message(STATUS "Ablation: static work partition (-> G2G_STATIC_PARTITION)")
 endif()
 
 # ── Dependencies ──────────────────────────────────────────────
