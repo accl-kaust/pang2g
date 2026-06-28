@@ -28,6 +28,17 @@ get() {  # url [outfile]   — skip if already present and non-empty
     echo "  fetch  $out"
     wget -q --show-progress -O "$out" "$url" || { echo "ERROR: download failed: $url" >&2; rm -f "$out"; exit 1; }
 }
+get_alt() {  # outfile url1 [url2 ...]   — try each mirror until one works
+    local out="$1"; shift
+    if [ -s "$out" ]; then echo "  have   $out"; return; fi
+    local url
+    for url in "$@"; do
+        echo "  fetch  $out  <- $url"
+        if wget -q --show-progress -O "$out" "$url"; then return; fi
+        echo "  (mirror failed, trying next)"; rm -f "$out"
+    done
+    echo "ERROR: all mirrors failed for $out" >&2; exit 1
+}
 nonempty() { [ -s "$1" ] || { echo "ERROR: $1 is empty or missing" >&2; exit 1; }; }
 
 echo "[1/5] reference (human_g1k_v37) + index + chrom sizes"
@@ -35,9 +46,21 @@ get "$G1K/technical/reference/human_g1k_v37.fasta.gz"
 [ -s human_g1k_v37.fasta ] || { echo "  gunzip human_g1k_v37.fasta.gz"; gunzip -k human_g1k_v37.fasta.gz; }
 if [ ! -s human_g1k_v37.fasta.fai ]; then
     if command -v samtools >/dev/null; then samtools faidx human_g1k_v37.fasta
-    else echo "  WARN: samtools not found — run 'samtools faidx human_g1k_v37.fasta' before 09"; fi
+    else echo "  WARN: samtools not found — vg construct needs human_g1k_v37.fasta.fai;"
+         echo "        install it before running 09:  conda install -c bioconda samtools"; fi
 fi
-[ -s human_g1k_v37.fasta.fai ] && cut -f1,2 human_g1k_v37.fasta.fai > b37.chrom.sizes
+if [ -s human_g1k_v37.fasta.fai ]; then
+    cut -f1,2 human_g1k_v37.fasta.fai > b37.chrom.sizes
+else
+    # No samtools yet: write the canonical GRCh37 primary-contig lengths so the
+    # enrichment step (which only needs chrom->length) is unblocked.
+    printf '%s\t%s\n' 1 249250621 2 243199373 3 198022430 4 191154276 5 180915260 \
+        6 171115067 7 159138663 8 146364022 9 141213431 10 135534747 11 135006516 \
+        12 133851895 13 115169878 14 107349540 15 102531392 16 90354753 17 81195210 \
+        18 78077248 19 59128983 20 63025520 21 48129895 22 51304566 \
+        X 155270560 Y 59373566 MT 16569 > b37.chrom.sizes
+    echo "  wrote b37.chrom.sizes from canonical GRCh37 lengths"
+fi
 
 echo "[2/5] 1000G phase-3 sample -> population panel; derive AFR / EAS lists"
 get "$G1K/release/20130502/integrated_call_samples_v3.20130502.ALL.panel" panel.tsv
@@ -53,15 +76,18 @@ for c in $CHROMS; do
         "ALL.chr${c}.phase3.genotypes.vcf.gz"
 done
 
-echo "[4/5] gnomAD-SV v2.1 sites (GRCh37)"
-get "https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz"
+echo "[4/5] gnomAD-SV v2.1 sites (GRCh37) — GCS, with AWS S3 mirror as fallback"
+get_alt gnomad_v2.1_sv.sites.vcf.gz \
+    "https://storage.googleapis.com/gcp-public-data--gnomad/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz" \
+    "https://gnomad-public-us-east-1.s3.amazonaws.com/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz"
 
 echo "[5/5] ClinVar (GRCh37)"
 get "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz" clinvar_GRCh37.vcf.gz
 
 echo
-echo "gnomAD-SV per-population AF fields — confirm the names for --afr-field/--eas-field:"
-zcat gnomad_v2.1_sv.sites.vcf.gz 2>/dev/null | grep -m 200 '^##INFO' | grep -iE 'id=(afr|eas)' \
+echo "gnomAD-SV per-population AF fields — confirm the names for AFR_FIELD/EAS_FIELD:"
+zcat gnomad_v2.1_sv.sites.vcf.gz 2>/dev/null | grep -m 400 '^##INFO' \
+    | grep -iE 'id=[A-Z_]*(afr|eas)[A-Z_]*,' \
     || echo "  (none matched 'afr/eas' — inspect: zcat gnomad_v2.1_sv.sites.vcf.gz | grep '^##INFO')"
 
 cat <<EOF
