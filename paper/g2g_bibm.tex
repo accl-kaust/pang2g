@@ -974,14 +974,14 @@ by direct profiling of the workload. \textsc{G2G} computes, for the first time,
 the population-specific delta graph between two pangenomes directly, without
 routing through a linear reference. The reference-anchored diff is exact and
 near-linear to an 8-Gbp pair on one core; the work-stealing engine scales the
-per-snarl DP to $52.6\times$ on 128 threads; ablations confirm every design
-choice earns its place; and on real African vs.\ East Asian pangenomes the delta
-graph is significantly enriched near structural variants and pathogenic sites
-($p<10^{-3}$). \PH{The full linearise-and-map throughput
-comparison and the genome-wide biological run are the remaining camera-ready
-items.} We believe graph-to-graph alignment is a
-foundational primitive for the pangenome era, and \textsc{G2G} is a first step
-toward it.
+per-snarl DP to $52.6\times$ on 128 threads; against a linearise-and-map baseline
+\textsc{G2G} pulls ahead from $h{\approx}10$ haplotypes to $12.6\times$ at
+$h{=}200$; ablations confirm every design choice earns its place; and on real
+African vs.\ East Asian pangenomes the delta graph is significantly enriched near
+structural variants and pathogenic sites ($p<10^{-3}$). \PH{Extending the
+biological run genome-wide is the remaining camera-ready item.} We believe
+graph-to-graph alignment is a foundational primitive for the pangenome era, and
+\textsc{G2G} is a first step toward it.
 
 %==============================================================================
 \section*{Acknowledgment}
