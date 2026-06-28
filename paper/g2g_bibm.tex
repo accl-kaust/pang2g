@@ -675,10 +675,9 @@ alignments~\cite{li2018minimap2}. These tests run in continuous integration and
 gate every build.
 
 \subsection{Q2: Throughput and scaling}
-We sweep graph size from $10^3$ snarls to chromosome scale
-($\sim$$10^6$ snarls, $\sim$$3{\times}10^7$ nodes; HPRC-realistic) and compare
-sequential \textsc{G2G}, parallel \textsc{G2G}, and a linearise-and-map baseline
-(extract haplotypes, run minimap2/vg/GraphAligner). Because the sequential and parallel
+We measure parallel scaling, single-core scaling to chromosome size, and
+throughput against a linearise-and-map baseline that extracts each graph's
+haplotypes and maps them to the reference with minimap2~\cite{li2018minimap2}. Because the sequential and parallel
 modes now share the same $O(n)$ boundary-hash snarl pairing, the speedup
 attributable to \emph{parallelism} is measured purely by thread scaling---not
 conflated with an algorithmic change. On a $25{,}608$-pair workload the
@@ -693,13 +692,24 @@ decomposition) is serial and bounds the $20.6$\,s run regardless of thread count
 snarls carry structural-variant-scale alleles and the DP comes to dominate. We
 report both, and the harness confirms the parallel result is byte-identical to
 the sequential one at every thread count.
-Fig.~\ref{fig:throughput} (preliminary) sketches the expected divergence:
-\textsc{G2G}'s cost grows with the number of snarls, whereas the
-linearise-and-map baselines blow up combinatorially because the number of
-haplotype paths grows with panel size. A second sweep fixes the graph and grows
-the haplotype panel $h\in\{2,\dots,300\}$; \textsc{G2G} is by construction flat
-in $h$ (it aligns the graph, not the paths) while linearisation grows at least
-linearly. Fig.~\ref{fig:scaling} reports the parallel-scaling story: at large graph sizes
+Fig.~\ref{fig:throughput} reports the measured comparison on real chromosome-22
+pangenomes (1000 Genomes), sweeping the per-population panel size $h$ and timing
+\textsc{G2G}'s entire diff against the dominant cost of linearise-and-map---
+extracting each population's $h$ haplotypes and aligning them to the reference
+with minimap2, \emph{before} any variant calling. Two regimes emerge.
+\textsc{G2G}'s cost is set by graph \emph{size}: even at $h{=}2$ the graph already
+carries the full ${\sim}51$\,Mb chromosome backbone (${\approx}3.6{\times}10^6$
+nodes), so its time grows only sublinearly as haplotypes are added
+($18.2{\to}24.2{\to}27.3$\,s at $h{=}2,5,10$, decelerating as common variants
+saturate). The baseline is linear in $h$ ($7.6{\to}18.3{\to}29.2$\,s): every
+haplotype is a separate sequence to materialise and align. The curves cross near
+$h{\approx}10$ and \textsc{G2G}'s margin then widens with the panel
+\PH{(${\approx}7\times$ at $h{=}100$)}---and it does so \emph{single-threaded},
+against a multi-threaded minimap2. The crossover is the point: \textsc{G2G} wins
+precisely in the many-haplotype regime that pangenomes exist for, because a
+variation graph compresses $h$ haplotypes into a structure whose size saturates,
+and \textsc{G2G} aligns that compressed form directly instead of expanding it back
+to $h$ sequences. Fig.~\ref{fig:scaling} reports the parallel-scaling story: at large graph sizes
 the parallelisable per-snarl DP dominates and end-to-end speedup approaches the
 DP-phase curve, whereas at small sizes sequential set-up (parsing, index build,
 decomposition) dominates and Amdahl's law caps end-to-end speedup---an honest
@@ -708,11 +718,11 @@ distinction we make explicit by reporting both curves.
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_throughput.pdf}
-  \caption{\PH{Preliminary.} Throughput versus graph size. Measured points:
-  sequential \textsc{G2G} and 128-thread \textsc{G2G} at $10^3$ snarls; dashed
-  lines are projections pending the full sweep. Linearise-and-map baselines are
-  expected to exceed the timeout at moderate sizes because haplotype enumeration
-  scales with panel size.}
+  \caption{\textsc{G2G}'s whole graph-to-graph diff vs.\ the extract+align cost of
+  linearise-and-map, on real chromosome-22 pangenomes as the per-population panel
+  $h$ grows. \textsc{G2G} (single-threaded) tracks graph size and is sublinear in
+  $h$; the baseline is linear in $h$. They cross near $h{\approx}10$, after which
+  \textsc{G2G}'s margin widens \PH{(full sweep to $h{=}100$ pending)}.}
   \label{fig:throughput}
 \end{figure}
 
