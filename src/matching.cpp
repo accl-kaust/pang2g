@@ -313,6 +313,13 @@ MatchResult allele_match(g2g::span<const std::string_view> seqs_a,
                           g2g::span<const std::string_view> seqs_b,
                           const MatchParams& params) {
     int k = static_cast<int>(std::max(seqs_a.size(), seqs_b.size()));
+#ifdef G2G_BRUTE_MATCHING
+    // Ablation: force the exact brute-force matcher (the pre-LAPJV baseline).
+    // brute_match only supports k <= 8; larger snarls fall through to LAPJV so
+    // the run still completes (keep the ablation graph's k <= 8).
+    if (seqs_a.size() <= 8 && seqs_b.size() <= 8)
+        return brute_match(seqs_a, seqs_b, params);
+#endif
     if (k > params.lapjv_limit)
         return greedy_match(seqs_a, seqs_b, params);
     return hungarian_match(seqs_a, seqs_b, params);
