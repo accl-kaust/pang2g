@@ -233,7 +233,9 @@ model~\cite{garrison2018vg}; GraphAligner aligns long reads to
 graphs~\cite{rautiainen2020graphaligner}; vg~giraffe genotypes known variants at
 population scale~\cite{siren2021giraffe}; HISAT2 uses a graph FM-index for
 spliced alignment~\cite{kim2019hisat2}; PanGenie genotypes from a
-pangenome by $k$-mer matching~\cite{ebler2022pangenie}. Graph construction
+pangenome by $k$-mer matching~\cite{ebler2022pangenie}; and ParSGA gives a
+work-optimal parallel algorithm for aligning sequences to genome
+graphs~\cite{xu2025parsga}. Graph construction
 itself is mature: minigraph builds SV-scale graphs~\cite{li2020minigraph},
 Minigraph--Cactus produces base-level HPRC
 graphs~\cite{hickey2023pangenome,garrison2023pangenome}, and the HPRC has
@@ -249,7 +251,31 @@ suffix structures~\cite{marcus2014splitmem}. These operate on
 synteny/gene-block granularity, not on the individual alleles of a variation
 graph, and they are not designed for the $10^7$-node human-scale graphs we
 target. \textsc{G2G} is, to our knowledge, the first to align variation graphs
-to each other allele by allele.
+to each other allele by allele (Table~\ref{tab:positioning}).
+
+\begin{table}[t]
+  \centering
+  \caption{Positioning. Sequence-to-graph aligners take a sequence query;
+  graph-comparison tools work at gene-block/synteny granularity on microbial
+  graphs. No prior tool aligns two \emph{graphs} at base-pair (allele) resolution
+  at human-genome scale---the gap \textsc{G2G} fills.}
+  \label{tab:positioning}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{llll}
+    \toprule
+    tool & inputs & resolution & scale \\
+    \midrule
+    minimap2~\cite{li2018minimap2}                 & seq.\ $\times$ seq.\ & base-pair  & genome \\
+    GraphAligner~\cite{rautiainen2020graphaligner} & seq.\ $\times$ graph & base-pair  & genome \\
+    vg~giraffe~\cite{siren2021giraffe}             & seq.\ $\times$ graph & base-pair  & genome \\
+    PanGraph~\cite{noll2023pangraph}               & graph $\times$ graph & gene block & microbial \\
+    Sibelia~\cite{minkin2013sibelia}               & graph $\times$ graph & synteny    & microbial \\
+    \midrule
+    \textbf{\textsc{G2G}} & \textbf{graph $\times$ graph} & \textbf{allele} & \textbf{human, $10^9$ nodes} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Graph-processing and parallel systems} Generic graph engines---%
 Ligra~\cite{shun2013ligra}, Galois~\cite{nguyen2013galois},
