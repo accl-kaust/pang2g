@@ -22,12 +22,14 @@
 #                 against real gnomAD-SV + ClinVar. Requires vg, bcftools, tabix and
 #                 the data files below (point the script at them via env vars).
 #
-# Real-mode inputs (env vars; any left unset are downloaded or, if impossible,
-# cause a clear error):
-#   REF_FA        GRCh38 fasta (+ .fai)          CHROMS        e.g. "chr20 chr21 chr22"
-#   PANEL_VCF     population-labelled phased VCF  SAMPLES_A/_B  sample-id files (one/line)
-#   GNOMAD_SV_VCF gnomAD-SV sites VCF (AFR_AF,EAS_AF)            CLINVAR_VCF   ClinVar VCF
-#   CHROM_SIZES   GRCh38 .fai or .chrom.sizes
+# Real-mode inputs (env vars). Run demo/09_fetch_biology_data.sh first to stage
+# all of these (GRCh37/b37, gnomAD-SV v2.1) and print the exact command:
+#   REF_FA        reference fasta (+ .fai)        CHROMS        e.g. "22" or "20 21 22"
+#   PANEL_VCF     one multi-chrom phased VCF, OR  SAMPLES_A/_B  sample-id files (one/line)
+#   PANEL_TMPL    per-chrom template, {}=chrom    GNOMAD_SV_VCF gnomAD-SV sites VCF
+#   CLINVAR_VCF   ClinVar VCF (optional)          CHROM_SIZES   .fai or .chrom.sizes
+#   AFR_FIELD/EAS_FIELD  per-population AF INFO fields in GNOMAD_SV_VCF (default AFR_AF/EAS_AF)
+# Contig names must match across all inputs (b37 "22", not "chr22").
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 need_g2g
 OUT="$WORK/biology"; mkdir -p "$OUT"
@@ -153,23 +155,30 @@ run_real() {
     for t in vg bcftools tabix; do
         have "$t" || { echo "ERROR: '$t' not found. Install it, or run with --synthetic." >&2; exit 1; }
     done
-    : "${REF_FA:?set REF_FA to a GRCh38 fasta (with .fai)}"
-    : "${PANEL_VCF:?set PANEL_VCF to a population-labelled phased VCF}"
+    : "${REF_FA:?set REF_FA to the reference fasta (with .fai) matching the panel build}"
     : "${SAMPLES_A:?set SAMPLES_A to a file of AFR sample ids (one per line)}"
     : "${SAMPLES_B:?set SAMPLES_B to a file of EAS sample ids (one per line)}"
-    : "${GNOMAD_SV_VCF:?set GNOMAD_SV_VCF to a gnomAD-SV sites VCF (AFR_AF,EAS_AF)}"
-    : "${CHROM_SIZES:?set CHROM_SIZES to a GRCh38 .fai or .chrom.sizes}"
-    local CHROMS="${CHROMS:-chr20 chr21 chr22}"
+    : "${GNOMAD_SV_VCF:?set GNOMAD_SV_VCF to a gnomAD-SV sites VCF (per-pop AF fields)}"
+    : "${CHROM_SIZES:?set CHROM_SIZES to a .fai or .chrom.sizes matching the reference}"
+    # The panel may be one multi-chromosome VCF (PANEL_VCF) or, as with the 1000G
+    # phase-3 release, one VCF per chromosome (PANEL_TMPL, with {} for the
+    # chromosome, e.g. demo/data/ALL.chr{}.phase3.genotypes.vcf.gz).
+    if [ -z "${PANEL_VCF:-}" ] && [ -z "${PANEL_TMPL:-}" ]; then
+        echo "ERROR: set PANEL_VCF (single VCF) or PANEL_TMPL (per-chrom, {}=chromosome)" >&2
+        exit 1
+    fi
+    local CHROMS="${CHROMS:-22}"
     local R="$OUT/real"; mkdir -p "$R"
 
     log "Real Q4 — build AFR/EAS pangenomes, diff with g2g --ref, enrich"
     : > "$R/delta.vcf.body"
     for chrom in $CHROMS; do
-        note "[$chrom] subset panel by population → vg construct → GFA"
+        local panel; panel="${PANEL_TMPL:+${PANEL_TMPL//\{\}/$chrom}}"; panel="${panel:-${PANEL_VCF:-}}"
+        note "[$chrom] subset panel ($(basename "$panel")) by population → vg construct → GFA"
         for grp in A B; do
             local samp; samp=$([ "$grp" = A ] && echo "$SAMPLES_A" || echo "$SAMPLES_B")
             bcftools view -r "$chrom" -S "$samp" --force-samples -c1 -Oz \
-                "$PANEL_VCF" > "$R/pop${grp}_${chrom}.vcf.gz"
+                "$panel" > "$R/pop${grp}_${chrom}.vcf.gz"
             tabix -fp vcf "$R/pop${grp}_${chrom}.vcf.gz"
             vg construct -r "$REF_FA" -v "$R/pop${grp}_${chrom}.vcf.gz" -R "$chrom" 2>/dev/null \
                 | vg convert -f - 2>/dev/null > "$R/pop${grp}_${chrom}.gfa"
@@ -179,8 +188,8 @@ run_real() {
             --vcf "$R/delta_${chrom}.vcf"
         grep -v '^#' "$R/delta_${chrom}.vcf" >> "$R/delta.vcf.body" || true
     done
-    { echo "##fileformat=G2GdeltaVCF-0.2";
-      echo "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO";
+    { printf '##fileformat=G2GdeltaVCF-0.2\n';
+      printf '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n';
       cat "$R/delta.vcf.body"; } > "$R/delta.vcf"
     note "total delta alleles: $(grep -vc '^#' "$R/delta.vcf")"
 
