@@ -1,0 +1,271 @@
+% ============================================================================
+%  refs.bib for g2g_bibm.tex
+%
+%  IMPORTANT — verify before submission. These entries were assembled from
+%  knowledge of well-known papers; author/title/venue/year are high-confidence
+%  for the classics, but VOLUME / ISSUE / PAGE / DOI should be checked against
+%  the primary source (or a trusted index such as DBLP / the publisher page).
+%  Lines marked "% VERIFY" are ones I could not fully confirm.
+%
+%  If you already maintain a refs.bib, treat this as a reference to reconcile
+%  against rather than a blind replacement.
+% ============================================================================
+
+% ---- Sequence and read alignment --------------------------------------------
+@article{needleman1970general,
+  author  = {Needleman, Saul B. and Wunsch, Christian D.},
+  title   = {A general method applicable to the search for similarities in the amino acid sequence of two proteins},
+  journal = {Journal of Molecular Biology},
+  volume  = {48}, number = {3}, pages = {443--453}, year = {1970}
+}
+@article{smith1981identification,
+  author  = {Smith, Temple F. and Waterman, Michael S.},
+  title   = {Identification of common molecular subsequences},
+  journal = {Journal of Molecular Biology},
+  volume  = {147}, number = {1}, pages = {195--197}, year = {1981}
+}
+@article{wagner1974string,
+  author  = {Wagner, Robert A. and Fischer, Michael J.},
+  title   = {The string-to-string correction problem},
+  journal = {Journal of the ACM},
+  volume  = {21}, number = {1}, pages = {168--173}, year = {1974}
+}
+@article{li2009bwa,
+  author  = {Li, Heng and Durbin, Richard},
+  title   = {Fast and accurate short read alignment with {Burrows--Wheeler} transform},
+  journal = {Bioinformatics},
+  volume  = {25}, number = {14}, pages = {1754--1760}, year = {2009}
+}
+@article{langmead2012fast,
+  author  = {Langmead, Ben and Salzberg, Steven L.},
+  title   = {Fast gapped-read alignment with {Bowtie}~2},
+  journal = {Nature Methods},
+  volume  = {9}, number = {4}, pages = {357--359}, year = {2012}
+}
+@article{li2018minimap2,
+  author  = {Li, Heng},
+  title   = {Minimap2: pairwise alignment for nucleotide sequences},
+  journal = {Bioinformatics},
+  volume  = {34}, number = {18}, pages = {3094--3100}, year = {2018}
+}
+@article{roberts2004minimizers,
+  author  = {Roberts, Michael and Hayes, Wayne and Hunt, Brian R. and Mount, Stephen M. and Yorke, James A.},
+  title   = {Reducing storage requirements for biological sequence comparison},
+  journal = {Bioinformatics},
+  volume  = {20}, number = {18}, pages = {3363--3369}, year = {2004}
+}
+
+% ---- Pangenome graphs: construction, mapping, genotyping ---------------------
+@article{eizenga2020pangenome,
+  author  = {Eizenga, Jordan M. and Novak, Adam M. and Sibbesen, Jonas A. and others},
+  title   = {Pangenome graphs},
+  journal = {Annual Review of Genomics and Human Genetics},
+  volume  = {21}, pages = {139--162}, year = {2020}
+}
+@article{garrison2018vg,
+  author  = {Garrison, Erik and Sir{\'e}n, Jouni and Novak, Adam M. and others},
+  title   = {Variation graph toolkit improves read mapping by representing genetic variation in the reference},
+  journal = {Nature Biotechnology},
+  volume  = {36}, number = {9}, pages = {875--879}, year = {2018}
+}
+@article{rautiainen2020graphaligner,
+  author  = {Rautiainen, Mikko and Marschall, Tobias},
+  title   = {{GraphAligner}: rapid and versatile sequence-to-graph alignment},
+  journal = {Genome Biology},
+  volume  = {21}, number = {1}, pages = {253}, year = {2020}
+}
+@article{siren2021giraffe,
+  author  = {Sir{\'e}n, Jouni and Monlong, Jean and Chang, Xian and others},
+  title   = {Pangenomics enables genotyping of known structural variants in 5202 diverse genomes},
+  journal = {Science},
+  volume  = {374}, number = {6574}, pages = {abg8871}, year = {2021}
+}
+@article{kim2019hisat2,
+  author  = {Kim, Daehwan and Paggi, Joseph M. and Park, Chanhee and Bennett, Christopher and Salzberg, Steven L.},
+  title   = {Graph-based genome alignment and genotyping with {HISAT2} and {HISAT}-genotype},
+  journal = {Nature Biotechnology},
+  volume  = {37}, number = {8}, pages = {907--915}, year = {2019}
+}
+@article{ebler2022pangenie,
+  author  = {Ebler, Jana and Ebert, Peter and Clarke, Wayne E. and others},
+  title   = {Pangenome-based genome inference allows efficient and accurate genotyping across a wide spectrum of variant classes},
+  journal = {Nature Genetics},
+  volume  = {54}, number = {4}, pages = {518--525}, year = {2022}
+}
+@article{li2020minigraph,
+  author  = {Li, Heng and Feng, Xiaowen and Chu, Chong},
+  title   = {The design and construction of reference pangenome graphs with minigraph},
+  journal = {Genome Biology},
+  volume  = {21}, number = {1}, pages = {265}, year = {2020}
+}
+@article{hickey2023pangenome,
+  author  = {Hickey, Glenn and Monlong, Jean and Ebler, Jana and others},
+  title   = {Pangenome graph construction from genome alignments with {Minigraph--Cactus}},
+  journal = {Nature Biotechnology},
+  volume  = {41}, number = {9}, pages = {1262--1271}, year = {2023}  % VERIFY pages
+}
+@article{garrison2023pangenome,
+  author  = {Garrison, Erik and Guarracino, Andrea and Heumos, Simon and others},
+  title   = {Unbiased pangenome graphs},
+  journal = {Bioinformatics},
+  volume  = {39}, number = {1}, pages = {btac743}, year = {2023}
+}
+@article{hprc2023,
+  author  = {Liao, Wen-Wei and Asri, Mobin and Ebler, Jana and others},
+  title   = {A draft human pangenome reference},
+  journal = {Nature},
+  volume  = {617}, number = {7960}, pages = {312--324}, year = {2023}
+}
+@article{noll2023pangraph,
+  author  = {Noll, Nicholas and Molari, Marco and Shaw, Liam P. and Neher, Richard A.},
+  title   = {{PanGraph}: scalable bacterial pan-genome graph construction},
+  journal = {Microbial Genomics},
+  volume  = {9}, number = {6}, pages = {mgen001034}, year = {2023}  % VERIFY
+}
+@inproceedings{minkin2013sibelia,
+  author    = {Minkin, Ilya and Patel, Anand and Kolmogorov, Mikhail and Vyahhi, Nikolay and Pham, Son},
+  title     = {{Sibelia}: a scalable and comprehensive synteny block generation tool for closely related microbial genomes},
+  booktitle = {Algorithms in Bioinformatics (WABI)},
+  series    = {LNCS}, volume = {8126}, pages = {215--229}, year = {2013}
+}
+@article{marcus2014splitmem,
+  author  = {Marcus, Shoshana and Lee, Hayan and Schatz, Michael C.},
+  title   = {{SplitMEM}: a graphical algorithm for pan-genome analysis with suffix skips},
+  journal = {Bioinformatics},
+  volume  = {30}, number = {24}, pages = {3476--3483}, year = {2014}
+}
+
+% ---- Pangenome structure theory ---------------------------------------------
+@article{paten2018superbubbles,
+  author  = {Paten, Benedict and Eizenga, Jordan M. and Rosen, Yohei M. and Novak, Adam M. and Garrison, Erik and Hickey, Glenn},
+  title   = {Superbubbles, ultrabubbles, and cacti},
+  journal = {Journal of Computational Biology},
+  volume  = {25}, number = {7}, pages = {649--663}, year = {2018}
+}
+@article{robertson1986graph,
+  author  = {Robertson, Neil and Seymour, Paul D.},
+  title   = {Graph minors. {II}. Algorithmic aspects of tree-width},
+  journal = {Journal of Algorithms},
+  volume  = {7}, number = {3}, pages = {309--322}, year = {1986}
+}
+
+% ---- Population / clinical variant resources --------------------------------
+% NOTE: key is "collins2017svfst" but the gnomAD-SV reference is Collins et al. 2020.
+@article{collins2017svfst,
+  author  = {Collins, Ryan L. and Brand, Harrison and Karczewski, Konrad J. and others},
+  title   = {A structural variation reference for medical and population genetics},
+  journal = {Nature},
+  volume  = {581}, number = {7809}, pages = {444--451}, year = {2020}
+}
+@article{landrum2018clinvar,
+  author  = {Landrum, Melissa J. and Lee, Jennifer M. and Benson, Mark and others},
+  title   = {{ClinVar}: improving access to variant interpretations and supporting evidence},
+  journal = {Nucleic Acids Research},
+  volume  = {46}, number = {D1}, pages = {D1062--D1067}, year = {2018}
+}
+
+% ---- Parallel / cache-oblivious algorithms and assignment -------------------
+@article{blumofe1999scheduling,
+  author  = {Blumofe, Robert D. and Leiserson, Charles E.},
+  title   = {Scheduling multithreaded computations by work stealing},
+  journal = {Journal of the ACM},
+  volume  = {46}, number = {5}, pages = {720--748}, year = {1999}
+}
+@inproceedings{frigo1998cilk,
+  author    = {Frigo, Matteo and Leiserson, Charles E. and Randall, Keith H.},
+  title     = {The implementation of the {Cilk-5} multithreaded language},
+  booktitle = {Proc. ACM SIGPLAN Conf. on Programming Language Design and Implementation (PLDI)},
+  pages     = {212--223}, year = {1998}
+}
+@inproceedings{frigo1999cache,
+  author    = {Frigo, Matteo and Leiserson, Charles E. and Prokop, Harald and Ramachandran, Sridhar},
+  title     = {Cache-oblivious algorithms},
+  booktitle = {Proc. 40th Annual Symp. on Foundations of Computer Science (FOCS)},
+  pages     = {285--297}, year = {1999}
+}
+@mastersthesis{prokop1999cache,
+  author = {Prokop, Harald},
+  title  = {Cache-oblivious algorithms},
+  school = {Massachusetts Institute of Technology}, year = {1999}
+}
+@article{vanemde1977preserving,
+  author  = {van Emde Boas, Peter},
+  title   = {Preserving order in a forest in less than logarithmic time and linear space},
+  journal = {Information Processing Letters},
+  volume  = {6}, number = {3}, pages = {80--82}, year = {1977}
+}
+@article{dagum1998openmp,
+  author  = {Dagum, Leonardo and Menon, Ramesh},
+  title   = {{OpenMP}: an industry standard {API} for shared-memory programming},
+  journal = {IEEE Computational Science and Engineering},
+  volume  = {5}, number = {1}, pages = {46--55}, year = {1998}
+}
+@book{reinders2007tbb,
+  author    = {Reinders, James},
+  title     = {Intel Threading Building Blocks},
+  publisher = {O'Reilly Media}, year = {2007}
+}
+@article{jonker1987shortest,
+  author  = {Jonker, Roy and Volgenant, Anton},
+  title   = {A shortest augmenting path algorithm for dense and sparse linear assignment problems},
+  journal = {Computing},
+  volume  = {38}, number = {4}, pages = {325--340}, year = {1987}
+}
+@article{kuhn1955hungarian,
+  author  = {Kuhn, Harold W.},
+  title   = {The {Hungarian} method for the assignment problem},
+  journal = {Naval Research Logistics Quarterly},
+  volume  = {2}, number = {1-2}, pages = {83--97}, year = {1955}
+}
+@book{garey1979computers,
+  author    = {Garey, Michael R. and Johnson, David S.},
+  title     = {Computers and Intractability: A Guide to the Theory of {NP}-Completeness},
+  publisher = {W. H. Freeman}, year = {1979}
+}
+
+% ---- Shared-memory / distributed graph processing systems -------------------
+@inproceedings{shun2013ligra,
+  author    = {Shun, Julian and Blelloch, Guy E.},
+  title     = {{Ligra}: a lightweight graph processing framework for shared memory},
+  booktitle = {Proc. ACM SIGPLAN Symp. on Principles and Practice of Parallel Programming (PPoPP)},
+  pages     = {135--146}, year = {2013}
+}
+@inproceedings{nguyen2013galois,
+  author    = {Nguyen, Donald and Lenharth, Andrew and Pingali, Keshav},
+  title     = {A lightweight infrastructure for graph analytics},
+  booktitle = {Proc. 24th ACM Symp. on Operating Systems Principles (SOSP)},
+  pages     = {456--471}, year = {2013}
+}
+@inproceedings{kyrola2012graphchi,
+  author    = {Kyrola, Aapo and Blelloch, Guy and Guestrin, Carlos},
+  title     = {{GraphChi}: large-scale graph computation on just a {PC}},
+  booktitle = {Proc. 10th USENIX Symp. on Operating Systems Design and Implementation (OSDI)},
+  pages     = {31--46}, year = {2012}
+}
+@inproceedings{zhu2016gemini,
+  author    = {Zhu, Xiaowei and Chen, Wentao and Zheng, Weimin and Ma, Xiaosong},
+  title     = {{Gemini}: a computation-centric distributed graph processing system},
+  booktitle = {Proc. 12th USENIX Symp. on Operating Systems Design and Implementation (OSDI)},
+  pages     = {301--316}, year = {2016}
+}
+
+% ---- Parallel sequence-to-graph alignment -----------------------------------
+@inproceedings{xu2025parsga,
+  author    = {{[VERIFY author list from the paper]}},
+  title     = {A Work-Optimal Parallel Algorithm for Aligning Sequences to Genome Graphs},
+  booktitle = {Proc. IEEE Int. Parallel and Distributed Processing Symp. (IPDPS)},
+  year      = {2025}, publisher = {IEEE},
+  note      = {\url{https://ieeexplore.ieee.org/document/11078522/}}
+}
+
+% ---- UNRESOLVED: confirm what this key should cite --------------------------
+% The .tex cites \cite{li2024minigraph} for "population-specific graphs ...
+% constructed for individual ancestries". There is no obvious "Li 2024 minigraph"
+% paper; the claim best matches the Chinese Pangenome Consortium below. Either
+% point the citation at that paper (rename the key) or replace this entry.
+@article{li2024minigraph,
+  author  = {Gao, Yang and others},  % VERIFY — placeholder for an ancestry-specific pangenome
+  title   = {A pangenome reference of 36 {Chinese} populations},
+  journal = {Nature},
+  volume  = {619}, number = {7968}, pages = {112--121}, year = {2023}  % VERIFY all fields
+}
