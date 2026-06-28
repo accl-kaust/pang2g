@@ -338,8 +338,10 @@ variants match. Variants present in only one graph become that graph's delta.
 | `06_scaling_limit.sh` | push scaling to the node's RAM / time limit (Demo 3b) |
 | `07_parallel_scaling.sh` | DP-phase vs end-to-end parallel speedup sweep |
 | `08_ablation.sh` | each design choice disabled vs the optimized baseline |
-| `09_hprc_biology.sh` | Q4 population-differentiation enrichment (synthetic + real) |
-| `hprc_enrich.py` | permutation-null enrichment engine (`--self-test`) |
+| `09_hprc_biology.sh` | Q4 enrichment: delta vs gnomAD-SV / ClinVar (synthetic + real) |
+| `09_fetch_biology_data.sh` | stage GRCh37 inputs for the real Q4 run (1000G, gnomAD-SV, ClinVar) |
+| `hprc_enrich.py` | permutation-null enrichment engine (`--self-test`, `--fst-sweep`, `--min-len`) |
+| `10_throughput_baseline.sh` | G2G diff vs linearize-and-map, sweeping haplotype count |
 | `plot_scaling.py` | log-log scaling figure from the `05`/`06` result TSVs |
 | `make_figures.py` | regenerate all paper figures (reads the demo result TSVs) |
 | `make_synthetic_pair.py` | generator for the controlled / scaling pairs |
