@@ -252,10 +252,12 @@ base-pair variation resolution. PanGraph builds and compares bacterial
 pangenome graphs at the level of homologous gene
 blocks~\cite{noll2023pangraph}; Sibelia finds synteny blocks among microbial
 genomes~\cite{minkin2013sibelia}; SplitMEM relates pangenome representations via
-suffix structures~\cite{marcus2014splitmem}. These operate on
-synteny/gene-block granularity, not on the individual alleles of a variation
-graph, and they are not designed for the $10^7$-node human-scale graphs we
-target. \textsc{G2G} is, to our knowledge, the first to align variation graphs
+suffix structures~\cite{marcus2014splitmem}. At the population level, comparative pangenomics has so far been limited to
+summary statistics such as gene-frequency spectra and openness
+estimates~\cite{hyun2022pangenomics}; no method operates directly on
+variation-graph topology. These tools operate on synteny/gene-block
+granularity, not on the individual alleles of a variation graph, and they are
+not designed for the $10^7$-node human-scale graphs we target. \textsc{G2G} is, to our knowledge, the first to align variation graphs
 to each other allele by allele (Table~\ref{tab:positioning}).
 
 \begin{table}[t]
