@@ -50,8 +50,10 @@ def _info(field):
     return d
 
 
-def read_delta(path):
-    """G2G delta VCF -> [(chrom, pos, group)]; group 'A'/'B' from INFO GRAPH=."""
+def read_delta(path, min_len=0):
+    """G2G delta VCF -> [(chrom, pos, group)]; group 'A'/'B' from INFO GRAPH=.
+    With min_len>0 keep only alleles whose INFO LEN >= min_len (SV-sized deltas),
+    the like-for-like set when the targets are structural variants."""
     out = []
     with _open(path) as f:
         for line in f:
@@ -60,8 +62,14 @@ def read_delta(path):
             c = line.rstrip("\n").split("\t")
             if len(c) < 8:
                 continue
-            grp = _info(c[7]).get("GRAPH", "?")
-            out.append((c[0], int(c[1]), grp))
+            info = _info(c[7])
+            if min_len > 0:
+                try:
+                    if int(info.get("LEN", "0")) < min_len:
+                        continue
+                except ValueError:
+                    continue
+            out.append((c[0], int(c[1]), info.get("GRAPH", "?")))
     return out
 
 
@@ -71,10 +79,10 @@ def hudson_fst(p1, p2):
     return ((p1 - p2) ** 2) / den if den > 0 else 0.0
 
 
-def read_gnomad_fst(path, afr_field, eas_field, fst_thresh):
-    """-> ({chrom: sorted [pos]} for high-F_ST SVs, n_total, n_high, n_usable)."""
-    hi = {}
-    n_total = n_high = n_usable = 0
+def read_gnomad_records(path, afr_field, eas_field):
+    """Parse a gnomAD-SV VCF once -> ([(chrom,pos,F_ST)], n_total, n_usable)."""
+    recs = []
+    n_total = n_usable = 0
     with _open(path) as f:
         for line in f:
             if line.startswith("#"):
@@ -89,11 +97,25 @@ def read_gnomad_fst(path, afr_field, eas_field, fst_thresh):
             except (KeyError, ValueError):
                 continue
             n_usable += 1
-            if hudson_fst(p1, p2) >= fst_thresh:
-                n_high += 1
-                hi.setdefault(c[0], []).append(int(c[1]))
+            recs.append((c[0], int(c[1]), hudson_fst(p1, p2)))
+    return recs, n_total, n_usable
+
+
+def targets_at(recs, fst_thresh):
+    """{chrom: sorted [pos]} for records with F_ST >= fst_thresh (+ count)."""
+    hi = {}
+    for chrom, pos, fst in recs:
+        if fst >= fst_thresh:
+            hi.setdefault(chrom, []).append(pos)
     for chrom in hi:
         hi[chrom].sort()
+    return hi, sum(len(v) for v in hi.values())
+
+
+def read_gnomad_fst(path, afr_field, eas_field, fst_thresh):
+    """-> ({chrom: sorted [pos]} for high-F_ST SVs, n_total, n_high, n_usable)."""
+    recs, n_total, n_usable = read_gnomad_records(path, afr_field, eas_field)
+    hi, n_high = targets_at(recs, fst_thresh)
     return hi, n_total, n_high, n_usable
 
 
@@ -194,6 +216,13 @@ def main():
     ap.add_argument("--clinvar", default=None)
     ap.add_argument("--afr-field", default="AFR_AF"); ap.add_argument("--eas-field", default="EAS_AF")
     ap.add_argument("--fst-threshold", type=float, default=0.2)
+    ap.add_argument("--fst-sweep", default=None,
+                    help="comma-separated F_ST thresholds (e.g. 0.05,0.1,0.2,0.3,0.5): "
+                         "report enrichment at each to show a dose-response, reusing "
+                         "the same delta (no graph rebuild). Writes a sweep TSV to --out.")
+    ap.add_argument("--min-len", type=int, default=0,
+                    help="keep only delta alleles with INFO LEN >= this (e.g. 50 for "
+                         "SV-sized deltas — the like-for-like set vs structural variants)")
     ap.add_argument("--window", type=int, default=1000)
     ap.add_argument("--perms", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
@@ -206,7 +235,33 @@ def main():
         ap.error("--delta, --gnomad-sv and --sizes are required (or use --self-test)")
 
     sizes = read_sizes(a.sizes)
-    deltas = read_delta(a.delta)
+    deltas = read_delta(a.delta, a.min_len)
+    if a.min_len:
+        print(f"[filter] kept {len(deltas)} delta alleles with LEN>={a.min_len}")
+    if not deltas:
+        print("no delta alleles to test (check --min-len / the delta VCF)"); return
+
+    # ── F_ST dose-response sweep ───────────────────────────────────────────────
+    if a.fst_sweep:
+        thresholds = sorted(float(t) for t in a.fst_sweep.split(","))
+        recs, n_tot, n_use = read_gnomad_records(a.gnomad_sv, a.afr_field, a.eas_field)
+        print(f"delta alleles: {len(deltas)}   gnomAD-SV: {n_tot} ({n_use} with AF) "
+              f"— F_ST dose-response over {thresholds}")
+        rows = []
+        for t in thresholds:
+            hi, n_hi = targets_at(recs, t)
+            obs, exp, fold, p = permutation_test(deltas, hi, sizes, a.window, a.perms, a.seed)
+            print(f"  F_ST≥{t:<5} n_high={n_hi:<6d} obs={obs:<6d} exp={exp:7.1f} "
+                  f"fold={fold:5.2f}x  p={p:.4g}")
+            rows.append((t, n_hi, obs, round(exp, 2), round(fold, 3), p))
+        if a.out:
+            with open(a.out, "w", newline="") as f:
+                w = csv.writer(f, delimiter="\t")
+                w.writerow(["fst_threshold", "n_high", "observed", "expected", "fold", "p"])
+                w.writerows(rows)
+            print(f"wrote {a.out}")
+        return
+
     hi, n_tot, n_hi, n_use = read_gnomad_fst(a.gnomad_sv, a.afr_field, a.eas_field, a.fst_threshold)
     print(f"delta alleles: {len(deltas)}   gnomAD-SV: {n_tot} ({n_use} with AF, "
           f"{n_hi} high-F_ST≥{a.fst_threshold})")

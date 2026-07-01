@@ -1,3 +1,4 @@
-# Downloaded third-party binaries and all generated demo data/outputs.
+# Downloaded third-party binaries, datasets, and all generated demo data/outputs.
 tools/
 work/
+data/
