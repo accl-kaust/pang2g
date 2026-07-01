@@ -302,24 +302,14 @@ assignment problem~\cite{kuhn1955hungarian}.
 \section{Problem Formulation}
 \label{sec:problem}
 %==============================================================================
-We first fix definitions, then state the hardness/tractability result that the
-whole system rests on.
-
-\begin{definition}[Variation graph]
-A \emph{variation graph} is a tuple $G=(V,E,\sigma)$ where $V$ is a set of
-nodes, $E\subseteq V\times V$ is a set of directed edges, and
-$\sigma:V\to\{A,C,G,T\}^{*}$ labels each node with a DNA string. A path
-$p=(v_1,\dots,v_k)$ spells $\sigma(v_1)\cdots\sigma(v_k)$. Each haplotype is a
-path through $G$.
-\end{definition}
-
-\begin{definition}[Snarl and snarl tree]
-A \emph{snarl} is a pair $(s,t)\in V\times V$ such that every path from $s$ to
-$t$ stays within a subgraph $S\subseteq G$ that is separated from the rest of
-$G$ by $\{s,t\}$~\cite{paten2018superbubbles}. The \emph{alleles} of the snarl
-are the distinct $s\!\to\!t$ paths. The inclusion hierarchy of all snarls is the
-\emph{snarl tree} $T(G)$.
-\end{definition}
+A \emph{variation graph} $G=(V,E,\sigma)$ consists of a node set $V$, directed
+edges $E\subseteq V\times V$, and a labelling $\sigma:V\to\{A,C,G,T\}^{*}$ that
+assigns each node a DNA string; each haplotype is a source-to-sink path through
+$G$. Sites of variation appear as \emph{snarls}---minimal subgraphs separated
+from the rest of $G$ by a pair of boundary
+nodes~\cite{paten2018superbubbles}---whose distinct traversals are the
+\emph{alleles}. Snarls nest, forming a \emph{snarl tree} $T(G)$
+(Fig.~\ref{fig:snarltree}).
 
 \begin{figure}[t]
   \centering
@@ -331,12 +321,22 @@ are the distinct $s\!\to\!t$ paths. The inclusion hierarchy of all snarls is the
   \label{fig:snarltree}
 \end{figure}
 
-\begin{definition}[Graph-to-graph alignment]
-Given $G_A=(V_A,E_A,\sigma_A)$ and $G_B=(V_B,E_B,\sigma_B)$, an alignment is a
-triple $\mathcal{A}=(M_v,M_e,M_s)$ where $M_v\subseteq V_A\times V_B$ is a
-partial injective node correspondence, $M_e\subseteq E_A\times E_B$ is an edge
-correspondence consistent with $M_v$, and $M_s$ pairs homologous snarls. Its
-score decomposes into sequence, topology, and structural terms,
+Given two variation graphs $G_A$ and $G_B$, a \emph{graph-to-graph alignment}
+establishes a node correspondence, an edge correspondence, and a snarl pairing.
+In general, graph-to-graph alignment contains subgraph isomorphism and is
+therefore NP-hard~\cite{garey1979computers}. The key observation is that
+variation graphs are not arbitrary graphs: the snarl-tree decomposition breaks
+each graph into small, independent subproblems whose allele counts $k$ are
+bounded in practice~\cite{paten2018superbubbles}, yielding an
+$O(|T_A|\cdot|T_B|\cdot k^{3})$ algorithm.
+
+%==============================================================================
+\section{The G2G Algorithm}
+\label{sec:algo}
+%==============================================================================
+
+\noindent\textbf{Scoring.}
+The alignment score decomposes into sequence, topology, and structural terms,
 \begin{align}
 W(\mathcal{A}) \;=\;
 &\;\alpha\!\!\sum_{(u,v)\in M_v}\!\!\mathrm{sim}\big(\sigma_A(u),\sigma_B(v)\big)
@@ -344,32 +344,11 @@ W(\mathcal{A}) \;=\;
 &\;+\;\gamma\!\!\sum_{(S,S')\in M_s}\!\!\mathrm{SimBubble}(S,S'),
 \label{eq:score}
 \end{align}
-where $\mathrm{sim}(\cdot,\cdot)=1-\mathrm{edit}/\max(|\cdot|,|\cdot|)$ is
-normalised sequence similarity and $\alpha,\beta,\gamma$ weight the three terms.
-\end{definition}
-
-The three terms are exactly the components \textsc{G2G} computes: $W_{\text{seq}}$
-(boundary-node similarity), $W_{\text{topo}}$ (structural-class consistency), and
-$W_{\text{struct}}$ (allele bipartite-matching score within paired snarls)---the
-decomposition and per-pair scoring illustrated in Fig.~\ref{fig:snarltree}.
-
-\begin{theorem}[Hardness and tractability]
-\label{thm:main}
-Graph-to-graph alignment maximising \eqref{eq:score} is NP-hard for general
-graphs (by reduction from subgraph isomorphism). Restricted to variation graphs
-with snarl-tree decompositions $T_A,T_B$, the optimal alignment can be computed
-in time $O(|T_A|\cdot|T_B|\cdot k^{3})$, where $k$ is the maximum number of
-alleles per snarl.
-\end{theorem}
-
-\noindent\textit{Proof sketch.}
-For hardness, encode a subgraph-isomorphism instance by setting every node label
-to a common string so that $W_{\text{seq}}$ is constant; a zero-gap topology
-match then exists iff the pattern embeds in the host. For the upper bound,
-define $\mathrm{OPT}(S_A,S_B)$ as the best alignment score of the subgraphs
-rooted at snarls $S_A\in T_A$, $S_B\in T_B$. Because sibling snarls are separated
-by their boundary nodes, their subproblems are independent, giving the bottom-up
-recurrence
+where $M_v$, $M_e$, $M_s$ are the node, edge, and snarl correspondences,
+$\mathrm{sim}(\cdot,\cdot)=1-\mathrm{edit}/\max(|\cdot|,|\cdot|)$ is
+normalised sequence similarity, and $\alpha,\beta,\gamma$ weight the three
+terms. Because sibling snarls are separated by their boundary nodes, their
+subproblems are independent, giving the bottom-up recurrence
 \begin{equation}
 \begin{aligned}
 \mathrm{OPT}(S_A,S_B)=\;&W_{\text{seq}}(S_A,S_B)+W_{\text{topo}}(S_A,S_B)\\
@@ -378,24 +357,11 @@ recurrence
 \label{eq:dp}
 \end{equation}
 where $\mu$ ranges over matchings of the child snarls and the leaf case is a
-weighted bipartite matching over the alleles. There are $|T_A|\cdot|T_B|$
-snarl-pair states; each is solved by an assignment problem of size $k$ in
-$O(k^3)$ via Jonker--Volgenant~\cite{jonker1987shortest}, giving the stated
-bound. Bounded tree-width of real variation
-graphs~\cite{paten2018superbubbles,robertson1986graph} keeps $k$ small in
-practice. \hfill$\square$
+weighted bipartite matching over the alleles, solved in $O(k^3)$ via
+Jonker--Volgenant~\cite{jonker1987shortest}.
 
 \smallskip
-Theorem~\ref{thm:main} is the load-bearing result: it is \emph{why} a problem
-that looks intractable becomes a parallel sweep of small, independent matching
-problems---exactly the structure the system in \S\ref{sec:system} exploits.
-\PH{A fully formal proof, including the exactness of the windowed sink finder on
-variation-graph DAGs, is deferred to an extended version.}
-
-%==============================================================================
-\section{The G2G Algorithm}
-\label{sec:algo}
-%==============================================================================
+\noindent\textbf{Pipeline overview.}
 At a high level (Fig.~\ref{fig:pipeline}) \textsc{G2G} runs five stages:
 (1)~detect \emph{anchors}---backbone nodes shared by both graphs---to pin the
 two coordinate systems together; (2)~decompose each graph into its snarl tree;
@@ -936,7 +902,7 @@ would require.
 %==============================================================================
 \textbf{Why these choices.} Every major decision in \textsc{G2G} traces to a
 measured property of the workload. Snarl-tree factorisation is what makes an
-NP-hard problem tractable (Theorem~\ref{thm:main}); LAPJV replaces brute force
+NP-hard problem tractable (\S\ref{sec:problem}); LAPJV replaces brute force
 because matching cost explodes with $k$ (Finding~1); work stealing replaces
 static partitioning because per-snarl work is heavy-tailed and scale-invariant
 (Finding~2)---an argument the static-partition ablation now confirms directly
