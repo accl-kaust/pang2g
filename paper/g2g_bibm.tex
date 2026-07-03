@@ -677,7 +677,7 @@ $54.1$\,s at $h{=}200$, a $3\times$ rise for a $100\times$ larger panel. The
 baseline is linear in $h$ ($7.9$\,s to $684$\,s over the same range): every
 haplotype is a separate sequence to materialise and align. The curves cross near
 $h{\approx}10$, beyond which \textsc{G2G} pulls away---$6.9\times$ faster at
-$h{=}100$ and $12.6\times$ at $h{=}200$, the gap still widening---and it does so
+$h{=}100$ and $12.7\times$ at $h{=}200$, the gap still widening---and it does so
 \emph{single-threaded}, against a multi-threaded minimap2. The crossover is the point: \textsc{G2G} wins
 precisely in the many-haplotype regime that pangenomes exist for, because a
 variation graph compresses $h$ haplotypes into a structure whose size saturates,
@@ -691,7 +691,7 @@ to $h$ sequences.
   linearise-and-map, on real chromosome-22 pangenomes as the per-population panel
   $h$ grows. \textsc{G2G} (single-threaded) is sublinear in $h$ ($18.3{\to}54.1$\,s
   over $h{=}2{\to}200$); the baseline is linear ($7.9{\to}684$\,s). They cross near
-  $h{\approx}10$; by $h{=}200$ \textsc{G2G} is $12.6\times$ faster, the gap still
+  $h{\approx}10$; by $h{=}200$ \textsc{G2G} is $12.7\times$ faster, the gap still
   widening.}
   \label{fig:throughput}
 \end{figure}
@@ -943,7 +943,7 @@ the population-specific delta graph between two pangenomes directly, without
 routing through a linear reference. The reference-anchored diff is exact and
 near-linear to an 8-Gbp pair on one core; the work-stealing engine scales the
 per-snarl DP to $52.6\times$ on 128 threads; against a linearise-and-map baseline
-\textsc{G2G} pulls ahead from $h{\approx}10$ haplotypes to $12.6\times$ at
+\textsc{G2G} pulls ahead from $h{\approx}10$ haplotypes to $12.7\times$ at
 $h{=}200$; ablations confirm every design choice earns its place; and on real
 African vs.\ East Asian pangenomes the delta graph is significantly enriched near
 structural variants and pathogenic sites ($p<10^{-3}$). \PH{Extending the
