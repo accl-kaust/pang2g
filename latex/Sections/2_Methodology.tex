@@ -26,24 +26,13 @@ W(G_A,G_B,\mathcal{M}) \;=\;
 where $\mathrm{sim}(s_1,s_2)=1-\mathrm{edit}(s_1,s_2)/\max(|s_1|,|s_2|)$ is
 normalised sequence similarity, and $\alpha,\beta,\gamma$ weight the three
 terms (defaults: $\alpha{=}1$, $\beta{=}0.5$, $\gamma{=}2$; the structural term is up-weighted because allele identity is the primary signal for delta-graph construction). All experiments use these defaults; we do not perform a sensitivity sweep over $(\alpha,\beta,\gamma)$ because the delta graph depends on the allele matching $\mu$ within each snarl, which is determined by $\gamma$ alone, and the ranking of allele pairs is invariant to the global scale of $\gamma$.
-Because sibling snarls are separated by their boundary nodes, their
-subproblems are independent, giving the bottom-up recurrence
-\begin{equation}
-\begin{aligned}
-\mathrm{OPT}(S_A,S_B)=\;&W_{\text{seq}}(S_A,S_B)+W_{\text{topo}}(S_A,S_B)\\
-&+\max_{\mu}\ \sum_{(c,c')\in\mu}\mathrm{OPT}(c,c'),
-\end{aligned}
-\label{eq:dp}
-\end{equation}
-where $\mu$ ranges over matchings of the child snarls and the leaf case is a
-weighted bipartite matching over the alleles, solved in $O(k^3)$ via
-Jonker--Volgenant~\cite{jonker1987shortest}.
+Because sibling snarls are separated by their boundary nodes, their subproblems are independent. On the depth-1 snarls that all current experiments evaluate (\S\ref{sec:eval}), each snarl pair is a leaf with no children, so the problem reduces to one independent $O(k^3)$ bipartite matching per pair. Algorithm~\ref{alg:g2g} presents this \textbf{implemented-and-measured} form.
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.95\textwidth]{figs/fig_pipeline.pdf}
   \caption{The \textsc{G2G} pipeline. Two GFA pangenome graphs are anchored by a
-  minimiser index, decomposed into cache-oblivious snarl trees, and aligned by a
+  minimiser index, decomposed into snarl trees, and aligned by a
   work-stealing runtime that solves one bipartite allele-matching subproblem per
   snarl pair. Outputs are the population-specific delta graphs (the graph-level
   analogue of a VCF), a shared graph, and a global similarity score.}
@@ -51,9 +40,9 @@ Jonker--Volgenant~\cite{jonker1987shortest}.
 \end{figure*}
 
 \begin{algorithm}[t]
-\caption{\textsc{G2G} graph-to-graph alignment (depth-1 form; the general nested
-case is obtained by replacing line~\ref{line:leaf} with the recurrence of
-\eqref{eq:dp}---see text).}
+\caption{\textsc{G2G} graph-to-graph alignment (\textbf{depth-1 form}: the
+implemented and evaluated algorithm). Each snarl pair is an independent leaf
+solved by a single $O(k^3)$ assignment.}
 \label{alg:g2g}
 \begin{algorithmic}[1]
 \Require variation graphs $G_A,G_B$; weights $\alpha,\beta,\gamma$; gap $g$;
@@ -61,8 +50,6 @@ case is obtained by replacing line~\ref{line:leaf} with the recurrence of
 \Ensure deltas $\Delta_{A\to B},\Delta_{B\to A}$, shared graph, total score $W$
 \State $\mathcal{N}\gets \Call{FindAnchors}{G_A,G_B}$ \Comment{minimiser index}
 \State $T_A\gets\Call{Decompose}{G_A}$;\ \ $T_B\gets\Call{Decompose}{G_B}$
-\State \Call{ApplyVEBLayout}{$T_A$};\ \ \Call{ApplyVEBLayout}{$T_B$}
-       \Comment{post-order locality}
 \State $P\gets\Call{PairSnarls}{T_A,T_B,\mathcal{N}}$
        \Comment{greedy, anchor-guided}
 \State $\mathcal{T}\gets\Call{BuildTaskDAG}{P}$
@@ -71,7 +58,7 @@ case is obtained by replacing line~\ref{line:leaf} with the recurrence of
    \State $a\gets\Call{Alleles}{S_A}$;\ \ $b\gets\Call{Alleles}{S_B}$
    \State $C_{ij}\gets 1-\mathrm{sim}(a_i,b_j)$; clamp $C_{ij}\!>\!1{-}\tau$ to gap $g$
    \State $(s,\mu)\gets\Call{LAPJV}{C}$ \label{line:leaf}
-          \Comment{$O(k^3)$; \eqref{eq:dp} leaf}
+          \Comment{$O(k^3)$ assignment}
    \State $w[S_A,S_B]\gets W_{\text{seq}}(S_A,S_B)+W_{\text{topo}}(S_A,S_B)+\gamma\,s$
    \State record matches $\mu$ and unmatched alleles of $(S_A,S_B)$
 \EndParFor
@@ -81,8 +68,16 @@ case is obtained by replacing line~\ref{line:leaf} with the recurrence of
 \end{algorithmic}
 \end{algorithm}
 
-\paragraph{Depth-1 specialisation vs.\ the general recurrence.}
-Algorithm \ref{alg:g2g} is the depth-1 specialisation of \eqref{eq:dp}: each snarl pair is an independent leaf solved once by an $O(k^3)$ assignment (line \ref{line:leaf}). This is the form exercised by all experiments in \S\ref{sec:eval}. The general nested case follows directly: process the two snarl trees in van Emde Boas post-order so that children are scored before parents, and replace the leaf solve with the full recurrence of \eqref{eq:dp}, whose child-matching term $\max_\mu\sum \mathrm{OPT}(c,c')$ is itself an assignment problem whose costs are the children's $\mathrm{OPT}$ values. The post-order layout (line 3) and the work-stealing scheduler are designed for this nested traversal; at depth~1 the layout is inert (confirmed by the vEB ablation, Table~\ref{tab:ablation}).
+\paragraph{General nested recurrence (designed for future, not yet evaluated).}
+When snarls contain nested children, the score decomposes recursively:
+\begin{equation}
+\begin{aligned}
+\mathrm{OPT}(S_A,S_B)=\;&W_{\text{seq}}(S_A,S_B)+W_{\text{topo}}(S_A,S_B)\\
+&+\max_{\mu}\ \sum_{(c,c')\in\mu}\mathrm{OPT}(c,c'),
+\end{aligned}
+\label{eq:dp}
+\end{equation}
+where $\mu$ ranges over matchings of the child snarls and the leaf case reduces to Algorithm~\ref{alg:g2g}'s per-pair assignment, solved in $O(k^3)$ via Jonker--Volgenant~\cite{jonker1987shortest}. The implementation supports this recurrence: children are processed before parents in van~Emde~Boas post-order (the \textsc{ApplyVEBLayout} step, omitted from Algorithm~\ref{alg:g2g} because it is inert at depth~1, confirmed by the vEB ablation in Table~\ref{tab:ablation}). This nested path is implemented and compiles but is not exercised by any experiment in this paper; it awaits nested-snarl inputs from a full Minigraph-Cactus backend.
 
 \subsubsection{Anchor detection}
 Anchors are backbone nodes (in- and out-degree $\le 1$) whose sequences are near-identical across the two graphs; they set a common fixed frame so that everything else is interpreted relative to them. A naive all-pairs scan is $O(|V_A|\cdot|V_B|)$, which at human scale ($|V|\sim10^7$) is $\sim10^{14}$ comparisons, infeasible. G2G instead builds a minimiser index \cite{roberts2004minimizers,li2018minimap2} over one graph's backbone: candidate anchor pairs are nodes sharing at least one minimiser, refined by a full similarity check and resolved greedily best-first. G2G keeps the naive path for small graphs (where its lower constant factors win) and switches to the index above a threshold, so correctness is identical and only the constant changes.
