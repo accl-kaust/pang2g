@@ -149,6 +149,9 @@ The snarl tree is traversed bottom-up and each snarl-pair DP reads allele sequen
 
 G2G is implemented in C++20 with a Python reference prototype as a correctness oracle. Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1 W lines, with on-the-fly reverse complementing). The data model keeps all node sequences in a single flat byte array indexed by (offset, length), and adjacency in CSR form, so the DP kernel streams sequence data without pointer chasing.
 
+\paragraph{Hardware platform.}
+All experiments run on a single-socket AMD EPYC 7763 (Milan) node: 64 cores / 128 hardware threads (2-way SMT), 4 NUMA domains, 512\,GiB DDR4-3200 in 8 channels (204.8\,GB/s peak memory bandwidth), 256\,MiB L3 cache. The OS is Ubuntu 20.04; G2G is compiled with GCC~9.4 at \texttt{-O3}. ``128 threads'' throughout this paper refers to hardware threads, not physical cores.
+
 \subsubsection{Cache-oblivious snarl-tree layout}
 A breadth-first storage of the snarl tree scatters sibling snarls across memory, so a bottom-up traversal thrashes the cache once the working set exceeds L3. G2G instead lays the snarl tree out in van Emde Boas recursive order \cite{vanemde1977preserving,frigo1999cache} (Fig. \ref{fig:veb}), which keeps any subtree of height $h$ within $O(\sqrt{N})$ cache lines and yields an $O(N\log_B N / B)$ cache complexity for the traversal, optimal for comparison-based tree algorithms, and without tuning to a specific cache size. Each snarl's DP table and allele data are allocated contiguously with the snarl. The layout is a build-time toggle so its effect can be measured directly.
 
