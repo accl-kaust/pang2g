@@ -15,18 +15,18 @@ At a high level G2G runs five stages  (Fig. \ref{fig:pipeline}):
 \noindent\textbf{Scope of the current evaluation.}
 The formulation and system support the general nested recurrence~\eqref{eq:dp}, but the graphs we evaluate on (GFA files from \texttt{vg~construct} and synthetic generators) contain only depth-1 snarls: simple SNP and indel bubbles with no nested children. Consequently, the nested recurrence, the van~Emde~Boas post-order layout, and the DAG task dependencies are exercised only at depth~1, where they reduce to independent per-snarl-pair assignments. We retain them in the design and implementation because they are required for the nested snarls that a full Minigraph-Cactus backend supplies, but ablations and scaling numbers in~\S\ref{sec:eval} should be read with this depth-1 scope in mind.
 
-The alignment score decomposes into sequence, topology, and structural terms,
+Given two variation graphs $G_A,G_B$ and a matching $\mathcal{M}=(M_v,M_e,M_s)$ of their nodes, edges, and snarls, let $\sigma_G(v)$ denote the DNA-sequence label of node $v$ in graph $G$. The alignment score is
 \begin{align}
-W(\mathcal{A}) \;=\;
-&\;\alpha\!\!\sum_{(u,v)\in M_v}\!\!\mathrm{sim}\big(\sigma_A(u),\sigma_B(v)\big)
+W(G_A,G_B,\mathcal{M}) \;=\;
+&\;\alpha\!\!\sum_{(u,v)\in M_v}\!\!\mathrm{sim}\!\big(\sigma_{G_A}\!(u),\,\sigma_{G_B}\!(v)\big)
 \;+\;\beta\!\!\sum_{(e,e')\in M_e}\!\!\mathbf{1}[\text{consistent}] \nonumber\\
 &\;+\;\gamma\!\!\sum_{(S,S')\in M_s}\!\!\mathrm{SimBubble}(S,S'),
 \label{eq:score}
 \end{align}
-where $M_v$, $M_e$, $M_s$ are the node, edge, and snarl correspondences,
-$\mathrm{sim}(\cdot,\cdot)=1-\mathrm{edit}/\max(|\cdot|,|\cdot|)$ is
+where $\mathrm{sim}(s_1,s_2)=1-\mathrm{edit}(s_1,s_2)/\max(|s_1|,|s_2|)$ is
 normalised sequence similarity, and $\alpha,\beta,\gamma$ weight the three
-terms. Because sibling snarls are separated by their boundary nodes, their
+terms (defaults: $\alpha{=}1$, $\beta{=}0.5$, $\gamma{=}2$; the structural term is up-weighted because allele identity is the primary signal for delta-graph construction). All experiments use these defaults; we do not perform a sensitivity sweep over $(\alpha,\beta,\gamma)$ because the delta graph depends on the allele matching $\mu$ within each snarl, which is determined by $\gamma$ alone, and the ranking of allele pairs is invariant to the global scale of $\gamma$.
+Because sibling snarls are separated by their boundary nodes, their
 subproblems are independent, giving the bottom-up recurrence
 \begin{equation}
 \begin{aligned}
