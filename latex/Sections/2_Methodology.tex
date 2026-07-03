@@ -129,15 +129,15 @@ Fig. \ref{fig:matching} shows measured time per snarl pair as a function of alle
   \label{fig:matching}
 \end{figure}
 
-\textbf{Finding 2: the workload is heavy-tailed and scale-invariant.}
-Most snarls are tiny ($\sim$67\% are $k{=}2$ SNP bubbles) but a few are very large, so per-snarl work ($\propto k^3$) is highly skewed. We quantify this with the Gini coefficient of work, which stays in the narrow band $0.55$-$0.58$ across graph sizes spanning $20$ to $1000$ snarls
-(Fig. \ref{fig:workload}a), the imbalance does not wash out with scale. Fig. \ref{fig:workload}b shows the underlying heavy-tailed allele-count
-distribution. A static, equal-count partition of snarls across threads would therefore be badly load-imbalanced, because a handful of giant snarls dominate the work. This finding mandates the use of a work stealing scheduler.
+\textbf{Finding 2: the workload is heavy-tailed.}
+Most snarls are tiny ($\sim$67\% are $k{=}2$ SNP bubbles) but a few are very large, so per-snarl work ($\propto k^3$) is highly skewed. We quantify this with the Gini coefficient of work, which stays in the narrow band $0.55$-$0.58$ across synthetic graph sizes spanning $20$ to $1{,}000$ snarls
+(Fig. \ref{fig:workload}a), the imbalance does not wash out over this range. We note that real human pangenome graphs contain $10^6$-$10^7$ snarls, 3--4 orders of magnitude beyond our measurement; the Gini stability we observe is suggestive but not a guarantee at genome scale, because the tail shape could shift as rare complex-SV snarls accumulate. The underlying argument for work stealing does not depend on exact Gini invariance: it requires only that the tail remain heavy enough for a few large snarls to dominate, which is a structural property of variation graphs (complex SVs produce high-$k$ snarls regardless of graph size).
+Fig. \ref{fig:workload}b shows the allele-count distribution. A static, equal-count partition of snarls across threads would be badly load-imbalanced whenever such a tail is present, which motivates a work-stealing scheduler.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_workload.pdf}
-  \caption{(a)~The Gini coefficient of per-snarl work stays above $0.55$ across graph sizes: the heavy tail is scale-invariant, so static partitioning is load-imbalanced at every scale. (b)~The heavy-tailed allele-count distribution that causes it. Measured from the reference prototype on HPRC-calibrated synthetic graphs.}
+  \caption{(a)~The Gini coefficient of per-snarl work stays above $0.55$ across $20$--$1{,}000$ snarls (HPRC-calibrated synthetic graphs); real human graphs have $10^6$--$10^7$ snarls, so extrapolation beyond this range is uncertain. (b)~The heavy-tailed allele-count distribution that drives the skew.}
   \label{fig:workload}
 \end{figure}
 
