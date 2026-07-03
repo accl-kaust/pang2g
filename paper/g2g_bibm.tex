@@ -7,11 +7,16 @@
 %  provides the IEEE two-column geometry, Times fonts, section styling, and
 %  caption format, so NO geometry/titlesec/caption overrides are loaded.
 %
-%  CITATIONS TO VERIFY in refs.bib before submission:
-%    - cormode2020graphalign  (subgraph-isomorphism NP-hardness; prefer Garey&Johnson/Cook)
-%    - collins2017svfst       (gnomAD-SV is Collins et al. 2020, Nature)
-%    - li2024minigraph vs li2020minigraph (confirm both keys/claims)
-%    - hickey2023pangenome / garrison2023pangenome (confirm distinct, correct)
+%  refs.bib accompanies this file (assembled + flagged; verify volume/page/DOI
+%  against the primary sources before submission). Still open:
+%    - xu2025parsga      : fill the author list from the IPDPS-2025 paper
+%    - li2024minigraph   : no clear "Li 2024 minigraph" paper; the ancestry-
+%                          specific-pangenome claim fits the Chinese Pangenome
+%                          Consortium (Gao et al. 2023) -- confirm or replace
+%    - collins2017svfst  : key reads 2017 but the entry is the correct Collins
+%                          et al. 2020 gnomAD-SV (Nature); rename the key if desired
+%  Resolved: cormode2020graphalign -> garey1979computers (subgraph-iso hardness);
+%            hickey2023pangenome = Minigraph-Cactus, garrison2023pangenome = seqwish.
 %  Remove the \PH{} / \TBD placeholders (red text) before submission.
 %==============================================================================
 \documentclass[conference]{IEEEtran}
@@ -148,7 +153,7 @@ alignment~\cite{rautiainen2020graphaligner,siren2021giraffe,kim2019hisat2}, but
 graph-to-graph alignment at the variation level remains open. In practice,
 comparing two pangenomes still means projecting both onto a common linear
 reference and comparing the projections---which reintroduces the very reference
-bias pangenomes exist to eliminate.
+bias pangenomes exist to eliminate~\cite{eizenga2020pangenome,hprc2023}.
 
 \begin{figure}[t]
   \centering
@@ -162,7 +167,7 @@ bias pangenomes exist to eliminate.
 
 There is a good reason the problem has been avoided: in full generality,
 graph-to-graph alignment contains subgraph isomorphism and is therefore
-NP-hard~\cite{cormode2020graphalign}. Our key observation is that variation
+NP-hard~\cite{garey1979computers}. Our key observation is that variation
 graphs are not arbitrary graphs. They decompose into a hierarchy of
 \emph{snarls}---the generalised bubbles of Paten et
 al.~\cite{paten2018superbubbles}---and this snarl tree has bounded tree-width
@@ -201,7 +206,7 @@ matching, and an OpenMP work-stealing runtime, validated against a Python oracle
 (all runnable unit tests pass---156 in the suite, with nine that require external
 tools such as \textsc{vg} and minimap2 skipped) (\S\ref{sec:system}).
 \item \textbf{Evaluation on synthetic and real pangenomes,} including a
-reference-anchored diff that scales near-linearly to chromosome size, and real
+reference-anchored diff that scales near-linearly past whole-genome size, and real
 African vs.\ East Asian (1000 Genomes) population graphs whose delta is
 significantly enriched near gnomAD-SV and ClinVar pathogenic sites
 ($p<10^{-3}$), demonstrating the delta lands on real structural and clinical
@@ -247,10 +252,12 @@ base-pair variation resolution. PanGraph builds and compares bacterial
 pangenome graphs at the level of homologous gene
 blocks~\cite{noll2023pangraph}; Sibelia finds synteny blocks among microbial
 genomes~\cite{minkin2013sibelia}; SplitMEM relates pangenome representations via
-suffix structures~\cite{marcus2014splitmem}. These operate on
-synteny/gene-block granularity, not on the individual alleles of a variation
-graph, and they are not designed for the $10^7$-node human-scale graphs we
-target. \textsc{G2G} is, to our knowledge, the first to align variation graphs
+suffix structures~\cite{marcus2014splitmem}. At the population level, comparative pangenomics has so far been limited to
+summary statistics such as gene-frequency spectra and openness
+estimates~\cite{hyun2022pangenomics}; no method operates directly on
+variation-graph topology. These tools operate on synteny/gene-block
+granularity, not on the individual alleles of a variation graph, and they are
+not designed for the $10^7$-node human-scale graphs we target. \textsc{G2G} is, to our knowledge, the first to align variation graphs
 to each other allele by allele (Table~\ref{tab:positioning}).
 
 \begin{table}[t]
@@ -295,24 +302,14 @@ assignment problem~\cite{kuhn1955hungarian}.
 \section{Problem Formulation}
 \label{sec:problem}
 %==============================================================================
-We first fix definitions, then state the hardness/tractability result that the
-whole system rests on.
-
-\begin{definition}[Variation graph]
-A \emph{variation graph} is a tuple $G=(V,E,\sigma)$ where $V$ is a set of
-nodes, $E\subseteq V\times V$ is a set of directed edges, and
-$\sigma:V\to\{A,C,G,T\}^{*}$ labels each node with a DNA string. A path
-$p=(v_1,\dots,v_k)$ spells $\sigma(v_1)\cdots\sigma(v_k)$. Each haplotype is a
-path through $G$.
-\end{definition}
-
-\begin{definition}[Snarl and snarl tree]
-A \emph{snarl} is a pair $(s,t)\in V\times V$ such that every path from $s$ to
-$t$ stays within a subgraph $S\subseteq G$ that is separated from the rest of
-$G$ by $\{s,t\}$~\cite{paten2018superbubbles}. The \emph{alleles} of the snarl
-are the distinct $s\!\to\!t$ paths. The inclusion hierarchy of all snarls is the
-\emph{snarl tree} $T(G)$.
-\end{definition}
+A \emph{variation graph} $G=(V,E,\sigma)$ consists of a node set $V$, directed
+edges $E\subseteq V\times V$, and a labelling $\sigma:V\to\{A,C,G,T\}^{*}$ that
+assigns each node a DNA string; each haplotype is a source-to-sink path through
+$G$. Sites of variation appear as \emph{snarls}---minimal subgraphs separated
+from the rest of $G$ by a pair of boundary
+nodes~\cite{paten2018superbubbles}---whose distinct traversals are the
+\emph{alleles}. Snarls nest, forming a \emph{snarl tree} $T(G)$
+(Fig.~\ref{fig:snarltree}).
 
 \begin{figure}[t]
   \centering
@@ -324,12 +321,22 @@ are the distinct $s\!\to\!t$ paths. The inclusion hierarchy of all snarls is the
   \label{fig:snarltree}
 \end{figure}
 
-\begin{definition}[Graph-to-graph alignment]
-Given $G_A=(V_A,E_A,\sigma_A)$ and $G_B=(V_B,E_B,\sigma_B)$, an alignment is a
-triple $\mathcal{A}=(M_v,M_e,M_s)$ where $M_v\subseteq V_A\times V_B$ is a
-partial injective node correspondence, $M_e\subseteq E_A\times E_B$ is an edge
-correspondence consistent with $M_v$, and $M_s$ pairs homologous snarls. Its
-score decomposes into sequence, topology, and structural terms,
+Given two variation graphs $G_A$ and $G_B$, a \emph{graph-to-graph alignment}
+establishes a node correspondence, an edge correspondence, and a snarl pairing.
+In general, graph-to-graph alignment contains subgraph isomorphism and is
+therefore NP-hard~\cite{garey1979computers}. The key observation is that
+variation graphs are not arbitrary graphs: the snarl-tree decomposition breaks
+each graph into small, independent subproblems whose allele counts $k$ are
+bounded in practice~\cite{paten2018superbubbles}, yielding an
+$O(|T_A|\cdot|T_B|\cdot k^{3})$ algorithm.
+
+%==============================================================================
+\section{The G2G Algorithm}
+\label{sec:algo}
+%==============================================================================
+
+\noindent\textbf{Scoring.}
+The alignment score decomposes into sequence, topology, and structural terms,
 \begin{align}
 W(\mathcal{A}) \;=\;
 &\;\alpha\!\!\sum_{(u,v)\in M_v}\!\!\mathrm{sim}\big(\sigma_A(u),\sigma_B(v)\big)
@@ -337,31 +344,11 @@ W(\mathcal{A}) \;=\;
 &\;+\;\gamma\!\!\sum_{(S,S')\in M_s}\!\!\mathrm{SimBubble}(S,S'),
 \label{eq:score}
 \end{align}
-where $\mathrm{sim}(\cdot,\cdot)=1-\mathrm{edit}/\max(|\cdot|,|\cdot|)$ is
-normalised sequence similarity and $\alpha,\beta,\gamma$ weight the three terms.
-\end{definition}
-
-The three terms are exactly the components \textsc{G2G} computes: $W_{\text{seq}}$
-(boundary-node similarity), $W_{\text{topo}}$ (structural-class consistency), and
-$W_{\text{struct}}$ (allele bipartite-matching score within paired snarls).
-
-\begin{theorem}[Hardness and tractability]
-\label{thm:main}
-Graph-to-graph alignment maximising \eqref{eq:score} is NP-hard for general
-graphs (by reduction from subgraph isomorphism). Restricted to variation graphs
-with snarl-tree decompositions $T_A,T_B$, the optimal alignment can be computed
-in time $O(|T_A|\cdot|T_B|\cdot k^{3})$, where $k$ is the maximum number of
-alleles per snarl.
-\end{theorem}
-
-\noindent\textit{Proof sketch.}
-For hardness, encode a subgraph-isomorphism instance by setting every node label
-to a common string so that $W_{\text{seq}}$ is constant; a zero-gap topology
-match then exists iff the pattern embeds in the host. For the upper bound,
-define $\mathrm{OPT}(S_A,S_B)$ as the best alignment score of the subgraphs
-rooted at snarls $S_A\in T_A$, $S_B\in T_B$. Because sibling snarls are separated
-by their boundary nodes, their subproblems are independent, giving the bottom-up
-recurrence
+where $M_v$, $M_e$, $M_s$ are the node, edge, and snarl correspondences,
+$\mathrm{sim}(\cdot,\cdot)=1-\mathrm{edit}/\max(|\cdot|,|\cdot|)$ is
+normalised sequence similarity, and $\alpha,\beta,\gamma$ weight the three
+terms. Because sibling snarls are separated by their boundary nodes, their
+subproblems are independent, giving the bottom-up recurrence
 \begin{equation}
 \begin{aligned}
 \mathrm{OPT}(S_A,S_B)=\;&W_{\text{seq}}(S_A,S_B)+W_{\text{topo}}(S_A,S_B)\\
@@ -370,24 +357,11 @@ recurrence
 \label{eq:dp}
 \end{equation}
 where $\mu$ ranges over matchings of the child snarls and the leaf case is a
-weighted bipartite matching over the alleles. There are $|T_A|\cdot|T_B|$
-snarl-pair states; each is solved by an assignment problem of size $k$ in
-$O(k^3)$ via Jonker--Volgenant~\cite{jonker1987shortest}, giving the stated
-bound. Bounded tree-width of real variation
-graphs~\cite{paten2018superbubbles,robertson1986graph} keeps $k$ small in
-practice. \hfill$\square$
+weighted bipartite matching over the alleles, solved in $O(k^3)$ via
+Jonker--Volgenant~\cite{jonker1987shortest}.
 
 \smallskip
-Theorem~\ref{thm:main} is the load-bearing result: it is \emph{why} a problem
-that looks intractable becomes a parallel sweep of small, independent matching
-problems---exactly the structure the system in \S\ref{sec:system} exploits.
-\PH{A fully formal proof, including the exactness of the windowed sink finder on
-variation-graph DAGs, is deferred to an extended version.}
-
-%==============================================================================
-\section{The G2G Algorithm}
-\label{sec:algo}
-%==============================================================================
+\noindent\textbf{Pipeline overview.}
 At a high level (Fig.~\ref{fig:pipeline}) \textsc{G2G} runs five stages:
 (1)~detect \emph{anchors}---backbone nodes shared by both graphs---to pin the
 two coordinate systems together; (2)~decompose each graph into its snarl tree;
@@ -584,9 +558,9 @@ realised in \S\ref{sec:system}.
 \label{sec:system}
 %==============================================================================
 \textsc{G2G} is implemented in C++20 (performance path) with a Python reference
-prototype as a correctness oracle; the C++ engine passes 146 of 155 unit tests
-against the oracle (the remaining 9 require external tools---\textsc{vg},
-minimap2---and are skipped). Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1
+prototype as a correctness oracle; the C++ engine passes every runnable unit test
+(156 in the suite; the nine that require external tools---\textsc{vg},
+minimap2---are skipped). Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1
 W lines, with on-the-fly reverse complementing). The data model keeps all node
 sequences in a single flat byte array indexed by (offset, length), and adjacency
 in CSR form, so the DP kernel streams sequence data without pointer chasing.
@@ -630,9 +604,9 @@ courteous. Three design parameters are exposed and measured: task granularity
 (largest vs.\ random), and NUMA placement of per-task allele data. We initially
 prototyped the scheduler on Intel TBB~\cite{reinders2007tbb} and migrated to
 OpenMP~\cite{dagum1998openmp} for vendor portability; the task DAG, priority
-function, and steal-largest semantics are unchanged, and the parallel result
-agrees with the sequential aligner to within $10^{-3}$ relative error (float
-reduction order aside).
+function, and steal-largest semantics are unchanged, and the parallel delta output
+is byte-identical to the sequential aligner's (the global score agrees to within
+$10^{-3}$, float-reduction order aside).
 
 \subsection{Exact matching and anchor index}
 The matching solver is a self-contained Jonker--Volgenant
@@ -657,10 +631,8 @@ Our evaluation answers four questions. \textbf{Q1:} is \textsc{G2G} correct?
 \textbf{Q2:} is it fast and does it scale? \textbf{Q3:} does each system-design
 choice matter? \textbf{Q4:} does it recover real biology? All runs are on a 128-core,
 512\,GB AMD EPYC node. Correctness, single-core scaling, parallel scaling, the
-system ablations, and the chromosome-22 enrichment run are
-complete; the full linearise-and-map throughput baseline and the genome-wide
-extension of the biological run are staged, and we mark the corresponding figures
-accordingly.
+throughput comparison, the system ablations, and the chromosome-22 enrichment run
+are complete; only the genome-wide extension of the biological run is staged.
 
 \subsection{Q1: Correctness}
 We generate graph pairs with \emph{planted} variants---shared, $A$-only, and
@@ -675,11 +647,10 @@ alignments~\cite{li2018minimap2}. These tests run in continuous integration and
 gate every build.
 
 \subsection{Q2: Throughput and scaling}
-We sweep graph size from $10^3$ snarls to chromosome scale
-($\sim$$10^6$ snarls, $\sim$$3{\times}10^7$ nodes; HPRC-realistic) and compare
-sequential \textsc{G2G}, parallel \textsc{G2G}, and a linearise-and-map baseline
-(extract haplotypes, run minimap2/vg/GraphAligner). Because the sequential and parallel
-modes now share the same $O(n)$ boundary-hash snarl pairing, the speedup
+We measure parallel scaling, single-core scaling past whole-genome size, and
+throughput against a linearise-and-map baseline that extracts each graph's
+haplotypes and maps them to the reference with minimap2~\cite{li2018minimap2}. Because the sequential and parallel
+modes share the same $O(n)$ boundary-hash snarl pairing, the speedup
 attributable to \emph{parallelism} is measured purely by thread scaling---not
 conflated with an algorithmic change. On a $25{,}608$-pair workload the
 parallelisable per-snarl DP scales as $2.0\times$, $4.0\times$, $7.9\times$,
@@ -691,28 +662,37 @@ $2.65\times$: the ${\sim}7.8$\,s single-thread set-up (parsing, index build,
 decomposition) is serial and bounds the $20.6$\,s run regardless of thread count
 (Amdahl). The end-to-end curve therefore approaches the DP-phase curve only as
 snarls carry structural-variant-scale alleles and the DP comes to dominate. We
-report both, and the harness confirms the parallel result is byte-identical to
-the sequential one at every thread count.
-Fig.~\ref{fig:throughput} (preliminary) sketches the expected divergence:
-\textsc{G2G}'s cost grows with the number of snarls, whereas the
-linearise-and-map baselines blow up combinatorially because the number of
-haplotype paths grows with panel size. A second sweep fixes the graph and grows
-the haplotype panel $h\in\{2,\dots,300\}$; \textsc{G2G} is by construction flat
-in $h$ (it aligns the graph, not the paths) while linearisation grows at least
-linearly. Fig.~\ref{fig:scaling} reports the parallel-scaling story: at large graph sizes
-the parallelisable per-snarl DP dominates and end-to-end speedup approaches the
-DP-phase curve, whereas at small sizes sequential set-up (parsing, index build,
-decomposition) dominates and Amdahl's law caps end-to-end speedup---an honest
-distinction we make explicit by reporting both curves.
+report both curves (Fig.~\ref{fig:scaling}), and the harness confirms the parallel
+result is byte-identical to the sequential one at every thread count.
+Fig.~\ref{fig:throughput} reports the measured comparison on real chromosome-22
+pangenomes (1000 Genomes), sweeping the per-population panel size $h$ and timing
+\textsc{G2G}'s entire diff against the dominant cost of linearise-and-map---
+extracting each population's $h$ haplotypes and aligning them to the reference
+with minimap2, \emph{before} any variant calling. Two regimes emerge.
+\textsc{G2G}'s cost is dominated by graph \emph{size}: even at $h{=}2$ the graph
+already carries the full ${\sim}51$\,Mb chromosome backbone
+(${\approx}3.6{\times}10^6$ nodes), and adding haplotypes only saturates the
+shared variation, so its time grows sublinearly---from $18.3$\,s at $h{=}2$ to
+$54.1$\,s at $h{=}200$, a $3\times$ rise for a $100\times$ larger panel. The
+baseline is linear in $h$ ($7.9$\,s to $684$\,s over the same range): every
+haplotype is a separate sequence to materialise and align. The curves cross near
+$h{\approx}10$, beyond which \textsc{G2G} pulls away---$6.9\times$ faster at
+$h{=}100$ and $12.7\times$ at $h{=}200$, the gap still widening---and it does so
+\emph{single-threaded}, against a multi-threaded minimap2. The crossover is the point: \textsc{G2G} wins
+precisely in the many-haplotype regime that pangenomes exist for, because a
+variation graph compresses $h$ haplotypes into a structure whose size saturates,
+and \textsc{G2G} aligns that compressed form directly instead of expanding it back
+to $h$ sequences.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_throughput.pdf}
-  \caption{\PH{Preliminary.} Throughput versus graph size. Measured points:
-  sequential \textsc{G2G} and 128-thread \textsc{G2G} at $10^3$ snarls; dashed
-  lines are projections pending the full sweep. Linearise-and-map baselines are
-  expected to exceed the timeout at moderate sizes because haplotype enumeration
-  scales with panel size.}
+  \caption{\textsc{G2G}'s whole graph-to-graph diff vs.\ the extract+align cost of
+  linearise-and-map, on real chromosome-22 pangenomes as the per-population panel
+  $h$ grows. \textsc{G2G} (single-threaded) is sublinear in $h$ ($18.3{\to}54.1$\,s
+  over $h{=}2{\to}200$); the baseline is linear ($7.9{\to}684$\,s). They cross near
+  $h{\approx}10$; by $h{=}200$ \textsc{G2G} is $12.7\times$ faster, the gap still
+  widening.}
   \label{fig:throughput}
 \end{figure}
 
@@ -867,7 +847,7 @@ gnomAD-SV~\cite{collins2017svfst} structural variants and to
 ClinVar~\cite{landrum2018clinvar} pathogenic sites. They do: delta alleles are
 enriched $1.46\times$ near gnomAD-SVs ($919$ observed vs.\ $628$ expected;
 $p<10^{-3}$, exceeding all $1000$ permutations) and $1.61\times$ near pathogenic
-sites ($p<10^{-3}$). \textsc{G2G}'s graph-to-graph delta is therefore far from
+sites ($p<10^{-3}$; Fig.~\ref{fig:biology}). \textsc{G2G}'s graph-to-graph delta is therefore far from
 random; it concentrates in structural-variation and clinically relevant regions.
 
 We then asked whether this enrichment is \emph{specific} to
@@ -922,7 +902,7 @@ would require.
 %==============================================================================
 \textbf{Why these choices.} Every major decision in \textsc{G2G} traces to a
 measured property of the workload. Snarl-tree factorisation is what makes an
-NP-hard problem tractable (Theorem~\ref{thm:main}); LAPJV replaces brute force
+NP-hard problem tractable (\S\ref{sec:problem}); LAPJV replaces brute force
 because matching cost explodes with $k$ (Finding~1); work stealing replaces
 static partitioning because per-snarl work is heavy-tailed and scale-invariant
 (Finding~2)---an argument the static-partition ablation now confirms directly
@@ -962,14 +942,14 @@ by direct profiling of the workload. \textsc{G2G} computes, for the first time,
 the population-specific delta graph between two pangenomes directly, without
 routing through a linear reference. The reference-anchored diff is exact and
 near-linear to an 8-Gbp pair on one core; the work-stealing engine scales the
-per-snarl DP to $52.6\times$ on 128 threads; ablations confirm every design
-choice earns its place; and on real African vs.\ East Asian pangenomes the delta
-graph is significantly enriched near structural variants and pathogenic sites
-($p<10^{-3}$). \PH{The full linearise-and-map throughput
-comparison and the genome-wide biological run are the remaining camera-ready
-items.} We believe graph-to-graph alignment is a
-foundational primitive for the pangenome era, and \textsc{G2G} is a first step
-toward it.
+per-snarl DP to $52.6\times$ on 128 threads; against a linearise-and-map baseline
+\textsc{G2G} pulls ahead from $h{\approx}10$ haplotypes to $12.7\times$ at
+$h{=}200$; ablations confirm every design choice earns its place; and on real
+African vs.\ East Asian pangenomes the delta graph is significantly enriched near
+structural variants and pathogenic sites ($p<10^{-3}$). \PH{Extending the
+biological run genome-wide is the remaining camera-ready item.} We believe
+graph-to-graph alignment is a foundational primitive for the pangenome era, and
+\textsc{G2G} is a first step toward it.
 
 %==============================================================================
 \section*{Acknowledgment}

@@ -275,7 +275,7 @@ def fig_throughput(path, csv=None):
         ax.set_ylim(bottom=0)
         ax.legend(loc="upper left"); ax.grid(True, ls=":", alpha=0.4)
         if base[-1] > 0 and g2g[-1] > 0 and np.isfinite(base[-1]) and np.isfinite(g2g[-1]):
-            ax.annotate(f"{base[-1]/g2g[-1]:.0f}$\\times$ at $h$={int(h[-1])}",
+            ax.annotate(f"{base[-1]/g2g[-1]:.1f}$\\times$ at $h$={int(h[-1])}",
                         (h[-1], base[-1]), ha="right", va="top", fontsize=7, color=RED)
         fig.savefig(path); plt.close(fig)
     else:
@@ -378,7 +378,7 @@ def fig_biology(path, csv=None):
         import csv as _csv
         def _short(cat):
             c = cat.lower()
-            if "f_st" in c or "fst" in c or "gnomad" in c: return "high-$F_{ST}$\ngnomAD-SV"
+            if "f_st" in c or "fst" in c or "gnomad" in c: return "gnomAD-SV\nstructural"
             if "clinvar" in c: return "ClinVar\npathogenic"
             return cat
         cats, folds, ps = [], [], []
@@ -396,7 +396,7 @@ def fig_biology(path, csv=None):
         ax.axhline(1, ls="--", color=GREY, lw=0.9, label="null (no enrichment)")
         ax.set_xticks(x); ax.set_xticklabels(cats, fontsize=7.5)
         ax.set_ylabel("fold enrichment (obs / permuted)")
-        ax.set_title("Population-differentiation enrichment")
+        ax.set_title("Enrichment near SV & clinical sites")
         top = max(folds + [1.0])
         ax.set_ylim(0, top * 1.42)   # headroom for the 2-line fold/p annotations
         for xi, fo, p in zip(x, folds, ps):
@@ -415,8 +415,9 @@ def fig_biology(path, csv=None):
 
 def fig_fst_sweep(path, csv=None):
     """csv = hprc_enrich.py --fst-sweep TSV (fst_threshold,n_high,observed,
-    expected,fold,p). Dose-response: enrichment vs. F_ST threshold; a rising
-    curve is direct evidence the signal is population differentiation."""
+    expected,fold,p). Dose-response: enrichment vs. F_ST threshold. A flat curve
+    (the observed result) means the signal is co-localization with structural
+    variation in general, not preference for population-differentiated SVs."""
     if not (csv and os.path.exists(csv)):
         return
     t, fold, p = _read_cols(csv, "fst_threshold", "fold", "p")

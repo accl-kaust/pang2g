@@ -4,11 +4,14 @@
 
 ## Building
 
-Needs the standard IEEE LaTeX toolchain plus two local inputs that are **not**
-committed here:
+`refs.bib` is committed alongside this file, but it was assembled from knowledge
+and **must be verified** before submission — confirm volume/page/DOI against the
+primary sources, and resolve the entries marked `% VERIFY` (notably
+`xu2025parsga`'s author list and `li2024minigraph`). If you maintain your own
+bibliography, reconcile against it.
 
-- `refs.bib` — the bibliography (keep your existing one alongside this file).
-- `figs/*.pdf` — regenerate from the demo result TSVs:
+The figures are **not** committed — regenerate `figs/*.pdf` from the demo result
+TSVs:
 
   ```bash
   python3 ../demo/make_figures.py \
