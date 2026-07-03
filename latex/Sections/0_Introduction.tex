@@ -16,7 +16,7 @@ We turn this observation into G2G, which has two operating modes. The \emph{para
 
 \paragraph{Contributions.}
 \begin{itemize}
-    \item \textbf{A new problem and a working system.} We define base-pair-resolution graph-to-graph alignment for variation graphs and present \textsc{G2G}, the first system to solve it. The delta graph it outputs is the graph-level analogue of a VCF: every allele present in one population graph but absent from the other.
+    \item \textbf{A new problem and a working system.} The need for graph-to-graph comparison has been recognised by the pangenome community, which has proposed a format for it (PGVF~\cite{pgvfspec}), but no working aligner implements it. We present \textsc{G2G}, the first system that computes base-pair-resolution graph-to-graph alignments of variation graphs. The delta graph it outputs is the graph-level analogue of a VCF: every allele present in one population graph but absent from the other.
     
     \item \textbf{A workload characterisation that drives the design.} Using the reference prototype we measure where time and memory go and show per-snarl work is heavy-tailed (Gini $>0.55$) and scale-invariant, motivating work stealing over static partitioning.
     
