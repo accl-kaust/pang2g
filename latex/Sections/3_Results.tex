@@ -7,9 +7,9 @@ All experiments use depth-1 snarls (simple SNP/indel bubbles with no nested chil
 We generate graph pairs with planted variants: shared, $A$-only, and $B$-only alleles at known positions. We check that the delta graphs recover them. Across planted graphs of 5-50 snarls, G2G attains $\ge 80\%$ recall and precision on both delta sets in the unit-test suite, the parallel and sequential aligners agree on the total score to within $10^{-3}$ relative error, and shared alleles never leak into a delta set. As an external check we enumerate haplotype-path pairs for small graphs and confirm that G2G's allele matches are consistent with minimap2 sequence alignments \cite{li2018minimap2}.
 
 \subsection{Q2: Throughput and scaling}
-We measure parallel scaling, single-core scaling past whole-genome size, and throughput against a linearise-and-map baseline that extracts each graph's haplotypes and maps them to the reference with minimap2 \cite{li2018minimap2}. Because the sequential and parallel modes share the same $O(n)$ boundary-hash snarl pairing, the speedup attributable to parallelism is measured purely by thread scaling. On a $25{,}608$-pair workload the parallelisable per-snarl DP scales as $2.0\times$, $4.0\times$, $7.9\times$, $15.4\times$, $29.4\times$, $50.1\times$, $52.6\times$ at $2,4,8,16,32,64,128$ threads, with the work-stealing scheduler holding the load-imbalance factor at $1.00$-$1.01$ throughout (cf.\ the static-partition ablation. 
+We measure parallel scaling, single-core scaling past whole-genome size, and throughput against a linearise-and-map baseline that extracts each graph's haplotypes and maps them to the reference with minimap2 \cite{li2018minimap2}. Two ceilings bound the speedup and should be stated up front. First, end-to-end speedup saturates at $2.65\times$: the ${\sim}7.8$\,s serial set-up (parsing, index build, decomposition) dominates the $20.6$\,s single-thread run, so Amdahl's law caps the return from any number of threads. Second, the DP phase itself hits a scaling cliff above 64 threads: speedup goes $50.1\times$ at 64 threads to $52.6\times$ at 128, doubling the thread count for only ${\sim}5\%$ gain. On this workload the $25{,}608$ snarl pairs are mostly small SNP bubbles whose per-task $O(k^3)$ cost is microseconds; above 64 threads the remaining useful parallelism is exhausted and scheduling overhead dominates.
 
-End-to-end speedup, by contrast, saturates at $2.65\times$: the ${\sim}7.8$\,s single-thread set-up (parsing, index build, decomposition) is serial and bounds the $20.6$\,s run regardless of thread count (Amdahl). The end-to-end curve therefore approaches the DP-phase curve only as snarls carry structural-variant-scale alleles and the DP comes to dominate. We report both curves (Fig. \ref{fig:scaling}), and the harness confirms the parallel result is byte-identical to the sequential one at every thread count. 
+With those limits noted, the DP-phase scaling up to 64 threads is near-ideal: $2.0\times$, $4.0\times$, $7.9\times$, $15.4\times$, $29.4\times$, $50.1\times$ at $2,4,8,16,32,64$ threads, with the work-stealing scheduler holding the load-imbalance factor at $1.00$-$1.01$ throughout (cf.\ the static-partition ablation). The end-to-end curve approaches the DP-phase curve only as snarls carry structural-variant-scale alleles and the DP comes to dominate. We report both curves (Fig. \ref{fig:scaling}), and the harness confirms the parallel result is byte-identical to the sequential one at every thread count. 
 
 Fig. \ref{fig:throughput} reports the measured comparison on real chromosome-22 pangenomes (1000 Genomes), sweeping the per-population panel size $h$ and timing G2G's entire diff against the dominant cost of linearise-and-map, extracting each population's $h$ haplotypes and aligning them to the reference with minimap2, before any variant calling. Two regimes emerge. G2G's cost is dominated by graph size: even at $h{=}2$ the graph already carries the full ${\sim}51$\,Mb chromosome backbone (${\approx}3.6{\times}10^6$ nodes), and adding haplotypes only saturates the shared variation, so its time grows sublinearly, from $18.3$\,s at $h{=}2$ to $54.1$\,s at $h{=}200$, a $3\times$ rise for a $100\times$ larger panel. The baseline is linear in $h$ ($7.9$\,s to $684$\,s over the same range): every haplotype is a separate sequence to align. The curves cross near $h{\approx}10$, beyond which G2G pulls away, $6.9\times$ faster at $h{=}100$ and $12.7\times$ at $h{=}200$, the gap still widening, and it does so single-threaded, against a multi-threaded minimap2. 
 
@@ -30,11 +30,12 @@ The crossover is the point: G2G wins precisely in the many-haplotype regime that
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_scaling.pdf}
-  \caption{Parallel scaling to 128 threads. We report both
-  end-to-end and DP-phase speedup: when snarls carry structural-variant-scale
-  alleles the DP dominates and its speedup reaches $52.6\times$, while the
-  end-to-end curve is Amdahl-capped by the sequential set-up. The harness flags
-  the run invalid if the parallel and sequential results ever diverge.}
+  \caption{Parallel scaling to 128 threads. The DP phase scales near-ideally to
+  64 threads ($50.1\times$) but hits a cliff at 128 ($52.6\times$, only
+  ${\sim}5\%$ gain from $2\times$ threads) as task-level parallelism is exhausted
+  on this SNP-dominated workload. End-to-end speedup saturates at $2.65\times$
+  (Amdahl-bound by the ${\sim}7.8$\,s serial set-up). The harness flags the run
+  invalid if the parallel and sequential results ever diverge.}
   \label{fig:scaling}
 \end{figure}
 
