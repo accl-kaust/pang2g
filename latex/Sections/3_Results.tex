@@ -91,14 +91,16 @@ reference-anchored pairs from $8{\times}10^6$ to $8.2{\times}10^9$\,bp in which 
 \end{figure}
 
 \subsection{Q3: Ablations}
-We disable each design choice in isolation and time the phase it affects at two matched workloads: a control where the choice should be inert (a balanced or L3-resident graph) and a treatment where it should bite (a skewed, heavy-tailed, or large-$k$ graph). Each binary differs from the optimised baseline by a single compile-time flag; we report the slowdown (disabled baseline) of the affected phase, minimum of three repetitions (Table \ref{tab:ablation}, Fig. \ref{fig:ablation}). The pattern is the one the design predicts. Exact LAPJV matching and the minimiser anchor index are the load-bearing choices: removing them inflates their phase by $70\times$ and $1728\times$ at treatment scale, brute-force matching becomes infeasible as $k$ grows (Finding 1) and the naive $O(|V_A||V_B|)$ anchor scan dominates on large graphs, while the matched control stays at $1.0\times$. The two scheduler ablations isolate parallelism from policy: replacing priority dispatch with a static cyclic task partition costs $1.91\times$ on a skewed workload (one thread is left holding the heavy snarls) yet $1.00\times$ on a balanced one, direct confirmation of Finding 2, and downgrading largest-first to FIFO dispatch costs a further $1.20\times$ once per-snarl work exceeds scheduling overhead. The van Emde Boas layout reads ${\approx}1.0\times$ throughout: it is a genuine null on the current depth-1 snarls, whose subtrees fit a cache line either way, and bites only on the nested snarls a vg backend supplies. Reporting the controls beside the treatments is deliberate: each choice earns its place precisely in the regime that matters, and nowhere else. Crucially, every ablated binary returns a delta graph byte-identical to the baseline, so these are performance ablations with accuracy held fixed.
+We disable each design choice in isolation and time the phase it affects at two matched workloads: a control where the choice should be inert (a balanced or L3-resident graph) and a treatment where it should bite (a skewed, heavy-tailed, or large-$k$ graph). Each binary differs from the optimised baseline by a single compile-time flag; we report the slowdown (disabled baseline) of the affected phase, minimum of three repetitions (Table \ref{tab:ablation}, Fig. \ref{fig:ablation}). The pattern is the one the design predicts. Exact LAPJV matching and the minimiser anchor index are the load-bearing choices: removing them inflates their phase by $70\times$ and $1728\times$ at treatment scale, brute-force matching becomes infeasible as $k$ grows (Finding 1) and the naive $O(|V_A||V_B|)$ anchor scan dominates on large graphs, while the matched control stays at $1.0\times$. The two scheduler ablations isolate parallelism from policy: replacing priority dispatch with a static cyclic task partition costs $1.91\times$ on a skewed workload (one thread is left holding the heavy snarls) yet $1.00\times$ on a balanced one, direct confirmation of Finding 2, and downgrading largest-first to FIFO dispatch costs a further $1.20\times$ once per-snarl work exceeds scheduling overhead. The two controls that deviate from $1.0\times$ are informative: largest-first $\to$ FIFO at $0.90\times$ shows that priority-queue sorting costs ${\sim}10\%$ when the workload is balanced (no heavy snarls to prioritise), and vEB $\to$ BFS at $0.95\times$ shows that the indirection overhead of the cache-oblivious layout is not fully recouped on depth-1 snarls whose subtrees fit a cache line either way. Both features pay for themselves on the treatment workload ($1.20\times$ and $1.01\times$ respectively), but their overhead on balanced inputs is real, not negligible. Reporting the controls beside the treatments is deliberate: each choice earns its place in the regime that matters, and two carry a measurable cost where they do not. Every ablated binary returns a delta graph byte-identical to the baseline; since the baseline itself is approximate ($\ge 80\%$ recall due to greedy snarl pairing, Q1), these are performance ablations with accuracy held fixed at the baseline level, not at ground truth.
 
 \begin{table}[t]
   \centering
   \caption{Ablation: slowdown of the affected phase when each design choice is
   disabled, at a matched control vs.\ treatment workload (min.\ of three runs).
-  Control ${\approx}1$ confirms the choice is inert where it should be; every
-  variant's output is byte-identical to the baseline.}
+  Controls at $1.0\times$ confirm inertness; the two deviations ($0.90\times$,
+  $0.95\times$) reflect measurable overhead of the feature itself on balanced
+  workloads (priority-queue sorting, vEB indirection). Every variant's output is
+  byte-identical to the baseline.}
   \label{tab:ablation}
   \footnotesize
   \begin{tabular}{llrr}
@@ -122,7 +124,8 @@ We disable each design choice in isolation and time the phase it affects at two 
   minimiser index are load-bearing ($70\times$, $1728\times$); the two scheduler
   ablations separate parallelism (static partition, $1.9\times$) from policy
   (FIFO dispatch, $1.2\times$); the vEB layout is a measured null on depth-1 snarls.
-  Controls sit at ${\approx}1\times$ throughout.}
+  Three controls sit at $1.0\times$; two deviate ($0.90\times$, $0.95\times$),
+  reflecting feature overhead on balanced workloads.}
   \label{fig:ablation}
 \end{figure}
 
