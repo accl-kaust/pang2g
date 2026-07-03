@@ -1,6 +1,8 @@
 \section{Results}
 \label{sec:eval}
 
+All experiments use depth-1 snarls (simple SNP/indel bubbles with no nested children); see the scoping note in \S\ref{sec:algo}. The nested recurrence and vEB layout are implemented but not exercised at depth ${>}\,1$ in this evaluation.
+
 \subsection{Q1: Validation}
 We generate graph pairs with planted variants: shared, $A$-only, and $B$-only alleles at known positions. We check that the delta graphs recover them. Across planted graphs of 5-50 snarls, G2G attains $\ge 80\%$ recall and precision on both delta sets in the unit-test suite, the parallel and sequential aligners agree on the total score to within $10^{-3}$ relative error, and shared alleles never leak into a delta set. As an external check we enumerate haplotype-path pairs for small graphs and confirm that G2G's allele matches are consistent with minimap2 sequence alignments \cite{li2018minimap2}.
 

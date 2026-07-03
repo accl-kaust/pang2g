@@ -3,7 +3,7 @@
 \subsection{The Algorithm}
 \label{sec:algo}
 
-At a high level G2G runs five stages  (Fig. \ref{fig:pipeline}): 
+At a high level G2G runs five stages  (Fig. \ref{fig:pipeline}):
 \begin{enumerate}
     \item Detect anchors, backbone nodes shared by both graphs, to pin the two coordinate systems together.
     \item Decompose each graph into its snarl tree.
@@ -11,6 +11,9 @@ At a high level G2G runs five stages  (Fig. \ref{fig:pipeline}):
     \item Run the per-snarl-pair dynamic program, whose leaf operation is allele matching.
     \item Emit the delta graphs $\Delta_{A\to B}$ and $\Delta_{B\to A}$ together with a shared graph and a global score.
 \end{enumerate}
+
+\noindent\textbf{Scope of the current evaluation.}
+The formulation and system support the general nested recurrence~\eqref{eq:dp}, but the graphs we evaluate on (GFA files from \texttt{vg~construct} and synthetic generators) contain only depth-1 snarls: simple SNP and indel bubbles with no nested children. Consequently, the nested recurrence, the van~Emde~Boas post-order layout, and the DAG task dependencies are exercised only at depth~1, where they reduce to independent per-snarl-pair assignments. We retain them in the design and implementation because they are required for the nested snarls that a full Minigraph-Cactus backend supplies, but ablations and scaling numbers in~\S\ref{sec:eval} should be read with this depth-1 scope in mind.
 
 The alignment score decomposes into sequence, topology, and structural terms,
 \begin{align}
@@ -79,7 +82,7 @@ case is obtained by replacing line~\ref{line:leaf} with the recurrence of
 \end{algorithm}
 
 \paragraph{Depth-1 specialisation vs.\ the general recurrence.}
-The majority of snarls are SNP and short-indel bubbles with no nested children. Algorithm \ref{alg:g2g} is a simplified version of \eqref{eq:dp} for that case, each snarl pair is an independent leaf solved once by an $O(k^3)$ assignment (line \ref{line:leaf}), and it is the form we evaluate. The general nested case follows directly: process the two snarl trees in van Emde Boas post-order so that children are scored before parents, and replace the leaf solve with the full recurrence of \eqref{eq:dp}, whose child-matching term $\max_\mu\sum \mathrm{OPT}(c,c')$ is itself an assignment problem whose costs are the children's $\mathrm{OPT}$ values. The post-order layout (line 3) and the work-stealing scheduler are designed for this nested traversal.
+Algorithm \ref{alg:g2g} is the depth-1 specialisation of \eqref{eq:dp}: each snarl pair is an independent leaf solved once by an $O(k^3)$ assignment (line \ref{line:leaf}). This is the form exercised by all experiments in \S\ref{sec:eval}. The general nested case follows directly: process the two snarl trees in van Emde Boas post-order so that children are scored before parents, and replace the leaf solve with the full recurrence of \eqref{eq:dp}, whose child-matching term $\max_\mu\sum \mathrm{OPT}(c,c')$ is itself an assignment problem whose costs are the children's $\mathrm{OPT}$ values. The post-order layout (line 3) and the work-stealing scheduler are designed for this nested traversal; at depth~1 the layout is inert (confirmed by the vEB ablation, Table~\ref{tab:ablation}).
 
 \subsubsection{Anchor detection}
 Anchors are backbone nodes (in- and out-degree $\le 1$) whose sequences are near-identical across the two graphs; they set a common fixed frame so that everything else is interpreted relative to them. A naive all-pairs scan is $O(|V_A|\cdot|V_B|)$, which at human scale ($|V|\sim10^7$) is $\sim10^{14}$ comparisons, infeasible. G2G instead builds a minimiser index \cite{roberts2004minimizers,li2018minimap2} over one graph's backbone: candidate anchor pairs are nodes sharing at least one minimiser, refined by a full similarity check and resolved greedily best-first. G2G keeps the naive path for small graphs (where its lower constant factors win) and switches to the index above a threshold, so correctness is identical and only the constant changes.
