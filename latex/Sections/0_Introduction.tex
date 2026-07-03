@@ -17,5 +17,5 @@ We turn this observation into G2G, which has two operating modes. The \emph{para
 
     \item \textbf{A reference-anchored diff (complementary mode).} When both graphs embed a common reference, coordinate matching replaces greedy pairing, yielding an exact, single-threaded diff that scales near-linearly to an 8-Gbp pair with 100\% precision and recall on planted variants.
 
-    \item \textbf{Biological validation (reference-anchored mode).} On real African vs.\ East Asian (1000 Genomes) chromosome-22 pangenomes the delta is significantly enriched near gnomAD-SV and ClinVar pathogenic sites ($p<10^{-3}$), demonstrating it lands on real structural and clinical variation.
+    \item \textbf{Biological validation (reference-anchored mode).} On real African vs.\ East Asian (1000 Genomes) chromosome-22 pangenomes the delta's population-specific small variants cluster significantly near gnomAD-SV breakpoints and ClinVar pathogenic sites ($p<10^{-3}$). The input panel is SNV/indel-dominated by construction, so this demonstrates co-localisation with known variant-rich loci, not direct SV detection.
 \end{itemize}
