@@ -34,8 +34,8 @@ Because sibling snarls are separated by their boundary nodes, their subproblems 
   \caption{The \textsc{G2G} pipeline. Two GFA pangenome graphs are anchored by a
   minimiser index, decomposed into snarl trees, and aligned by a
   priority-dispatch runtime that solves one bipartite allele-matching subproblem per
-  snarl pair. Outputs are the population-specific delta graphs (the graph-level
-  analogue of a VCF), a shared graph, and a global similarity score.}
+  snarl pair. Outputs are the per-graph delta graphs (the graph-level
+  analogue of a VCF: alleles present in one graph but absent from the other), a shared graph, and a global similarity score.}
   \label{fig:pipeline}
 \end{figure*}
 
@@ -91,7 +91,7 @@ then paired greedily in topological order: each snarl in $A$ takes its highest-s
 The structural term $W_{\text{struct}}$ is the heart of the score. Within a paired snarl, each allele of $A$ may match an allele of $B$; we want the maximum-similarity partial matching, with unmatched alleles paying a gap cost. The reference prototype solved this by brute-force enumeration, which is exponential in $k$. G2G instead builds the $k\times k$ cost matrix $C_{ij}=1-\mathrm{sim}(a_i,b_j)$ (pairs below a similarity floor are clamped to the gap cost so the solver prefers a gap over a bad match), pads rectangular instances to square with gap-cost dummies, and solves the assignment optimally with Jonker--Volgenant in $O(k^3)$ \cite{jonker1987shortest}. Encoding gaps as dummy rows/columns lets one $O(k^3)$ pass optimise matches and gaps jointly. For the rare very large snarls ($k>30$) a greedy $1/2$-approximation (take the highest-similarity unmatched pair repeatedly) is available as a fallback; a brute-force routine is retained purely as a correctness oracle for $k\le 8$.
 
 \subsubsection{Delta graphs: the output}
-The alignment's primary product is the pair of delta graphs. $\Delta_{A\to B}$ lists every allele present in $A$ but unmatched in $B$ (and symmetrically for $\Delta_{B\to A}$); these are precisely the population-specific variants (Fig.~\ref{fig:delta}). Because the matching is performed allele-by-allele at the sequence level, the deltas are base-pair-resolved: each entry carries its exact inserted/deleted sequence. This is the graph-level analogue of a VCF and is what no sequence-to-reference pipeline can produce without first collapsing both graphs onto a shared linear backbone.
+The alignment's primary product is the pair of delta graphs. $\Delta_{A\to B}$ lists every allele present in $A$ but unmatched in $B$ (and symmetrically for $\Delta_{B\to A}$); these are the graph-private variants---alleles that distinguish one graph from the other (Fig.~\ref{fig:delta}). Whether they reflect true population-level differentiation (as opposed to sampling depth, rare private variants, or construction artifacts) depends on the input data and is not established by the tool itself. Because the matching is performed allele-by-allele at the sequence level, the deltas are base-pair-resolved: each entry carries its exact inserted/deleted sequence. This is the graph-level analogue of a VCF and is what no sequence-to-reference pipeline can produce without first collapsing both graphs onto a shared linear backbone.
 
 \begin{figure}[t]
   \centering
