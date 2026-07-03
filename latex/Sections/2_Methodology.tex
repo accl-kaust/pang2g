@@ -153,6 +153,8 @@ All experiments run on a single-socket AMD EPYC 7763 (Milan) node: 64 cores / 12
 \label{sec:veb}
 Motivated by Finding~3 (memory access is the scaling wall): a breadth-first storage of the snarl tree scatters sibling snarls across memory, so a bottom-up traversal thrashes the cache once the working set exceeds L3. G2G instead lays the snarl tree out in van Emde Boas recursive order \cite{vanemde1977preserving,frigo1999cache} (Fig. \ref{fig:veb}), which keeps any subtree of height $h$ within $O(\sqrt{N})$ cache lines and yields an $O(N\log_B N / B)$ cache complexity for the traversal, optimal for comparison-based tree algorithms, and without tuning to a specific cache size. Each snarl's DP table and allele data are allocated contiguously with the snarl. The layout is a build-time toggle so its effect can be measured directly.
 
+\paragraph{Scope caveat.} The vEB layout is designed for \emph{nested} snarl trees (depth~${>}\,1$), where multi-level subtrees exist to be made contiguous. On depth-1 trees (root + leaves), which describe all workloads evaluated in this paper, vEB and BFS orderings are structurally degenerate: there are no subtrees deeper than a single node to rearrange, so the two layouts produce equivalent memory access patterns. The ablation row for this feature (Table~\ref{tab:ablation}) therefore confirms a structural expectation, not an empirical finding---it is included for completeness, not as evidence that vEB contributes on these workloads.
+
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_veb.pdf}
