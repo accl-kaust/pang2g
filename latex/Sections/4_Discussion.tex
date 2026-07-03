@@ -3,5 +3,30 @@
 
 Every major decision in G2G traces to a measured property of the workload. Snarl-tree factorisation is what makes the problem practical: it decomposes the alignment into independent per-snarl subproblems, each solved optimally by LAPJV, though the snarl pairing itself remains a greedy heuristic. LAPJV replaces brute force because matching cost explodes with $k$ (Finding~1); centralised priority dispatch replaces static partitioning because per-snarl work is heavy-tailed (Finding~2), an argument the static-partition ablation confirms directly (Table \ref{tab:ablation}); and per-snarl struct packing plus flat sequence storage address the memory wall (Finding~3); the vEB inter-snarl ordering targets the same finding but is unexercised on depth-1 trees (\S\ref{sec:veb}). Two stages were originally quadratic: anchor detection and snarl decomposition. The minimiser index removes the first; the windowed sink search of \S\ref{sec:algo} makes the second linear for small snarls, though large-span SV snarls still fall back to the $O(|V|)$ search---the measured $N^{1.00}$ decomposition exponent (Fig.~\ref{fig:refdiffscaling}) reflects the short-variant-dominated test data, not the algorithm's worst case, and would rise on SV-rich inputs where the window overflows routinely.
 
+\subsection{Described-general, evaluated-special}
+\label{sec:gap}
+The system as described is a nested-snarl, parallel, multi-representation engine. The system as evaluated operates on a strict special case: depth-1 snarl trees, short-variant-dominated synthetic graphs, and self-consistent coordinate representations. Table~\ref{tab:gap} makes the mismatch explicit.
+
+\begin{table}[t]
+  \centering
+  \caption{Features described vs.\ features exercised in the evaluation. Every row where the evaluation column differs from the description column is a gap: the mechanism is implemented but untested under conditions where it can act.}
+  \label{tab:gap}
+  \footnotesize
+  \begin{tabular}{lll}
+    \toprule
+    feature & described & evaluated \\
+    \midrule
+    snarl-tree depth & nested (arbitrary) & depth-1 only \\
+    vEB layout & $O(N/B)$ on nested trees & degenerate ($\equiv$ BFS) \\
+    nested recurrence & bottom-up DP & never fires \\
+    decomposition & windowed + quadratic fallback & window never overflows \\
+    variant representation & arbitrary & self-consistent only \\
+    scheduler & LPT on heavy-tailed work & $67\%$ trivial $k{=}2$ tasks \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The individual caveats appear where the numbers are reported (Q1 scale gap, Q3 vEB tautology, \S\ref{sec:veb} depth-1 degeneracy, \S\ref{sec:algo} decomposition circularity), but the structural pattern deserves a unified statement: \emph{the quantitative evidence in this paper validates the system only in the special case}. The general-case mechanisms (nested recurrence, vEB locality, quadratic-fallback decomposition) are implemented—they compile, pass unit tests, and are togglable for ablation—but no experiment exercises them under conditions where they can engage. We report them as design provisions for the intended deployment target (Minigraph-Cactus graphs with nested snarls, SV-containing long-read panels, mixed-provenance inputs), not as validated contributions. The numbers that appear beside them ($1.01\times$, $N^{1.00}$) are measured where the mechanisms cannot act and should be read as confirming inertness, not benefit.
+
 \subsection{Limitations}
 The decomposer is DAG-only: although an optional vg-snarl backend can supply snarl boundaries, the allele enumeration and DP assume acyclicity, so tandem repeats (cycles) are out of scope and full cyclic support is future work. Snarl pairing is greedy rather than globally optimal: anchors mitigate this but a full tree-matching pairing is future work. The validation--deployment scale gap (\S\ref{sec:eval}, Q1) is the most pressing open risk: accuracy is measured at 5--50 snarls while deployment targets $10^6$--$10^7$, and the only at-scale check (parallel$=$sequential) is blind to scale-dependent errors. Closing this gap requires either a genome-scale ground truth or targeted stress tests for the identified failure modes (hash collisions, window overflow, greedy drift). G2G is single-machine; the $K>2$ multi-graph alignment problem and a distributed engine are natural extensions, as is GPU acceleration of the per-snarl matching, which is embarrassingly parallel across snarls.
