@@ -1,0 +1,67 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}   
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{enumitem}
+\usepackage{balance}
+\usepackage[hidelinks]{hyperref} 
+
+\algnewcommand\algorithmicparfor{\textbf{parfor}}
+\algdef{SE}[PARFOR]{ParFor}{EndParFor}[1]%
+  {\algorithmicparfor\ #1\ \algorithmicdo}%
+  {\algorithmicend\ \algorithmicparfor}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{G2G: Scalable Base-Pair-Resolution Graph-to-Graph
+Alignment of Population-Scale Pangenome Graphs
+\thanks{Identify applicable funding agency here. If none, delete this.}
+}
+
+% \author{\IEEEauthorblockN{1\textsuperscript{st} Ahmad Shakleya}
+% \IEEEauthorblockA{\textit{King Abdullah University of Science} \\ 
+% \textit{and Technology (KAUST)}\\
+% Thuwal, Makkah, Kingdom of Saudi Arabia \\
+% ahmad.shakleya@kaust.edu.sa}
+% \and
+% \IEEEauthorblockN{2\textsuperscript{nd} Suhaib Fahmy}
+% \IEEEauthorblockA{\textit{King Abdullah University of Science} \\
+% \textit{and Technology (KAUST)}\\
+% Thuwal, Makkah, Kingdom of Saudi Arabia \\
+% suhaib.fahmy@kaust.edu.sa}
+% }
+
+\maketitle
+
+\begin{abstract}
+Pangenome variation graphs have replaced the single linear reference as the state of the art for representing human genetic diversity, yet a basic operation is still missing: directly comparing two such graphs to each other. On population pangenomes the delta graph shows the population-specific structural variation that a sequence-to-reference method cannot express without a linear projection. We present G2G, the first system for base-pair resolution graph-to-graph alignment of pangenome variation graphs. In this work we characterise the workload, prove the correctness of the result, and describe the system.
+\end{abstract}
+
+\begin{IEEEkeywords}
+comparative genomics, pangenome, variation graph, graph alignment, structural variation, parallel bioinformatics
+\end{IEEEkeywords}
+
+\input{Sections/0_Introduction}
+\input{Sections/1_Related_Work}
+\input{Sections/2_Methodology}
+\input{Sections/3_Results}
+\input{Sections/4_Discussion}
+\input{Sections/5_Conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs.bib}
+
+\end{document}

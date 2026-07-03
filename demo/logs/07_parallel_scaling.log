@@ -1,0 +1,16 @@
+
+=== Parallel scaling — 8 Mb pair, SV-like snarls (max_k=40, alt_len=200); baseline = 1 thread ===
+    GA/GB segments: 438406 / 438406
+   threads      wall        dp      tasks    steals      imbal   pairs      e2e      dp
+         1 20.550307 13.067214      25608         0     1.0000   25608     1.00    1.00
+         2 14.020698  6.434348      25608     12808     1.0000   25608     1.47    2.03
+         4 10.819261  3.289097      25608     19326     1.0000   25608     1.90    3.97
+         8  9.154851  1.661231      25608     22460     1.0001   25608     2.24    7.87
+        16  8.314674  0.849568      25608     23973     1.0002   25608     2.47   15.38
+        32  7.941854  0.444486      25608     24763     1.0009   25608     2.59   29.40
+        64  7.769304  0.260838      25608     25207     1.0013   25608     2.65   50.10
+       128  7.759064  0.248240      25608     25425     1.0083   25608     2.65   52.64
+
+    results: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/parallel/parallel_scaling.tsv   (baseline = 1 thread; speedup is pure parallelism)
+    plot:    python3 make_figures.py --scaling-csv /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/parallel/parallel_scaling.tsv
+OK — parallel scaling sweep complete (deterministic across thread counts)

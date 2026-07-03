@@ -1,0 +1,31 @@
+\section{Related Work}
+The earliest alignment algorithms compared two sequences with dynamic programming: Needleman-Wunsch \cite{NEEDLEMAN1970443} for long read mapping and Smith-Waterman \cite{SMITH1981195} for short read mapping, both $O(mn)$. The short-read era added Burrows-Wheeler-based mappers such as BWA \cite{li2009bwa} and Bowtie 2 \cite{langmead2012fast}, and the long-read era brought minimap2 \cite{li2018minimap2}, which seeds alignments with minimisers \cite{roberts2004minimizers}, a sketching idea we reuse for anchor detection. All of these are sequence-to-sequence mappers: both inputs are strings, and graph structure plays no role.
+
+The move to pangenomes made the reference a graph while the query stayed a sequence. The vg toolkit established variation graphs as a data model \cite{garrison2018vg}. GraphAligner aligns long reads to graphs \cite{rautiainen2020graphaligner}. PanGenie genotypes from a pangenome by $k$-mer matching \cite{ebler2022pangenie}, and ParSGA gives a work-optimal parallel algorithm for aligning sequences to genome graphs \cite{xu2025parsga}. Graph construction itself is mature: minigraph builds SV-scale graphs \cite{li2020minigraph}, Minigraph-Cactus produces base-level HPRC graphs \cite{hickey2023pangenome,garrison2023pangenome}, and the HPRC has
+released reference-quality graphs \cite{Liao2023-short}. Every tool in this paragraph shares one limitation: the query is a sequence. None aligns two graphs.
+
+A few tools compare graphs, but not at base-pair variation resolution. PanGraph builds and compares bacterial pangenome graphs at the level of homologous gene blocks \cite{noll2023pangraph}; SplitMEM relates pangenome representations via suffix structures \cite{marcus2014splitmem}. These operate on gene-block granularity, not on the individual alleles of a variation graph, and they are not designed for the $10^7$-node human-scale graphs we target. G2G is, to our knowledge, the first to align variation graphs to each other allele by allele (Table \ref{tab:positioning}).
+
+\begin{table}[t]
+  \centering
+  \caption{Positioning. Sequence-to-graph aligners take a sequence query;
+  graph-comparison tools work at gene-block/synteny granularity on microbial
+  graphs. No prior tool aligns two \emph{graphs} at base-pair (allele) resolution
+  at human-genome scale---the gap \textsc{G2G} fills.}
+  \label{tab:positioning}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{llll}
+    \toprule
+    tool & inputs & resolution & scale \\
+    \midrule
+    minimap2~\cite{li2018minimap2}                 & seq.\ $\times$ seq.\ & base-pair  & genome \\
+    GraphAligner~\cite{rautiainen2020graphaligner} & seq.\ $\times$ graph & base-pair  & genome \\
+    vg~giraffe~\cite{siren2021giraffe}             & seq.\ $\times$ graph & base-pair  & genome \\
+    PanGraph~\cite{noll2023pangraph}               & graph $\times$ graph & gene block & microbial \\
+    Sibelia~\cite{minkin2013sibelia}               & graph $\times$ graph & synteny    & microbial \\
+    \midrule
+    \textbf{\textsc{G2G}} & \textbf{graph $\times$ graph} & \textbf{allele} & \textbf{human, $10^9$ nodes} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
