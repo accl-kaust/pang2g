@@ -4,7 +4,7 @@ The earliest alignment algorithms compared two sequences with dynamic programmin
 The move to pangenomes made the reference a graph while the query stayed a sequence. The vg toolkit established variation graphs as a data model \cite{garrison2018vg}. GraphAligner aligns long reads to graphs \cite{rautiainen2020graphaligner}. PanGenie genotypes from a pangenome by $k$-mer matching \cite{ebler2022pangenie}, and ParSGA gives a work-optimal parallel algorithm for aligning sequences to genome graphs \cite{xu2025parsga}. Graph construction itself is mature: minigraph builds SV-scale graphs \cite{li2020minigraph}, Minigraph-Cactus produces base-level HPRC graphs \cite{hickey2023pangenome,garrison2023pangenome}, and the HPRC has
 released reference-quality graphs \cite{Liao2023-short}. Every tool in this paragraph shares one limitation: the query is a sequence. None aligns two graphs.
 
-A few tools compare graphs, but not at base-pair variation resolution. PanGraph builds and compares bacterial pangenome graphs at the level of homologous gene blocks \cite{noll2023pangraph}; SplitMEM relates pangenome representations via suffix structures \cite{marcus2014splitmem}. These operate on gene-block granularity, not on the individual alleles of a variation graph, and they are not designed for the human-scale graphs (${\sim}10^8$--$10^9$ nodes) we target. The pangenome community has recognised this gap: the Pangenome Graph Variation Format (PGVF)~\cite{pgvfspec}, a GFA fork, has been proposed to represent graph-to-graph alignments, but no tool currently computes them. G2G is, to our knowledge, the first system that does so at allele resolution (Table \ref{tab:positioning}).
+A few tools compare graphs, but not at base-pair variation resolution. PanGraph builds and compares bacterial pangenome graphs at the level of homologous gene blocks \cite{noll2023pangraph}; SplitMEM relates pangenome representations via suffix structures \cite{marcus2014splitmem}. These operate on gene-block granularity, not on the individual alleles of a variation graph, and they are not designed for the human-scale graphs (${\sim}4{\times}10^8$ nodes per graph) we target. The pangenome community has recognised this gap: the Pangenome Graph Variation Format (PGVF)~\cite{pgvfspec}, a GFA fork, has been proposed to represent graph-to-graph alignments, but no tool currently computes them. G2G is, to our knowledge, the first system that does so at allele resolution (Table \ref{tab:positioning}).
 
 \begin{table}[t]
   \centering
@@ -25,7 +25,7 @@ A few tools compare graphs, but not at base-pair variation resolution. PanGraph 
     PanGraph~\cite{noll2023pangraph}               & graph $\times$ graph & gene block & microbial \\
     Sibelia~\cite{minkin2013sibelia}               & graph $\times$ graph & synteny    & microbial \\
     \midrule
-    \textbf{\textsc{G2G}} & \textbf{graph $\times$ graph} & \textbf{allele} & \textbf{human, ${\sim}10^8$--$10^9$ nodes} \\
+    \textbf{\textsc{G2G}} & \textbf{graph $\times$ graph} & \textbf{allele} & \textbf{human, ${\sim}4{\times}10^8$ nodes/graph} \\
     \bottomrule
   \end{tabular}
 \end{table}
