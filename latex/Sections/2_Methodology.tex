@@ -114,7 +114,7 @@ The alignment's primary product is the pair of delta graphs. $\Delta_{A\to B}$ l
 \subsection{Workload Profiling}
 \label{sec:workload}
 
-A systems design is only as good as its understanding of the workload, so before building the parallel engine we profiled the reference prototype on synthetic graphs whose snarl sizes follow a Zipf law fit to HPRC statistics.
+A systems design is only as good as its understanding of the workload, so before building the parallel engine (\S\ref{sec:system}) we profiled the reference prototype on synthetic graphs whose snarl sizes follow a Zipf law fit to HPRC statistics. Each finding below directly motivates a design choice in \S\ref{sec:system}: Finding~1 $\to$ LAPJV matching (\S\ref{sec:matching}), Finding~2 $\to$ work-stealing scheduler (\S\ref{sec:ws}), Finding~3 $\to$ flat data layout and cache-oblivious snarl-tree order (\S\ref{sec:veb}).
 
 \textbf{Finding 1: matching cost explodes with snarl size.}
 Fig. \ref{fig:matching} shows measured time per snarl pair as a function of allele count $k$. Brute-force enumeration is fast for SNP bubbles but rises super-exponentially and becomes infeasible beyond $k{\approx}8$: it is already $1{,}491\times$ slower at $k{=}7$ than at $k{=}2$, and reaches $1{,}990$\,ms at $k{=}8$. The $O(k^3)$ Hungarian solver flattens this curve and is what makes complex structural-variant regions tractable, where $k$ can reach 20-50. This finding mandated replacing brute force with LAPJV.
@@ -147,13 +147,14 @@ The snarl tree is traversed bottom-up and each snarl-pair DP reads allele sequen
 \subsection{System Design and Implementation}
 \label{sec:system}
 
-G2G is implemented in C++20 with a Python reference prototype as a correctness oracle. Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1 W lines, with on-the-fly reverse complementing). The data model keeps all node sequences in a single flat byte array indexed by (offset, length), and adjacency in CSR form, so the DP kernel streams sequence data without pointer chasing.
+G2G is implemented in C++20 with a Python reference prototype as a correctness oracle. Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1 W lines, with on-the-fly reverse complementing). Following Finding~3, the data model keeps all node sequences in a single flat byte array indexed by (offset, length), and adjacency in CSR form, so the DP kernel streams sequence data without pointer chasing.
 
 \paragraph{Hardware platform.}
 All experiments run on a single-socket AMD EPYC 7763 (Milan) node: 64 cores / 128 hardware threads (2-way SMT), 4 NUMA domains, 512\,GiB DDR4-3200 in 8 channels (204.8\,GB/s peak memory bandwidth), 256\,MiB L3 cache. The OS is Ubuntu 20.04; G2G is compiled with GCC~9.4 at \texttt{-O3}. ``128 threads'' throughout this paper refers to hardware threads, not physical cores.
 
 \subsubsection{Cache-oblivious snarl-tree layout}
-A breadth-first storage of the snarl tree scatters sibling snarls across memory, so a bottom-up traversal thrashes the cache once the working set exceeds L3. G2G instead lays the snarl tree out in van Emde Boas recursive order \cite{vanemde1977preserving,frigo1999cache} (Fig. \ref{fig:veb}), which keeps any subtree of height $h$ within $O(\sqrt{N})$ cache lines and yields an $O(N\log_B N / B)$ cache complexity for the traversal, optimal for comparison-based tree algorithms, and without tuning to a specific cache size. Each snarl's DP table and allele data are allocated contiguously with the snarl. The layout is a build-time toggle so its effect can be measured directly.
+\label{sec:veb}
+Motivated by Finding~3 (memory access is the scaling wall): a breadth-first storage of the snarl tree scatters sibling snarls across memory, so a bottom-up traversal thrashes the cache once the working set exceeds L3. G2G instead lays the snarl tree out in van Emde Boas recursive order \cite{vanemde1977preserving,frigo1999cache} (Fig. \ref{fig:veb}), which keeps any subtree of height $h$ within $O(\sqrt{N})$ cache lines and yields an $O(N\log_B N / B)$ cache complexity for the traversal, optimal for comparison-based tree algorithms, and without tuning to a specific cache size. Each snarl's DP table and allele data are allocated contiguously with the snarl. The layout is a build-time toggle so its effect can be measured directly.
 
 \begin{figure}[t]
   \centering
@@ -163,7 +164,9 @@ A breadth-first storage of the snarl tree scatters sibling snarls across memory,
 \end{figure}
 
 \subsubsection{Work-stealing parallel runtime}
-The snarl-pair DP is a task DAG: each pair $(S_A,S_B)$ is a task that depends on its child pairs, and sibling tasks are independent. G2G schedules this DAG with a work-stealing runtime built on OpenMP \cite{dagum1998openmp}. The ready queue is a shared priority queue keyed on estimated subtree work ($\sum k_i^3$ over descendants), so the largest tasks are dispatched first, the steal-largest policy that the heavy-tailed distribution of Finding 2 demands. Idle workers block on a condition variable rather than spinning, which keeps shared HPC nodes courteous. Two design parameters are exposed and measured: task granularity (small snarls are batched to amortise scheduling overhead)  and steal policy (largest vs. random). The task DAG, priority function, and steal-largest semantics are unchanged, and the parallel delta output is byte-identical to the sequential aligner's (the global score agrees to within $10^{-3}$, float-reduction order aside).
+\label{sec:ws}
+Motivated by Finding~2 (heavy-tailed per-snarl work): the snarl-pair DP is a task DAG: each pair $(S_A,S_B)$ is a task that depends on its child pairs, and sibling tasks are independent. G2G schedules this DAG with a work-stealing runtime built on OpenMP \cite{dagum1998openmp}. The ready queue is a shared priority queue keyed on estimated subtree work ($\sum k_i^3$ over descendants), so the largest tasks are dispatched first, the steal-largest policy that the heavy-tailed distribution of Finding 2 demands. Idle workers block on a condition variable rather than spinning, which keeps shared HPC nodes courteous. Two design parameters are exposed and measured: task granularity (small snarls are batched to amortise scheduling overhead)  and steal policy (largest vs. random). The task DAG, priority function, and steal-largest semantics are unchanged, and the parallel delta output is byte-identical to the sequential aligner's (the global score agrees to within $10^{-3}$, float-reduction order aside).
 
 \subsubsection{Exact matching and anchor index}
-The matching solver is a self-contained Jonker-Volgenant implementation \cite{jonker1987shortest}; the dispatcher routes $k\le 30$ to LAPJV and larger snarls to the greedy fallback, with brute force retained as a $k\le 8$ oracle. The minimiser anchor index uses FNV-1a hashing over $k$-mers with a minimap2-style sliding window \cite{li2018minimap2}, and is likewise a build-time toggle for ablation against the naive scan.
+\label{sec:matching}
+Motivated by Finding~1 (matching cost explodes with $k$): the matching solver is a self-contained Jonker-Volgenant implementation \cite{jonker1987shortest}; the dispatcher routes $k\le 30$ to LAPJV and larger snarls to the greedy fallback, with brute force retained as a $k\le 8$ oracle. The minimiser anchor index uses FNV-1a hashing over $k$-mers with a minimap2-style sliding window \cite{li2018minimap2}, and is likewise a build-time toggle for ablation against the naive scan.
