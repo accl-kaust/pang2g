@@ -112,15 +112,17 @@ The alignment's primary product is the pair of delta graphs. $\Delta_{A\to B}$ l
 A systems design is only as good as its understanding of the workload, so before building the parallel engine (\S\ref{sec:system}) we profiled the reference prototype on synthetic graphs whose snarl sizes follow a Zipf law fit to HPRC statistics. Each finding below directly motivates a design choice in \S\ref{sec:system}: Finding~1 $\to$ LAPJV matching (\S\ref{sec:matching}), Finding~2 $\to$ priority-dispatch scheduler (\S\ref{sec:ws}), Finding~3 $\to$ flat data layout and cache-oblivious snarl-tree order (\S\ref{sec:veb}).
 
 \textbf{Finding 1: matching cost explodes with snarl size.}
-Fig. \ref{fig:matching} shows measured time per snarl pair as a function of allele count $k$. Brute-force enumeration is fast for SNP bubbles but rises super-exponentially and becomes infeasible beyond $k{\approx}8$: it is already $1{,}491\times$ slower at $k{=}7$ than at $k{=}2$, and reaches $1{,}990$\,ms at $k{=}8$. The $O(k^3)$ Hungarian solver flattens this curve and is what makes complex structural-variant regions tractable, where $k$ can reach 20-50. This finding mandated replacing brute force with LAPJV.
+Fig. \ref{fig:matching} shows measured time per snarl pair as a function of allele count $k$, both curves from the Python reference prototype. Brute-force enumeration ($O(k!)$) is fast for SNP bubbles but rises super-exponentially: it is $1{,}491\times$ slower at $k{=}7$ than at $k{=}2$, and reaches $1{,}990$\,ms at $k{=}8$ in the prototype. We note that these absolute times reflect interpreted Python; a compiled brute force over $8!{\approx}4{\times}10^4$ permutations would run in microseconds, so the $k{=}8$ ``infeasibility'' is a prototype artefact. The operative point is asymptotic: $O(k!)$ vs.\ $O(k^3)$ means brute force becomes untenable at the $k{=}20$--$50$ values that real SV snarls produce, regardless of implementation language. The compiled ablation confirms this: replacing LAPJV with brute force in the C++ system costs $70\times$ at treatment scale (Table~\ref{tab:ablation}). This finding mandated replacing brute force with LAPJV.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_matching.pdf}
   \caption{Measured cost of the per-snarl bipartite matching versus allele count
-  $k$ (reference prototype). Brute-force enumeration becomes infeasible beyond
-  $k{\approx}8$; the $O(k^3)$ Hungarian/LAPJV solver keeps large structural-%
-  variant snarls tractable.}
+  $k$; both curves are timed in the Python reference prototype.
+  Brute-force enumeration ($O(k!)$) grows super-exponentially; the
+  $O(k^3)$ LAPJV solver remains tractable at large~$k$. Absolute times
+  reflect interpreted Python---a compiled brute force is faster in
+  absolute terms but retains the same asymptotic explosion.}
   \label{fig:matching}
 \end{figure}
 
