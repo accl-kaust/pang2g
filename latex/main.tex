@@ -28,7 +28,6 @@
 
 \title{G2G: Scalable Base-Pair-Resolution Graph-to-Graph
 Alignment of Population-Scale Pangenome Graphs
-\thanks{Identify applicable funding agency here. If none, delete this.}
 }
 
 % \author{\IEEEauthorblockN{1\textsuperscript{st} Ahmad Shakleya}
@@ -47,7 +46,7 @@ Alignment of Population-Scale Pangenome Graphs
 \maketitle
 
 \begin{abstract}
-Pangenome variation graphs have replaced the single linear reference as the state of the art for representing human genetic diversity, yet a basic operation is still missing: directly comparing two such graphs to each other. On population pangenomes the delta graph shows the population-specific structural variation that a sequence-to-reference method cannot express without a linear projection. We present G2G, the first system for base-pair resolution graph-to-graph alignment of pangenome variation graphs. In this work we characterise the workload, prove the correctness of the result, and describe the system.
+Pangenome variation graphs have replaced the single linear reference as the state of the art for representing human genetic diversity, yet a basic operation is still missing: directly comparing two such graphs to each other. On population pangenomes the delta graph captures every allele present in one graph but absent from the other---a comparison that a sequence-to-reference method cannot express without a linear projection. We present G2G, the first system that computes base-pair-resolution graph-to-graph alignments of pangenome variation graphs (a capability proposed by the PGVF format but previously unimplemented). G2G operates in two modes. The \emph{reference-anchored diff}, the primary validated result, replaces greedy pairing with coordinate matching when both graphs embed a common reference; it is single-threaded, exact under identical variant representation, and scales near-linearly to an 8-Gbp pair with 100\% precision and recall on planted variants. A \emph{parallel snarl-pairing aligner} pairs snarls across two arbitrary variation graphs and solves a bipartite allele-matching subproblem per pair; it is designed and implemented (with a minimiser anchor index, LAPJV matching, and centralised priority-dispatch scheduler) but validated only on small-scale depth-1 workloads---deployment-scale validation is future work. We characterise the workload, state the tractability argument, validate the reference-anchored output on planted ground truth, and describe both modes.
 \end{abstract}
 
 \begin{IEEEkeywords}
