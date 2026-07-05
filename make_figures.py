@@ -279,19 +279,75 @@ def fig_delta(path):
 
 
 def fig_veb(path):
-    fig, (a1, a2) = plt.subplots(2, 1, figsize=(3.4, 2.6))
-    for ax in (a1, a2): _clean(ax); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-    # simple tree drawn once (top-left), arrays show two orderings
-    def cells(ax, order, y, title):
-        ax.text(0.5, y+0.34, title, ha="center", fontsize=7.5)
+    fig, axes = plt.subplots(3, 1, figsize=(3.4, 3.6),
+                             gridspec_kw={"height_ratios": [1.4, 0.7, 0.7]})
+    for ax in axes: _clean(ax)
+    # --- (a) nested snarl tree ---
+    a0 = axes[0]; a0.set_xlim(0, 1); a0.set_ylim(0, 1)
+    # tree:  root R has children S1, S2 (snarls)
+    #        S1 has children a, b;  S2 has children c, S3
+    #        S3 has children d, e  (nested snarl)
+    tree = {
+        "R":  (0.50, 0.90), "S1": (0.25, 0.65), "S2": (0.75, 0.65),
+        "a":  (0.13, 0.40), "b":  (0.37, 0.40),
+        "c":  (0.63, 0.40), "S3": (0.87, 0.40),
+        "d":  (0.78, 0.16), "e":  (0.96, 0.16),
+    }
+    edges = [("R","S1"),("R","S2"),("S1","a"),("S1","b"),
+             ("S2","c"),("S2","S3"),("S3","d"),("S3","e")]
+    node_r = 0.032
+    snarl_nodes = {"R", "S1", "S2", "S3"}
+    # subtree highlight groups for vEB
+    st_colors = {"S1": "#cde4f7", "S3": "#fde0d0"}
+    # draw subtree backgrounds
+    from matplotlib.patches import FancyBboxPatch as FBP
+    a0.add_patch(FBP((0.06, 0.30), 0.38, 0.48, boxstyle="round,pad=0.03",
+                      fc=st_colors["S1"], ec="none", alpha=0.4, zorder=0))
+    a0.add_patch(FBP((0.70, 0.06), 0.30, 0.48, boxstyle="round,pad=0.03",
+                      fc=st_colors["S3"], ec="none", alpha=0.4, zorder=0))
+    for p, c in edges:
+        px, py = tree[p]; cx, cy = tree[c]
+        a0.plot([px, cx], [py, cy], color="#666", lw=1.0, zorder=1)
+    for name, (x, y) in tree.items():
+        fc = "#eef3fb" if name in snarl_nodes else "#f5f5f5"
+        ec = BLUE if name in snarl_nodes else GREY
+        a0.add_patch(Circle((x, y), node_r, fc=fc, ec=ec, lw=1.2, zorder=2))
+        a0.text(x, y, name, ha="center", va="center", fontsize=6.5,
+                fontweight="bold" if name in snarl_nodes else "normal", zorder=3)
+    a0.set_title("(a) nested snarl tree", fontsize=8, pad=2)
+
+    # --- memory layout cells ---
+    def cells(ax, order, highlights, title):
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        n = len(order); cw = 0.85 / n; x0 = (1 - n * cw) / 2
         for i, lab in enumerate(order):
-            x = 0.06 + i*0.115
-            ax.add_patch(Rectangle((x, y), 0.1, 0.22, fc="#eef3fb", ec=BLUE, lw=1))
-            ax.text(x+0.05, y+0.11, lab, ha="center", va="center", fontsize=7)
-    cells(a1, ["r", "a", "b", "c", "d", "e", "f"], 0.3, "BFS layout (siblings scattered)")
-    a1.text(0.5, 0.08, "subtree {b,c} far from {d,e}", ha="center", fontsize=6.5, color=RED)
-    cells(a2, ["r", "a", "b", "c", "d", "e", "f"], 0.3, "van Emde Boas (subtrees contiguous)")
-    a2.text(0.5, 0.08, "each subtree in $O(\\sqrt{N})$ cache lines", ha="center", fontsize=6.5, color=GREEN)
+            fc = highlights.get(lab, "#f5f5f5")
+            ec_c = BLUE if lab in snarl_nodes else GREY
+            ax.add_patch(Rectangle((x0 + i * cw, 0.25), cw * 0.92, 0.50,
+                                   fc=fc, ec=ec_c, lw=1))
+            ax.text(x0 + i * cw + cw * 0.46, 0.50, lab, ha="center", va="center",
+                    fontsize=6, fontweight="bold" if lab in snarl_nodes else "normal")
+        ax.set_title(title, fontsize=7, pad=2)
+
+    # BFS order: level by level
+    bfs_order = ["R", "S1", "S2", "a", "b", "c", "S3", "d", "e"]
+    # vEB order: root, then each subtree contiguously
+    veb_order = ["R", "S1", "a", "b", "S2", "c", "S3", "d", "e"]
+    # color by subtree membership
+    s1_hi = {n: st_colors["S1"] for n in ["S1", "a", "b"]}
+    s3_hi = {n: st_colors["S3"] for n in ["S3", "d", "e"]}
+    hi = {**s1_hi, **s3_hi, "R": "#eef3fb", "S2": "#eef3fb", "c": "#f5f5f5"}
+    cells(axes[1], bfs_order, hi, "(b) BFS layout — subtrees scattered")
+    cells(axes[2], veb_order, hi, "(c) vEB layout — subtrees contiguous")
+    # bracket under vEB for S1 subtree
+    a2 = axes[2]
+    a2.annotate("", xy=(0.105, 0.15), xytext=(0.39, 0.15),
+                arrowprops=dict(arrowstyle="|-|", color=BLUE, lw=0.8))
+    a2.text(0.25, 0.06, "S1 subtree", ha="center", fontsize=5.5, color=BLUE)
+    a2.annotate("", xy=(0.68, 0.15), xytext=(0.96, 0.15),
+                arrowprops=dict(arrowstyle="|-|", color=RED, lw=0.8))
+    a2.text(0.82, 0.06, "S3 subtree", ha="center", fontsize=5.5, color=RED)
+
     fig.tight_layout(); fig.savefig(path); plt.close(fig)
 
 
