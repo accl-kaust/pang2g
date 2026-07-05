@@ -418,11 +418,11 @@ def fig_scaling(path, csv=None, max_cores=64):
 
 def fig_ablation(path):
     labels = ["LAPJV\n$\\to$ brute", "minimiser\n$\\to$ naive",
-              "priority-dispatch\n$\\to$ static", "LPT\n$\\to$ FIFO",
+              "priority-\ndispatch\n$\\to$ static", "LPT\n$\\to$ FIFO",
               "vEB\n$\\to$ BFS"]
     ctrl  = [1.03, 1.00, 1.00, 0.90, 0.95]
     treat = [70.0, 1728.0, 1.91, 1.20, 1.01]
-    fig, ax = plt.subplots(figsize=(3.4, 2.8))
+    fig, ax = plt.subplots(figsize=(3.4, 3.8))
     x = np.arange(len(labels))
     ax.bar(x - 0.2, ctrl, 0.38, label="control", color="#b9c9e0")
     ax.bar(x + 0.2, treat, 0.38, label="treatment", color=BLUE)
