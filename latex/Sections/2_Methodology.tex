@@ -2,96 +2,67 @@
 
 \subsection{The Algorithm}
 \label{sec:algo}
+G2G runs five stages (Fig. \ref{fig:pipeline}): (1) detect anchors, backbone nodes shared by both graphs, to pin the two coordinate systems together; (2) decompose each graph into its snarl tree; (3) pair snarls across the graphs; (4) run a per-snarl-pair dynamic program whose leaf operation is allele matching; (5) emit the delta graphs $\Delta_{A\to B},\Delta_{B\to A}$, a shared graph, and a global score.
 
-At a high level G2G runs five stages  (Fig. \ref{fig:pipeline}):
-\begin{enumerate}
-    \item Detect anchors, backbone nodes shared by both graphs, to pin the two coordinate systems together.
-    \item Decompose each graph into its snarl tree.
-    \item Pair snarls between the graphs.
-    \item Run the per-snarl-pair dynamic program, whose leaf operation is allele matching.
-    \item Emit the delta graphs $\Delta_{A\to B}$ and $\Delta_{B\to A}$ together with a shared graph and a global score.
-\end{enumerate}
+The formulation and system support the general nested recurrence \eqref{eq:dp}, but the graphs we evaluate (vg construct and synthetic generators) contain only depth-1 snarls: simple SNP/indel bubbles with no nested children. So the nested recurrence, the van~Emde~Boas layout, and the DAG dependencies are exercised only at depth~1, where they reduce to independent per-snarl-pair assignments. They are retained because a full Minigraph-Cactus backend's nested snarls require them, but the ablations and scaling numbers in \S\ref{sec:eval} should be read with this depth-1 scope in mind.
 
-\noindent\textbf{Scope of the current evaluation.}
-The formulation and system support the general nested recurrence~\eqref{eq:dp}, but the graphs we evaluate on (GFA files from \texttt{vg~construct} and synthetic generators) contain only depth-1 snarls: simple SNP and indel bubbles with no nested children. Consequently, the nested recurrence, the van~Emde~Boas post-order layout, and the DAG task dependencies are exercised only at depth~1, where they reduce to independent per-snarl-pair assignments. We retain them in the design and implementation because they are required for the nested snarls that a full Minigraph-Cactus backend supplies, but ablations and scaling numbers in~\S\ref{sec:eval} should be read with this depth-1 scope in mind.
-
-Given two variation graphs $G_A,G_B$ and a matching $\mathcal{M}=(M_v,M_e,M_s)$ of their nodes, edges, and snarls, let $\sigma_G(v)$ denote the DNA-sequence label of node $v$ in graph $G$. The alignment score is
+Given graphs $G_A,G_B$ and a matching $\mathcal{M}=(M_v,M_e,M_s)$ of their nodes, edges, and snarls, with $\sigma_A,\sigma_B$ the node sequence labels in $G_A,G_B$, the alignment score is
 \begin{align}
-W(G_A,G_B,\mathcal{M}) \;=\;
-&\;\alpha\!\!\sum_{(u,v)\in M_v}\!\!\mathrm{sim}\!\big(\sigma_{G_A}\!(u),\,\sigma_{G_B}\!(v)\big)
-\;+\;\beta\!\!\sum_{(e,e')\in M_e}\!\!\mathbf{1}[\text{consistent}] \nonumber\\
-&\;+\;\gamma\!\!\sum_{(S,S')\in M_s}\!\!\mathrm{SimBubble}(S,S'),
+W(G_A,G_B,\mathcal{M}) =\;
+&\alpha\!\!\sum_{(u,v)\in M_v}\!\!\mathrm{sim}(\sigma_A(u),\sigma_B(v))
++\beta\!\!\sum_{(e,e')\in M_e}\!\!\mathbf{1}[\text{cons.}] \nonumber\\
+&+\gamma\!\!\sum_{(S,S')\in M_s}\!\!\mathrm{SimBubble}(S,S'),
 \label{eq:score}
 \end{align}
-where $\mathrm{sim}(s_1,s_2)=1-\mathrm{edit}(s_1,s_2)/\max(|s_1|,|s_2|)$ is
-normalised sequence similarity, and $\alpha,\beta,\gamma$ weight the three
-terms (defaults: $\alpha{=}1$, $\beta{=}0.5$, $\gamma{=}2$; the structural term is up-weighted because allele identity is the primary signal for delta-graph construction). All experiments use these defaults; we do not perform a sensitivity sweep over $(\alpha,\beta,\gamma)$ because the delta graph depends on the allele matching $\mu$ within each snarl, which is determined by $\gamma$ alone, and the ranking of allele pairs is invariant to the global scale of $\gamma$.
-Because sibling snarls are separated by their boundary nodes, their subproblems are independent. On the depth-1 snarls that all current experiments evaluate (\S\ref{sec:eval}), each snarl pair is a leaf with no children, so the problem reduces to one independent $O(k^3)$ bipartite matching per pair. Algorithm~\ref{alg:g2g} presents this \textbf{implemented-and-measured} form.
+where $\mathrm{sim}(s_1,s_2)=1-\mathrm{edit}(s_1,s_2)/\max(|s_1|,|s_2|)$ and $(\alpha,\beta,\gamma)$ weight the terms (defaults $1,0.5,2$; the structural term is up-weighted because allele identity is the primary delta signal). We do not sweep $(\alpha,\beta,\gamma)$: the delta depends only on the within-snarl matching $\mu$, set by $\gamma$, and the ranking of allele pairs is invariant to $\gamma$'s global scale. Since sibling snarls are separated by their boundary nodes, their subproblems are independent; at depth~1 each snarl pair is a leaf, reducing to one $O(k^3)$ bipartite matching per pair.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=0.95\textwidth]{figs/fig_pipeline.pdf}
-  \caption{The \textsc{G2G} pipeline. Two GFA pangenome graphs are anchored by a
-  minimiser index, decomposed into snarl trees, and aligned by a
-  priority-dispatch runtime that solves one bipartite allele-matching subproblem per
-  snarl pair. Outputs are the per-graph delta graphs (the graph-level
-  analogue of a VCF: alleles present in one graph but absent from the other), a shared graph, and a global similarity score.}
+  \includegraphics[width=0.64\textwidth]{figs/fig_pipeline.pdf}
+  \caption{The \textsc{G2G} pipeline. Two GFA graphs are anchored by a minimiser index, decomposed into snarl trees, and aligned by a priority-dispatch runtime solving one bipartite allele-matching subproblem per snarl pair. Outputs: per-graph delta graphs (the graph-level analogue of a VCF), a shared graph, and a global score.}
   \label{fig:pipeline}
 \end{figure*}
 
 \begin{algorithm}[t]
-\caption{\textsc{G2G} graph-to-graph alignment (\textbf{depth-1 form}: the
-implemented and evaluated algorithm). Each snarl pair is an independent leaf
-solved by a single $O(k^3)$ assignment.}
+\caption{\textsc{G2G} alignment (\textbf{depth-1 form}, as implemented and evaluated). Each snarl pair is an independent leaf solved by one $O(k^3)$ assignment.}
 \label{alg:g2g}
 \begin{algorithmic}[1]
-\Require variation graphs $G_A,G_B$; weights $\alpha,\beta,\gamma$; gap $g$;
-         similarity floor $\tau$
-\Ensure deltas $\Delta_{A\to B},\Delta_{B\to A}$, shared graph, total score $W$
+\Require graphs $G_A,G_B$; weights $\alpha,\beta,\gamma$; gap $g$; floor $\tau$
+\Ensure deltas $\Delta_{A\to B},\Delta_{B\to A}$, shared graph, score $W$
 \State $\mathcal{N}\gets \Call{FindAnchors}{G_A,G_B}$ \Comment{minimiser index}
-\State $T_A\gets\Call{Decompose}{G_A}$;\ \ $T_B\gets\Call{Decompose}{G_B}$
-\State $P\gets\Call{PairSnarls}{T_A,T_B,\mathcal{N}}$
-       \Comment{greedy, anchor-guided}
-\State $\mathcal{T}\gets\Call{BuildTaskDAG}{P}$
-       \Comment{priority $=$ est.\ work $\textstyle\sum k_i^3$}
-\ParFor{snarl pair $(S_A,S_B)\in\mathcal{T}$ \textbf{by priority dispatch}}
-   \State $a\gets\Call{Alleles}{S_A}$;\ \ $b\gets\Call{Alleles}{S_B}$
-   \State $C_{ij}\gets 1-\mathrm{sim}(a_i,b_j)$; clamp $C_{ij}\!>\!1{-}\tau$ to gap $g$
-   \State $(s,\mu)\gets\Call{LAPJV}{C}$ \label{line:leaf}
-          \Comment{$O(k^3)$ assignment}
-   \State $w[S_A,S_B]\gets W_{\text{seq}}(S_A,S_B)+W_{\text{topo}}(S_A,S_B)+\gamma\,s$
-   \State record matches $\mu$ and unmatched alleles of $(S_A,S_B)$
+\State $T_A\gets\Call{Decompose}{G_A}$;\ $T_B\gets\Call{Decompose}{G_B}$
+\State $P\gets\Call{PairSnarls}{T_A,T_B,\mathcal{N}}$ \Comment{greedy, anchor-guided}
+\State $\mathcal{T}\gets\Call{BuildTaskDAG}{P}$ \Comment{priority $=\sum k_i^3$}
+\ParFor{$(S_A,S_B)\in\mathcal{T}$ \textbf{by priority dispatch}}
+   \State $a\gets\Call{Alleles}{S_A}$;\ $b\gets\Call{Alleles}{S_B}$
+   \State $C_{ij}\gets 1-\mathrm{sim}(a_i,b_j)$; clamp $C_{ij}\!>\!1{-}\tau$ to $g$
+   \State $(s,\mu)\gets\Call{LAPJV}{C}$ \Comment{$O(k^3)$ assignment}
+   \State $w[S_A,S_B]\gets W_{\text{seq}}+W_{\text{topo}}+\gamma\,s$; record $\mu$
 \EndParFor
-\State $W\gets\!\!\sum_{(S_A,S_B)}\!\! w[S_A,S_B]\;+\;\alpha\!\!\sum_{(u,v)\in\mathcal N}\!\!\mathrm{sim}(u,v)$
-\State $\Delta_{A\to B},\Delta_{B\to A}\gets\Call{BuildDeltas}{\text{unmatched alleles}}$
+\State $W\gets\!\sum w[S_A,S_B]+\alpha\!\!\sum_{(u,v)\in\mathcal N}\!\!\mathrm{sim}(u,v)$
+\State $\Delta_{A\to B},\Delta_{B\to A}\gets\Call{BuildDeltas}{\text{unmatched}}$
 \State \Return $\Delta_{A\to B},\Delta_{B\to A}$, shared graph, $W$
 \end{algorithmic}
 \end{algorithm}
 
-\paragraph{General nested recurrence (designed for future, not yet evaluated).}
-When snarls contain nested children, the score decomposes recursively:
+With nested children the score decomposes recursively,
 \begin{equation}
-\begin{aligned}
-\mathrm{OPT}(S_A,S_B)=\;&W_{\text{seq}}(S_A,S_B)+W_{\text{topo}}(S_A,S_B)\\
-&+\max_{\mu}\ \sum_{(c,c')\in\mu}\mathrm{OPT}(c,c'),
-\end{aligned}
+\mathrm{OPT}(S_A,S_B)=W_{\text{seq}}+W_{\text{topo}}+\max_{\mu}\sum_{(c,c')\in\mu}\mathrm{OPT}(c,c'),
 \label{eq:dp}
 \end{equation}
-where $\mu$ ranges over matchings of the child snarls and the leaf case reduces to Algorithm~\ref{alg:g2g}'s per-pair assignment, solved in $O(k^3)$ via Jonker--Volgenant~\cite{jonker1987shortest}. The implementation supports this recurrence: children are processed before parents in van~Emde~Boas post-order (the \textsc{ApplyVEBLayout} step, omitted from Algorithm~\ref{alg:g2g} because it is inert at depth~1, confirmed by the vEB ablation in Table~\ref{tab:ablation}). This nested path is implemented and compiles but is not exercised by any experiment in this paper; it awaits nested-snarl inputs from a full Minigraph-Cactus backend.
+with $\mu$ over child-snarl matchings and the leaf case reducing to Algorithm~\ref{alg:g2g}. The implementation processes children before parents in van~Emde~Boas post-order, but this path is inert at depth~1 (confirmed by the vEB ablation, Table~\ref{tab:ablation}) and awaits nested-snarl inputs.
 
 \subsubsection{Anchor detection}
-Anchors are backbone nodes (in- and out-degree $\le 1$) whose sequences are near-identical across the two graphs; they set a common fixed frame so that everything else is interpreted relative to them. A naive all-pairs scan is $O(|V_A|\cdot|V_B|)$, which at human scale ($|V|\sim 4{\times}10^8$ per graph, derived from ${\sim}3.1$\,Gb at the ${\sim}8$\,bp/node density of vg-construct graphs) is ${\sim}10^{17}$ comparisons, infeasible. G2G instead builds a minimiser index \cite{roberts2004minimizers,li2018minimap2} over one graph's backbone: candidate anchor pairs are nodes sharing at least one minimiser, refined by a full similarity check and resolved greedily best-first. G2G keeps the naive path for small graphs (where its lower constant factors win) and switches to the index above a threshold, so the output is identical and only the constant changes.
+Anchors are backbone nodes (in- and out-degree $\le 1$) whose sequences are near-identical across the two graphs; they set a common fixed frame so that everything else is interpreted relative to them. A naive all-pairs scan is $O(|V_A|\cdot|V_B|)$, which at human scale ($|V|\sim10^7$) is $\sim10^{14}$ comparisons, infeasible. G2G instead builds a minimiser index \cite{roberts2004minimizers,li2018minimap2} over one graph's backbone: candidate pairs share a minimiser, are refined by full similarity, and resolved greedily. The naive path is kept for small graphs with a lower constant, giving identical output.
 
 \subsubsection{Snarl decomposition and pairing}
-Each graph is decomposed into snarls by a dominator-style sink finder: for every branching node $s$, the snarl sink is the topologically earliest node reachable from all of $s$'s successors, and the alleles are the enumerated $s\!\to\!t$
-paths. A direct implementation computes whole-graph reachability once per branching node, $O(|V|)$ per snarl, and thus quadratic overall, so \textsc{G2G} instead restricts the reachability search to a bounded window of the topological order. Because topological positions increase monotonically along the edges of a DAG, every $s\!\to\!t$ path whose sink lies inside the window stays entirely inside it; the windowed search is therefore exact for in-window sinks and defers to the full $O(|V|)$ search for any snarl whose span exceeds the window. This fallback applies precisely to the large structural-variant snarls that motivate the tool: they span many nodes and exceed any fixed window. The overall decomposition is therefore $O(|V| \cdot (n_{\text{small}} + n_{\text{large}} \cdot |V|/W))$, where $n_{\text{small}}$ and $n_{\text{large}}$ are the counts of in-window and out-of-window snarls and $W$ is the window size. On the evaluated workloads (synthetic, short-variant-dominated), large-span snarls are rare enough that the measured phase time scales as $N^{1.00}$ (Fig.~\ref{fig:refdiffscaling}). This result is circular with respect to structural variants: the window rarely overflows \emph{because} the test graphs contain almost no large SVs, so the $N^{1.00}$ figure characterises precisely the easy regime. On SV-rich inputs---the biologically interesting case---the quadratic fallback would fire frequently, and the decomposition exponent would rise toward $N^{2}$. The measured linearity is therefore a property of the test data, not an algorithmic guarantee; it should not be extrapolated to SV-containing pangenomes (e.g.\ HPRC long-read graphs) without re-measurement. Snarls are
-then paired greedily in topological order: each snarl in $A$ takes its highest-scoring unused partner in $B$. Greedy pairing is a deliberate approximation: a globally optimal pairing is itself a tree-matching problem, but the greedy rule is linear in the number of snarls and empirically achieves $\ge 80\%$ recall on synthetic ground truth (\S\ref{sec:eval}); the residual gap is due to mispairings among nearby snarls with similar allele content, not to the per-snarl matching itself.
+A dominator-style sink finder identifies each snarl. A direct implementation is $O(|V|)$ per snarl, and thus quadratic overall, so G2G bounds the reachability search to a window of the topological order. Since topological positions increase along DAG edges, any $s\!\to\!t$ path whose sink lies in the window stays inside it, so the search is exact for in-window sinks and falls back to full $O(|V|)$ search when a snarl's span exceeds the window: this are the large SV snarls that motivate the tool. On the evaluated short-variant-dominated graphs such large spans are rare enough that the phase scales as $N^{1.00}$ (Fig. \ref{fig:refdiffscaling}): this is circular w.r.t. SVs. The window rarely overflows because the graphs contain almost no large SVs, so the linear exponent characterises only the easy regime and would rise toward $N^2$ on SV-rich inputs. Snarls are then paired greedily in topological order: each $A$-snarl takes its highest-scoring unused $B$-partner. Greedy pairing is a deliberate approximation: a globally optimal pairing is itself a tree-matching problem, but the greedy rule is linear in the number of snarls and empirically recovers the planted pairing on synthetic ground truth, because anchors already constrain the correspondence.
 
 \subsubsection{Per-snarl bipartite matching}
-The structural term $W_{\text{struct}}$ is the heart of the score. Within a paired snarl, each allele of $A$ may match an allele of $B$; we want the maximum-similarity partial matching, with unmatched alleles paying a gap cost. The reference prototype solved this by brute-force enumeration, which is exponential in $k$. G2G instead builds the $k\times k$ cost matrix $C_{ij}=1-\mathrm{sim}(a_i,b_j)$ (pairs below a similarity floor are clamped to the gap cost so the solver prefers a gap over a bad match), pads rectangular instances to square with gap-cost dummies, and solves the assignment optimally with Jonker--Volgenant in $O(k^3)$ \cite{jonker1987shortest}. Encoding gaps as dummy rows/columns lets one $O(k^3)$ pass optimise matches and gaps jointly. For the rare very large snarls ($k>30$) a greedy $1/2$-approximation (take the highest-similarity unmatched pair repeatedly) is available as a fallback; a brute-force routine is retained purely as a correctness oracle for $k\le 8$.
+Within a paired snarl we want the maximum-similarity partial allele matching, with unmatched alleles paying a gap cost. G2G builds the $k\times k$ cost matrix $C_{ij}=1-\mathrm{sim}(a_i,b_j)$  where pairs below a similarity floor are clamped to the gap cost so the solver prefers a gap over a bad match. The solver pads rectangular instances with gap-cost dummies, and solves the assignment exactly with Jonker-Volgenant in $O(k^3)$ \cite{jonker1987shortest}. Encoding gaps as dummy rows/columns lets one $O(k^3)$ pass optimise matches and gaps jointly. For rare very large snarls ($k>30$) a greedy $1/2$-approximation is available as a fallback. A brute-force routine is retained only as a $k\le 8$ oracle.
 
 \subsubsection{Delta graphs: the output}
-The alignment's primary product is the pair of delta graphs. $\Delta_{A\to B}$ lists every allele present in $A$ but unmatched in $B$ (and symmetrically for $\Delta_{B\to A}$); these are the graph-private variants---alleles that distinguish one graph from the other (Fig.~\ref{fig:delta}). Whether they reflect true population-level differentiation (as opposed to sampling depth, rare private variants, or construction artifacts) depends on the input data and is not established by the tool itself. Because the matching is performed allele-by-allele at the sequence level, the deltas are base-pair-resolved: each entry carries its exact inserted/deleted sequence. This is the graph-level analogue of a VCF and is what no sequence-to-reference pipeline can produce without first collapsing both graphs onto a shared linear backbone.
+ $\Delta_{A\to B}$ lists every allele present in $A$ but unmatched in $B$ (and symmetrically for $\Delta_{B\to A}$). These are precisely the population-specific variants (Fig. \ref{fig:delta}). Because the matching is performed allele-by-allele at the sequence level, the deltas are base-pair-resolved: each entry carries its exact inserted/deleted sequence. This is the graph-level analogue of a VCF, which no sequence-to-reference pipeline can produce without first collapsing both graphs onto a shared linear backbone.
 
 \begin{figure}[t]
   \centering
@@ -107,69 +78,53 @@ The alignment's primary product is the pair of delta graphs. $\Delta_{A\to B}$ l
 \subsection{Workload Profiling}
 \label{sec:workload}
 
-A systems design is only as good as its understanding of the workload, so before building the parallel engine (\S\ref{sec:system}) we profiled the reference prototype on synthetic graphs whose snarl sizes follow a Zipf law fit to HPRC statistics. Each finding below directly motivates a design choice in \S\ref{sec:system}: Finding~1 $\to$ LAPJV matching (\S\ref{sec:matching}), Finding~2 $\to$ priority-dispatch scheduler (\S\ref{sec:ws}), Finding~3 $\to$ flat data layout and cache-oblivious snarl-tree order (\S\ref{sec:veb}).
+Before building the parallel engine we profiled the reference prototype on synthetic graphs whose snarl sizes follow a Zipf law fit to HPRC statistics.
 
 \textbf{Finding 1: matching cost explodes with snarl size.}
-Fig. \ref{fig:matching} shows measured time per snarl pair as a function of allele count $k$, both curves from the Python reference prototype. Brute-force enumeration ($O(k!)$) is fast for SNP bubbles but rises super-exponentially: it is $1{,}491\times$ slower at $k{=}7$ than at $k{=}2$, and reaches $1{,}990$\,ms at $k{=}8$ in the prototype. We note that these absolute times reflect interpreted Python; a compiled brute force over $8!{\approx}4{\times}10^4$ permutations would run in microseconds, so the $k{=}8$ ``infeasibility'' is a prototype artefact. The operative point is asymptotic: $O(k!)$ vs.\ $O(k^3)$ means brute force becomes untenable at the $k{=}20$--$50$ values that real SV snarls produce, regardless of implementation language. The compiled ablation confirms this: replacing LAPJV with brute force in the C++ system costs $70\times$ at treatment scale (Table~\ref{tab:ablation}). This finding mandated replacing brute force with LAPJV.
+Fig. \ref{fig:matching} shows measured time per snarl pair as a function of allele count $k$. Brute-force enumeration ($O(k!)$) is fast for SNP bubbles but rises super-exponentially and becomes infeasible beyond $k{\approx}8$. The $O(k^3)$ Hungarian solver flattens this curve and is what makes complex structural-variant regions tractable, where $k$ can reach 20-50. This finding mandated replacing brute force with LAPJV \cite{jonker1987shortest}.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_matching.pdf}
   \caption{Measured cost of the per-snarl bipartite matching versus allele count
-  $k$; both curves are timed in the Python reference prototype.
-  Brute-force enumeration ($O(k!)$) grows super-exponentially; the
-  $O(k^3)$ LAPJV solver remains tractable at large~$k$. Absolute times
-  reflect interpreted Python---a compiled brute force is faster in
-  absolute terms but retains the same asymptotic explosion.}
+  $k$ (reference prototype). Brute-force enumeration becomes infeasible beyond
+  $k{\approx}8$; the $O(k^3)$ Hungarian/LAPJV solver keeps large structural-%
+  variant snarls tractable. Data from Phase-2 profiling.}
   \label{fig:matching}
 \end{figure}
 
-\textbf{Finding 2: the workload is heavy-tailed.}
-Most snarls are tiny ($\sim$67\% are $k{=}2$ SNP bubbles) but a few are very large, so per-snarl work ($\propto k^3$) is highly skewed. We quantify this with the Gini coefficient of work, which stays in the narrow band $0.55$--$0.58$ across synthetic graph sizes spanning $20$ to $1{,}000$ snarls
-(Fig.~\ref{fig:workload}a); the imbalance does not wash out over this range. However, real human pangenome graphs contain $10^6$--$10^7$ snarls---a 4-order-of-magnitude extrapolation from our largest measurement ($1{,}000$ snarls). The Gini stability we observe is therefore \emph{suggestive evidence}, not a demonstration at deployment scale, because the tail shape could shift as rare complex-SV snarls accumulate or as the ratio of trivial SNP bubbles to complex snarls changes.
-
-The design decision (dynamic scheduling over static partitioning) does not depend on exact Gini invariance. It requires only that a heavy tail persist---i.e., that at least some snarls carry $k \gg 2$ alleles, producing $O(k^3)$ work far above the median. This is a structural property of variation graphs: complex SVs and multi-allelic indels produce high-$k$ snarls regardless of graph size, and any single such snarl suffices to make a static partition badly imbalanced.
-Fig.~\ref{fig:workload}b shows the allele-count distribution. A static, equal-count partition of snarls across threads would be badly load-imbalanced whenever such a tail is present, which the ablation confirms directly ($1.91\times$ slowdown, Table~\ref{tab:ablation}).
+\textbf{Finding 2: the workload is heavy-tailed and scale-invariant.}
+Most snarls are tiny ($\sim$67\% are $k{=}2$ SNP bubbles) but a few are very large, so per-snarl work ($\propto k^3$) is highly skewed. We quantify this with the Gini coefficient of work, which stays in the narrow band $0.55$-$0.58$ across graph sizes spanning $20$ to $1000$ snarls (Fig. \ref{fig:workload}a), the imbalance does not wash out with scale. Fig. \ref{fig:workload}b shows the underlying heavy-tailed allele-count distribution. Real graphs have $10^6$--$10^7$ snarls, so this is suggestive, not a deployment-scale demonstration. A static, equal-count partition of snarls across threads would therefore be badly load-imbalanced, because a handful of large snarls dominate the work. This finding mandates the use of a work stealing scheduler.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_workload.pdf}
-  \caption{(a)~The Gini coefficient of per-snarl work stays above $0.55$ across $20$--$1{,}000$ snarls (HPRC-calibrated synthetic graphs); real human graphs have $10^6$--$10^7$ snarls, a 4-order extrapolation from the largest point measured. (b)~The heavy-tailed allele-count distribution that drives the skew. The scheduler design rests on the structural argument (any high-$k$ snarl suffices), not on Gini invariance at scale.}
+  \caption{(a)~The Gini coefficient of per-snarl work stays above $0.55$ across graph sizes: the heavy tail is scale-invariant, so static partitioning is load-imbalanced at every scale. (b)~The heavy-tailed allele-count distribution that causes it. Measured from the reference prototype on HPRC-calibrated synthetic graphs.}
   \label{fig:workload}
 \end{figure}
 
 \textbf{Finding 3: memory access, not arithmetic, is the scaling wall.}
-The snarl tree is traversed bottom-up and each snarl-pair DP reads allele sequences from both graphs. At human scale the working set exceeds DRAM on a single node for a naive layout, and profiling shows the inner edit-distance and matching loops dominate runtime. This points to two interventions: a cache-friendly memory layout for the snarl tree, and keeping sequence data in flat, contiguous arrays rather than pointer-chasing per-node strings.
+The snarl tree is traversed bottom-up and each snarl-pair DP reads allele sequences from both graphs. At human scale the working set exceeds DRAM for a naive layout, and profiling shows the edit-distance and matching loops dominate runtime. This points to a cache-friendly memory layout for the snarl tree, and keeping sequence data in flat, contiguous arrays rather than pointer-chasing per-node strings. 
 
 \subsection{System Design and Implementation}
 \label{sec:system}
 
-G2G is implemented in C++20 with a Python reference prototype as a determinism oracle (verifying that the C++ engine reproduces the prototype's output, not that the output is biologically correct). Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1 W lines, with on-the-fly reverse complementing). Following Finding~3, the data model keeps all node sequences in a single flat byte array indexed by (offset, length), and adjacency in CSR form, so the DP kernel streams sequence data without pointer chasing.
+G2G is implemented in C++20 with a Python reference prototype as a correctness oracle. Graphs are read from GFA\,v1.1 (S/L/P and GFA\,1.1 W lines, with on-the-fly reverse complementing). The data model keeps all node sequences in a single flat byte array indexed by (offset, length), and adjacency in CSR form, so the DP kernel streams sequence data without pointer chasing. 
 
-\paragraph{Hardware platform.}
-All experiments run on a single-socket AMD EPYC 7763 (Milan) node: 64 cores / 128 hardware threads (2-way SMT), 4 NUMA domains, 512\,GiB DDR4-3200 in 8 channels (204.8\,GB/s peak memory bandwidth), 256\,MiB L3 cache. The OS is Ubuntu 20.04; G2G is compiled with GCC~9.4 at \texttt{-O3}. ``128 threads'' throughout this paper refers to hardware threads, not physical cores.
+All experiments run on a single-socket AMD EPYC 7763 (Milan): 64 cores / 128 hardware threads (2-way SMT), 4 NUMA domains, 512 GiB DDR4-3200, 256 MiB L3; Ubuntu 20.04, GCC 9.4-O3.
 
 \subsubsection{Cache-oblivious snarl-tree layout}
-\label{sec:veb}
-Motivated by Finding~3 (memory access is the scaling wall): two independent locality measures are applied, and they should not be conflated.
-
-\emph{Per-snarl struct packing} (order-independent): each snarl's DP table and allele data are allocated contiguously with the snarl metadata in a single arena block, so that processing one snarl streams from a contiguous region regardless of how snarls are ordered relative to each other. This helps on all workloads, including depth-1, and is always enabled.
-
-\emph{Inter-snarl tree ordering} (vEB layout, nested-only): on a \emph{nested} snarl tree (depth~${>}\,1$), a breadth-first storage scatters sibling subtrees across memory, so a bottom-up traversal thrashes the cache once the working set exceeds L3. G2G instead lays the snarl tree out in van Emde Boas recursive order \cite{vanemde1977preserving,frigo1999cache} (Fig.~\ref{fig:veb}), which stores any subtree of size $S$ in $O(S/B)$ contiguous cache lines. A single bottom-up traversal is therefore scan-optimal at $O(N/B)$ cache misses, without tuning to a specific cache size; under BFS order the same traversal scatters across levels and can incur up to $O(N)$ misses when the tree exceeds L3. The layout is a build-time toggle so its effect can be measured directly.
-
-\paragraph{Depth-1 degeneracy.} All workloads evaluated in this paper have depth-1 snarl trees (a root with $N$ leaf children---a flat array). On such a tree vEB order $\equiv$ BFS order $\equiv$ arbitrary order: there are no sibling subtrees to rearrange, so the vEB recursion has nothing to split and the two layouts produce the \emph{same} array up to a trivial root permutation. The $1.01\times$ ablation ratio (Table~\ref{tab:ablation}) is therefore a mathematical tautology, not a measurement---and the BFS-scattering premise illustrated in Fig.~\ref{fig:veb} cannot occur on any input used in this paper. The feature is implemented and included because nested snarls from Minigraph-Cactus graphs are the intended deployment target; it is reported honestly as unexercised, not as evidence of benefit.
+Each snarl's DP table and allele data sit contiguously in one arena block, streaming from a contiguous region regardless of snarl order; this helps on all workloads and is always on. On a nested tree with depth~${>}1$, breadth-first storage scatters sibling subtrees, so a bottom-up traversal thrashes the cache once the working set exceeds L3. G2G instead lays the tree out in van Emde Boas order (Fig. \ref{fig:veb}) \cite{vanemde1977preserving,frigo1999cache}, storing any size-$S$ subtree in $O(S/B)$ contiguous lines. A single bottom-up traversal is then scan-optimal at $O(N/B)$ misses. All evaluated workloads have depth-1 trees: a root with $N$ leaf children. There, vEB order $\equiv$ BFS order $\equiv$ arbitrary order: the recursion has nothing to split. The feature is implemented for the nested Minigraph-Cactus graphs that are the deployment target.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_veb.pdf}
-  \caption{Memory layout of a \emph{nested} snarl tree (depth~${>}\,1$). Under BFS order (top) sibling subtrees land far apart, so a bottom-up traversal misses cache once the working set exceeds L3. The van~Emde~Boas recursive layout (bottom) stores each subtree contiguously, giving cache-oblivious locality. This scenario requires nested snarls; on the depth-1 trees evaluated in this paper the two orderings are identical (see text).}
+  \caption{Memory layout of the snarl tree. Under a BFS order (top) sibling subtrees land far apart, so a bottom-up traversal misses cache once the working set exceeds L3. The van~Emde~Boas recursive layout (bottom) stores each subtree contiguously, giving cache-oblivious locality.}
   \label{fig:veb}
 \end{figure}
 
 \subsubsection{Centralised priority-dispatch runtime}
-\label{sec:ws}
-Motivated by Finding~2 (heavy-tailed per-snarl work): the snarl-pair DP is a task DAG: each pair $(S_A,S_B)$ is a task that depends on its child pairs, and sibling tasks are independent. G2G schedules this DAG with \emph{Longest-Processing-Time-first (LPT) list scheduling} \cite{graham1969bounds} built on OpenMP \cite{dagum1998openmp}. A single shared priority queue (guarded by a mutex) is keyed on estimated subtree work ($\sum k_i^3$ over descendants); idle workers pop the largest available task and block on a condition variable when the queue is empty. This is classical LPT list scheduling, not work stealing: work stealing uses decentralised per-worker deques with random-victim steals and achieves $T_P \le T_1/P + O(T_\infty)$ \cite{blumofe1999scheduling}; LPT uses a centralised queue sorted by decreasing processing time and guarantees Graham's makespan bound of $(4/3 - 1/3P) \cdot \text{OPT}$ for independent tasks. The bound explains the observed LIF${\approx}1$ (LPT distributes work near-optimally), while the centralised queue explains the contention collapse at high thread counts (\S\ref{sec:eval}): load balance and dispatch overhead are separate concerns, and LPT excels at the first while paying for the second. The centralised design was chosen for simplicity and because the DAG is shallow (depth~1 in all evaluated workloads). Two design parameters are exposed and measured: task granularity (small snarls are batched to amortise scheduling overhead) and dispatch policy (LPT vs.\ FIFO). The parallel delta output is byte-identical to the sequential aligner's (the global score agrees to within $10^{-3}$, float-reduction order aside)---this establishes implementation determinism, not end-to-end optimality: the per-snarl matching is optimal (LAPJV), but the greedy snarl pairing is approximate (\S\ref{sec:eval}).
+Motivated by Finding 2, the snarl-pair DP is a shallow task DAG. G2G schedules it with Longest-Processing-Time-first (LPT) list scheduling \cite{graham1969bounds} on OpenMP \cite{dagum1998openmp}: a single mutex-guarded priority queue keyed on estimated subtree work ($\sum k_i^3$). Idle workers pop the largest task. The parallel delta is byte-identical to the sequential aligner's (score agrees to $10^{-3}$, float-order aside).
 
 \subsubsection{Exact matching and anchor index}
-\label{sec:matching}
-Motivated by Finding~1 (matching cost explodes with $k$): the matching solver is a self-contained Jonker-Volgenant implementation \cite{jonker1987shortest}; the dispatcher routes $k\le 30$ to LAPJV and larger snarls to the greedy fallback, with brute force retained as a $k\le 8$ oracle. The minimiser anchor index uses FNV-1a hashing over $k$-mers with a minimap2-style sliding window \cite{li2018minimap2}, and is likewise a build-time toggle for ablation against the naive scan.
+Motivated by Finding 1, the solver is a self-contained Jonker-Volgenant implementation \cite{jonker1987shortest}: the dispatcher routes $k\le 30$ to LAPJV and larger snarls to the greedy fallback, with brute force as a $k\le 8$ oracle. The minimiser anchor index uses FNV-1a hashing over $k$-mers with a minimap2-style window \cite{li2018minimap2}, a build-time toggle against the naive scan.

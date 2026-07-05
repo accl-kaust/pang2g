@@ -5,3 +5,5 @@
 build/
 *.o
 *.a
+build-static-test/
+build-static/

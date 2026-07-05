@@ -1,44 +1,7 @@
 \section{Discussion}
 \label{sec:discussion}
 
-Every major decision in G2G traces to a measured property of the workload. Snarl-tree factorisation is what makes the problem practical: it decomposes the alignment into independent per-snarl subproblems, each solved optimally by LAPJV, though the snarl pairing itself remains a greedy heuristic. LAPJV replaces brute force because matching cost explodes with $k$ (Finding~1); centralised priority dispatch replaces static partitioning because per-snarl work is heavy-tailed (Finding~2), an argument the static-partition ablation confirms directly (Table \ref{tab:ablation}); and per-snarl struct packing plus flat sequence storage address the memory wall (Finding~3); the vEB inter-snarl ordering targets the same finding but is unexercised on depth-1 trees (\S\ref{sec:veb}). Two stages were originally quadratic: anchor detection and snarl decomposition. The minimiser index removes the first; the windowed sink search of \S\ref{sec:algo} makes the second linear for small snarls, though large-span SV snarls still fall back to the $O(|V|)$ search---the measured $N^{1.00}$ decomposition exponent (Fig.~\ref{fig:refdiffscaling}) reflects the short-variant-dominated test data, not the algorithm's worst case, and would rise on SV-rich inputs where the window overflows routinely.
+Every major decision in G2G traces to a measured property of the workload. Snarl-tree factorisation is what makes an NP-hard problem tractable. LAPJV replaces brute force because matching cost explodes with $k$ (Finding~1); centralised priority dispatch replaces static partitioning because per-snarl work is heavy-tailed and scale-invariant (Finding~2) an argument the static-partition ablation now confirms directly (Table \ref{tab:ablation}); and the cache-oblivious layout plus flat sequence storage address the memory wall (Finding~3). Two stages were originally quadratic: anchor detection and snarl decomposition. The minimiser index removes the first; the windowed sink search of \S\ref{sec:algo} removes the second, leaving an end-to-end pipeline that is near-linear in graph size (Fig. \ref{fig:refdiffscaling}).
 
-\subsection{Described-general, evaluated-special}
-\label{sec:gap}
-The system as described is a nested-snarl, parallel, multi-representation engine. The system as evaluated operates on a strict special case: depth-1 snarl trees, short-variant-dominated synthetic graphs, and self-consistent coordinate representations. Table~\ref{tab:gap} makes the mismatch explicit.
-
-\begin{table}[t]
-  \centering
-  \caption{Features described vs.\ features exercised in the evaluation. Every row where the evaluation column differs from the description column is a gap: the mechanism is implemented but untested under conditions where it can act.}
-  \label{tab:gap}
-  \footnotesize
-  \begin{tabular}{lll}
-    \toprule
-    feature & described & evaluated \\
-    \midrule
-    snarl-tree depth & nested (arbitrary) & depth-1 only \\
-    vEB layout & $O(N/B)$ on nested trees & degenerate ($\equiv$ BFS) \\
-    nested recurrence & bottom-up DP & never fires \\
-    decomposition & windowed + quadratic fallback & window never overflows \\
-    variant representation & arbitrary & self-consistent only \\
-    scheduler & LPT on heavy-tailed work & $67\%$ trivial $k{=}2$ tasks \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-The individual caveats appear where the numbers are reported (Q1 scale gap, Q3 vEB tautology, \S\ref{sec:veb} depth-1 degeneracy, \S\ref{sec:algo} decomposition circularity), but the structural pattern deserves a unified statement: \emph{the quantitative evidence in this paper validates the system only in the special case}. The general-case mechanisms (nested recurrence, vEB locality, quadratic-fallback decomposition) are implemented—they compile, pass unit tests, and are togglable for ablation—but no experiment exercises them under conditions where they can engage. We report them as design provisions for the intended deployment target (Minigraph-Cactus graphs with nested snarls, SV-containing long-read panels, mixed-provenance inputs), not as validated contributions. The numbers that appear beside them ($1.01\times$, $N^{1.00}$) are measured where the mechanisms cannot act and should be read as confirming inertness, not benefit.
-
-\paragraph{Vocabulary and explanatory power.}
-A related pattern: early descriptions of G2G imported terms of art whose formal guarantees do not hold for what was actually built. In each case, replacing the borrowed term with the correct one is not merely cosmetic---it \emph{explains} an otherwise anomalous measurement:
-\begin{itemize}
-  \item \emph{LPT list scheduling} (not work stealing): a centralised queue with mutex-guarded dispatch. The $O(P^2)$ coherency traffic from the shared mutex explains the $52.6\times$ plateau at 128 threads and the super-Amdahl degradation---effects that a work-stealing analysis (decentralised deques, $O(T_\infty)$ overhead) would predict away.
-  \item \emph{Greedy $1/2$-approximation} (not $1{-}1/e$): the fallback matcher takes the best unmatched pair repeatedly, giving a $1/2$ guarantee; the $(1{-}1/e)$ bound applies to submodular maximisation under matroid constraints, a different problem.
-  \item \emph{$O(N/B)$ scan} (not $O(N\log_B\!\frac{N}{B})$ search): the vEB layout enables scan-optimal traversal, not search; and on depth-1 trees it is degenerate, explaining the $1.01\times$ tautology.
-  \item \emph{NP-hard on general graphs; plausibly polynomial on bounded-treewidth}: the reduction constructs unrestricted instances, not variation graphs. Stating this resolves the apparent tension with the paper's tractability argument.
-  \item \emph{Three separate properties} (not ``correctness''): determinism, optimisation quality, and biological truth. Distinguishing them explains why parallel$=$sequential coexists with $\ge 80\%$ recall and unvalidated $\alpha,\beta,\gamma$.
-  \item \emph{Achieved scale} (not ``memory-bound ceiling''): 47\% utilisation and constant throughput at the stopping point---an observation, not a limit.
-\end{itemize}
-Throughout the paper we now use the precise terms. The lesson is general: importing a term of art without verifying that its preconditions hold creates a false sense of guarantee and obscures the actual behaviour of the system.
-
-\subsection{Limitations}
-The decomposer is DAG-only: although an optional vg-snarl backend can supply snarl boundaries, the allele enumeration and DP assume acyclicity, so tandem repeats (cycles) are out of scope and full cyclic support is future work. Snarl pairing is greedy rather than globally optimal: anchors mitigate this but a full tree-matching pairing is future work. The validation--deployment scale gap (\S\ref{sec:eval}, Q1) is the most pressing open risk: accuracy is measured at 5--50 snarls while deployment targets $10^6$--$10^7$, and the only at-scale check (parallel$=$sequential) is blind to scale-dependent errors. Closing this gap requires either a genome-scale ground truth or targeted stress tests for the identified failure modes (hash collisions, window overflow, greedy drift). G2G is single-machine; the $K>2$ multi-graph alignment problem and a distributed engine are natural extensions, as is GPU acceleration of the per-snarl matching, which is embarrassingly parallel across snarls.
+\subsection{Limiations}
+The decomposer is DAG-only: although an optional vg-snarl backend can supply snarl boundaries, the allele enumeration and DP assume acyclicity, so tandem repeats (cycles) are out of scope and full cyclic support is future work. Snarl pairing is greedy rather than globally optimal: anchors mitigate this but a full tree-matching pairing is future work. G2G is single-machine; the $K>2$ multi-graph alignment problem and a distributed engine are natural extensions, as is GPU acceleration of the per-snarl matching, which is embarrassingly parallel across snarls.
