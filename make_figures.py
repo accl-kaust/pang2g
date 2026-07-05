@@ -417,15 +417,26 @@ def fig_scaling(path, csv=None, max_cores=64):
 
 
 def fig_ablation(path):
-    def s(ax):
-        labels = ["vEB", "steal-LF", "minimiser", "LAPJV"]
-        ctrl = [1.0, 1.0, 1.4, 1.5]; treat = [1.8, 1.7, 3.2, 6.0]
-        x = np.arange(len(labels))
-        ax.bar(x-0.2, ctrl, 0.4, label="control (fits L3)", color="#b9c9e0")
-        ax.bar(x+0.2, treat, 0.4, label="treatment (>L3)", color=BLUE)
-        ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=7); ax.legend(loc="upper left")
-        ax.set_yscale("linear")
-    _placeholder(path, "Ablations (preliminary)", "", "speedup vs. off", s)
+    labels = ["LAPJV\n$\\to$ brute", "minimiser\n$\\to$ naive",
+              "work-steal\n$\\to$ static", "steal-LPT\n$\\to$ FIFO",
+              "vEB\n$\\to$ BFS"]
+    ctrl  = [1.03, 1.00, 1.00, 0.90, 0.95]
+    treat = [70.0, 1728.0, 1.91, 1.20, 1.01]
+    fig, ax = plt.subplots(figsize=(3.4, 2.8))
+    x = np.arange(len(labels))
+    ax.bar(x - 0.2, ctrl, 0.38, label="control", color="#b9c9e0")
+    ax.bar(x + 0.2, treat, 0.38, label="treatment", color=BLUE)
+    ax.axhline(1, ls="--", color=GREY, lw=0.8)
+    ax.set_yscale("log")
+    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=6.5)
+    ax.set_ylabel("slowdown when disabled ($\\times$)")
+    ax.legend(fontsize=7, loc="upper right")
+    ax.grid(True, axis="y", which="both", ls=":", alpha=0.4)
+    for xi, t in zip(x, treat):
+        ax.annotate(f"{t:.0f}$\\times$" if t >= 10 else f"{t:.2f}$\\times$",
+                    (xi + 0.2, t), ha="center", va="bottom", fontsize=7,
+                    fontweight="bold" if t >= 100 else "normal")
+    fig.savefig(path); plt.close(fig)
 
 
 def fig_biology(path):
