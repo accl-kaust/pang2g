@@ -67,18 +67,12 @@ Within a paired snarl we want the maximum-similarity partial allele matching, wi
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_delta.pdf}
-  \caption{How the delta is formed, at base-pair resolution; every circle is one
-  node storing a \emph{string} of base pairs (backbone and alleles alike).
-  \textbf{(a)}~input graph $A$ and \textbf{(b)}~input graph $B$ each carry a
-  \emph{shared} allele (green) at every snarl, drawn identically in both, plus
-  their own alternative: $A$ has \texttt{ATC} and \texttt{TAGG}, $B$ has
-  \texttt{A} (and at the right snarl no alternative at all, only the shared
-  \texttt{T}). \textbf{(c)}~the delta is their difference: the shared alleles
-  cancel, leaving the $A$-only insertions
-  \texttt{ATC},\,\texttt{TAGG}${\,\in\,}\Delta_{A\to B}$ (blue) and the $B$-only
-  deletion \texttt{A}${\,\in\,}\Delta_{B\to A}$ (red), each with its exact
-  sequence. A single graph reads off directly: $A={}$backbone${}+{}$green${}+{}$blue;
-  $B={}$backbone${}+{}$green${}+{}$red.}
+  \caption{The delta at base-pair resolution; every circle is a node storing a
+  string of base pairs. Input graphs \textbf{(a)}~$A$ and \textbf{(b)}~$B$ share
+  an allele (green) at each snarl and add their own alternative (blue for $A$,
+  red for $B$). \textbf{(c)}~the delta keeps the alleles in exactly one graph:
+  $\Delta_{A\to B}$ (blue) and $\Delta_{B\to A}$ (red), each with its exact
+  sequence.}
   \label{fig:delta}
 \end{figure}
 
