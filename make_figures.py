@@ -199,7 +199,7 @@ def fig_snarltree(path):
 def fig_pipeline(path):
     fig, ax = plt.subplots(figsize=(3.4, 4.2)); _clean(ax)
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-    stages = ["detect anchors\n(minimiser index)", "decompose\n(snarl trees)",
+    stages = ["detect anchors\n(minimizer index)", "decompose\n(snarl trees)",
               "pair snarls", "match alleles\n(LAPJV)", "emit deltas"]
     parallel = [False, False, True, True, False]
     n = len(stages); h = 0.10; w = 0.52
@@ -398,7 +398,7 @@ def fig_throughput(path, csv=None):
         mm2 = np.array([7.9, 19.8, 39.5, 79.0, 198.0, 395.0, 684.0])
     fig, ax = plt.subplots(figsize=(3.4, 2.5))
     ax.semilogy(h, g2g, "o-", color=BLUE, lw=1.8, ms=4, label="PanG2G (single-threaded)")
-    ax.semilogy(h, mm2, "s--", color=RED, lw=1.3, ms=4, label="linearise + map (minimap2)")
+    ax.semilogy(h, mm2, "s--", color=RED, lw=1.3, ms=4, label="linearize + map (minimap2)")
     ax.axvline(10, color=GREY, ls=":", lw=0.8)
     ax.text(12, 15, "crossover", fontsize=6.5, color=GREY)
     ax.set_xlabel("haplotypes per population, $h$")
@@ -444,7 +444,7 @@ def fig_scaling(path, csv=None, max_cores=64):
 
 
 def fig_ablation(path):
-    labels = ["LAPJV\n$\\to$ brute", "minimiser\n$\\to$ naive",
+    labels = ["LAPJV\n$\\to$ brute", "minimizer\n$\\to$ naive",
               "priority-\ndispatch\n$\\to$ static", "LPT\n$\\to$ FIFO",
               "vEB\n$\\to$ BFS"]
     ctrl  = [1.03, 1.00, 1.00, 0.90, 0.95]
