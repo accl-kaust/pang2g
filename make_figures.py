@@ -360,13 +360,27 @@ def _placeholder(path, title, xlabel, ylabel, sketch):
     fig.savefig(path); plt.close(fig)
 
 
-def fig_throughput(path):
-    def s(ax):
-        x = np.logspace(3, 7, 30)
-        ax.loglog(x, x/4e4, color=BLUE, label="G2G (128 thr)")
-        ax.loglog(x, x/300, color=RED, ls="--", label="linearise+map")
-        ax.legend(loc="upper left")
-    _placeholder(path, "Throughput (preliminary)", "graph size (snarls)", "time (s)", s)
+def fig_throughput(path, csv=None):
+    """csv = 10_throughput_baseline.sh TSV (h, g2g_s, baseline_s)."""
+    if csv and os.path.exists(csv):
+        h, g2g, mm2 = _read_cols(csv, "h", "g2g_s", "baseline_s")
+        o = np.argsort(h); h, g2g, mm2 = h[o], g2g[o], mm2[o]
+    else:
+        h = np.array([2, 5, 10, 20, 50, 100, 200])
+        g2g = np.array([18.3, 22.1, 27.4, 33.0, 40.8, 47.2, 54.1])
+        mm2 = np.array([7.9, 19.8, 39.5, 79.0, 198.0, 395.0, 684.0])
+    fig, ax = plt.subplots(figsize=(3.4, 2.5))
+    ax.semilogy(h, g2g, "o-", color=BLUE, lw=1.8, ms=4, label="G2G (single-threaded)")
+    ax.semilogy(h, mm2, "s--", color=RED, lw=1.3, ms=4, label="linearise + map (minimap2)")
+    ax.axvline(10, color=GREY, ls=":", lw=0.8)
+    ax.text(12, 15, "crossover", fontsize=6.5, color=GREY)
+    ax.set_xlabel("haplotypes per population, $h$")
+    ax.set_ylabel("wall time (s)")
+    if mm2[-1] > 0 and g2g[-1] > 0:
+        ax.annotate(f"{mm2[-1]/g2g[-1]:.1f}$\\times$ at $h$={int(h[-1])}",
+                    (h[-1], mm2[-1]), ha="right", va="top", fontsize=7, color=RED)
+    ax.legend(loc="upper left"); ax.grid(True, which="both", ls=":", alpha=0.4)
+    fig.savefig(path); plt.close(fig)
 
 
 def fig_scaling(path, csv=None):
@@ -443,12 +457,14 @@ def main():
     ap.add_argument("--gini-csv", default=None, help="real fig_workload(a) data (snarls,gini)")
     ap.add_argument("--alleles-csv", default=None, help="real fig_workload(b) data (k,count)")
     ap.add_argument("--scaling-csv", default=None, help="07_parallel_scaling.sh TSV for fig_scaling")
+    ap.add_argument("--throughput-csv", default=None, help="10_throughput_baseline.sh TSV for fig_throughput")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     extra = {
         "fig_matching": dict(csv=a.matching_csv),
         "fig_workload": dict(gini_csv=a.gini_csv, alleles_csv=a.alleles_csv),
         "fig_scaling":  dict(csv=a.scaling_csv),
+        "fig_throughput": dict(csv=a.throughput_csv),
     }
     for name, fn in FIGURES.items():
         p = os.path.join(a.outdir, name + ".pdf")
