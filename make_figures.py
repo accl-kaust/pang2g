@@ -418,7 +418,7 @@ def fig_scaling(path, csv=None, max_cores=64):
 
 def fig_ablation(path):
     labels = ["LAPJV\n$\\to$ brute", "minimiser\n$\\to$ naive",
-              "work-steal\n$\\to$ static", "steal-LPT\n$\\to$ FIFO",
+              "priority-dispatch\n$\\to$ static", "LPT\n$\\to$ FIFO",
               "vEB\n$\\to$ BFS"]
     ctrl  = [1.03, 1.00, 1.00, 0.90, 0.95]
     treat = [70.0, 1728.0, 1.91, 1.20, 1.01]
