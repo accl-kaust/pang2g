@@ -67,10 +67,16 @@ Within a paired snarl we want the maximum-similarity partial allele matching, wi
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figs/fig_delta.pdf}
-  \caption{The delta graph at base-pair resolution. Alleles matched across both
-  pangenomes form the shared graph; an allele present only in $A$ (e.g.\ an
-  insertion) is emitted to $\Delta_{A\to B}$ and one present only in $B$ (e.g.\
-  a deletion) to $\Delta_{B\to A}$, each with its exact sequence.}
+  \caption{The delta graph at base-pair resolution, shown on two snarls of a
+  common backbone. Every circle is one node and stores a \emph{string} of base
+  pairs, backbone and alleles alike; the shared allele is the horizontal
+  through-path of each snarl (like the spine), while $A$- and $B$-only alleles
+  bubble above and below, each carrying its exact sequence. Left snarl: shared
+  allele \texttt{AC}, with $A$-only insertion \texttt{ATC}${\,\in\,}\Delta_{A\to
+  B}$ and $B$-only deletion \texttt{A}${\,\in\,}\Delta_{B\to A}$. Right snarl:
+  shared allele \texttt{T} with $A$-only insertion
+  \texttt{TAGG}${\,\in\,}\Delta_{A\to B}$. Backbone and anchor nodes (dark) are
+  common to both graphs.}
   \label{fig:delta}
 \end{figure}
 
