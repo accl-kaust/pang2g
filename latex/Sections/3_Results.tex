@@ -102,8 +102,8 @@ The van Emde Boas layout reads ${\approx}1.0\times$ throughout: it is a genuine 
     \midrule
     LAPJV matching $\to$ brute force    & match  & \PH{$1.03\times$} & \PH{$70\times$}   \\
     minimiser index $\to$ naive scan    & anchor & \PH{$1.00\times$} & \PH{$1728\times$} \\
-    work-stealing $\to$ static partition & DP     & \PH{$1.00\times$} & \PH{$1.91\times$} \\
-    steal-largest $\to$ FIFO            & DP     & \PH{$0.90\times$} & \PH{$1.20\times$} \\
+    priority-dispatch $\to$ static partition & DP     & \PH{$1.00\times$} & \PH{$1.91\times$} \\
+    LPT $\to$ FIFO            & DP     & \PH{$0.90\times$} & \PH{$1.20\times$} \\
     vEB layout $\to$ BFS                & DP     & \PH{$0.95\times$} & \PH{$1.01\times$} \\
     \bottomrule
   \end{tabular}
