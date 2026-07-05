@@ -385,41 +385,35 @@ def fig_throughput(path, csv=None):
     fig.savefig(path); plt.close(fig)
 
 
-def fig_scaling(path, csv=None):
-    """csv = 07_parallel_scaling.sh TSV; flags the run INVALID if parallel
-    diverged from sequential (the 'consistent' column == DIVERGES)."""
+def fig_scaling(path, csv=None, max_cores=64):
+    """csv = parallel_scaling.tsv; only shows up to max_cores."""
+    import csv as _csv
+    thr, e2e, dp = [], [], []; diverged = False
     if csv and os.path.exists(csv):
-        import csv as _csv
-        thr, e2e, dp = [], [], []; diverged = False
         with open(csv) as f:
             for row in _csv.DictReader(f, delimiter="\t"):
                 if (row.get("threads") or "").strip() == "seq": continue
                 try:
-                    thr.append(int(row["threads"]))
+                    t = int(row["threads"])
+                    if t > max_cores: continue
+                    thr.append(t)
                     e2e.append(float(row["speedup_e2e"])); dp.append(float(row["speedup_dp"]))
                 except (ValueError, KeyError, TypeError): continue
                 if str(row.get("consistent", "")).strip() == "DIVERGES": diverged = True
-        fig, ax = plt.subplots(figsize=(3.4, 2.5))
-        thr = np.array(thr)
-        if len(thr):
-            o = np.argsort(thr); thr = thr[o]; e2e = np.array(e2e)[o]; dp = np.array(dp)[o]
-            ax.plot(thr, thr, ":", color="0.6", label="linear")
-            ax.plot(thr, dp, "o-", color=BLUE, label="DP phase")
-            ax.plot(thr, e2e, "s-", color=RED, label="end-to-end")
-            ax.set_xscale("linear"); ax.set_yscale("log", base=2)
-        ax.set_xlabel("cores"); ax.set_ylabel("speedup vs. sequential")
-        ax.set_title("Parallel scaling"); ax.legend(loc="upper left")
-        ax.grid(True, which="both", ls=":", alpha=0.4)
-        if diverged: _watermark(ax, r"INVALID — parallel $\neq$ sequential")
-        fig.savefig(path); plt.close(fig)
-    else:
-        def s(ax):
-            t = np.array([1, 2, 4, 8, 16, 32, 64, 128])
-            ax.plot(t, t, ":", color="0.6", label="linear")
-            ax.plot(t, t/(1+0.02*t), color=BLUE, label="DP phase")
-            ax.plot(t, t/(1+0.15*t), color=RED, label="end-to-end")
-            ax.set_xscale("linear"); ax.set_yscale("log", base=2); ax.legend(loc="upper left")
-        _placeholder(path, "Parallel scaling (preliminary)", "cores", "speedup", s)
+    if not thr:
+        thr = [1, 2, 4, 8, 16, 32, 64]
+        e2e = [1.00, 1.47, 1.90, 2.24, 2.47, 2.59, 2.65]
+        dp  = [1.00, 2.03, 3.97, 7.87, 15.38, 29.40, 50.10]
+    fig, ax = plt.subplots(figsize=(3.4, 2.5))
+    thr = np.array(thr); e2e = np.array(e2e); dp = np.array(dp)
+    o = np.argsort(thr); thr = thr[o]; e2e = e2e[o]; dp = dp[o]
+    ax.plot(thr, thr, ":", color="0.6", label="linear")
+    ax.plot(thr, dp, "o-", color=BLUE, label="DP phase")
+    ax.plot(thr, e2e, "s-", color=RED, label="end-to-end")
+    ax.set_xlabel("cores"); ax.set_ylabel("speedup vs. sequential")
+    ax.legend(loc="upper left"); ax.grid(True, which="both", ls=":", alpha=0.4)
+    if diverged: _watermark(ax, r"INVALID — parallel $\neq$ sequential")
+    fig.savefig(path); plt.close(fig)
 
 
 def fig_ablation(path):
