@@ -370,7 +370,7 @@ def fig_throughput(path, csv=None):
         g2g = np.array([18.3, 22.1, 27.4, 33.0, 40.8, 47.2, 54.1])
         mm2 = np.array([7.9, 19.8, 39.5, 79.0, 198.0, 395.0, 684.0])
     fig, ax = plt.subplots(figsize=(3.4, 2.5))
-    ax.semilogy(h, g2g, "o-", color=BLUE, lw=1.8, ms=4, label="G2G (single-threaded)")
+    ax.semilogy(h, g2g, "o-", color=BLUE, lw=1.8, ms=4, label="PanG2G (single-threaded)")
     ax.semilogy(h, mm2, "s--", color=RED, lw=1.3, ms=4, label="linearise + map (minimap2)")
     ax.axvline(10, color=GREY, ls=":", lw=0.8)
     ax.text(12, 15, "crossover", fontsize=6.5, color=GREY)
