@@ -120,7 +120,7 @@ def fig_refdiffscaling(path):
 # ── ILLUSTRATIVE (matches cited stats; swap in real profiling) ────────────────
 def fig_workload(path, gini_csv=None, alleles_csv=None):
     """gini_csv columns: snarls,gini   alleles_csv columns: k,count"""
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.0, 2.6))
+    fig, (a1, a2) = plt.subplots(2, 1, figsize=(3.4, 4.2))
     if gini_csv and os.path.exists(gini_csv):
         sizes, gini = _read_cols(gini_csv, "snarls", "gini")
     else:
