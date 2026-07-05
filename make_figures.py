@@ -231,53 +231,77 @@ def fig_pipeline(path):
 
 
 def fig_delta(path):
-    # Every circle is one node and stores a *string* of base pairs (labelled),
-    # backbone and alleles alike. The shared allele runs straight through the
-    # snarl, like the spine; A/B-only alleles bubble above and below.
-    fig, ax = plt.subplots(figsize=(3.4, 2.6)); _clean(ax)
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-    r = 0.020
+    # Two input graphs (A, B) and their delta, stacked. Every circle is one
+    # node storing a *string* of base pairs. The shared allele (green) is drawn
+    # identically in all three panels, so it is visibly the branch both graphs
+    # carry; the delta is exactly the union minus that shared part.
     DARK = "#444"
-    y0, up, dn = 0.56, 0.80, 0.32
-    bx = list(np.linspace(0.08, 0.92, 6))
-    # backbone spine: drawn only *between* snarls; inside a snarl the shared
-    # allele itself is the horizontal through-path.
-    for i in (0, 2, 4):
-        ax.plot([bx[i], bx[i + 1]], [y0, y0], color=DARK, lw=1.4, zorder=1)
-    # backbone nodes each store a string too (labelled below, in dark)
+    y0, up, dn = 0.50, 0.82, 0.18
+    bx = list(np.linspace(0.10, 0.90, 6))
     spine_seq = ["GA", "TT", "CG", "GC", "TA", "CC"]
-    for x, s in zip(bx, spine_seq):
-        ax.add_patch(Circle((x, y0), r, color=DARK, zorder=3))
-        ax.text(x, y0 - 0.11, s, ha="center", fontsize=5.5, color=DARK)
+    fig, axes = plt.subplots(3, 1, figsize=(3.4, 3.6))
+    for ax in axes:
+        _clean(ax); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
 
-    def shared(xl, xr, seq):
-        xm = (xl + xr) / 2
-        ax.plot([xl, xm, xr], [y0, y0, y0], color=GREEN, lw=1.8, zorder=2)
-        ax.add_patch(Circle((xm, y0), r, color=GREEN, zorder=3))
-        ax.text(xm, y0 + 0.09, seq, ha="center", fontsize=5.5, color=GREEN, style="italic")
+    # nodes as round markers (Circle patches would distort in short/wide panels)
+    def node(ax, x, y, color):
+        ax.plot(x, y, "o", color=color, ms=8.5, mec="none", zorder=3)
 
-    def allele(xl, xr, yapex, seq, color, above):
+    def backbone(ax, label=False):
+        for i in (0, 2, 4):
+            ax.plot([bx[i], bx[i + 1]], [y0, y0], color=DARK, lw=1.3, zorder=1)
+        for x, s in zip(bx, spine_seq):
+            node(ax, x, y0, DARK)
+            if label:
+                ax.text(x, y0 - 0.19, s, ha="center", fontsize=5, color=DARK)
+
+    def shared(ax, xl, xr, seq):
         xm = (xl + xr) / 2
-        ax.plot([xl, xm, xr], [y0, yapex, y0], color=color, lw=1.5, zorder=1)
-        ax.add_patch(Circle((xm, yapex), r, color=color, zorder=3))
-        ax.text(xm, yapex + (0.10 if above else -0.10), seq,
+        ax.plot([xl, xm, xr], [y0, y0, y0], color=GREEN, lw=1.7, zorder=2)
+        node(ax, xm, y0, GREEN)
+        ax.text(xm, y0 + 0.15, seq, ha="center", fontsize=5.5, color=GREEN, style="italic")
+
+    def allele(ax, xl, xr, yapex, seq, color, above):
+        xm = (xl + xr) / 2
+        ax.plot([xl, xm, xr], [y0, yapex, y0], color=color, lw=1.4, zorder=1)
+        node(ax, xm, yapex, color)
+        ax.text(xm, yapex + (0.16 if above else -0.16), seq,
                 ha="center", fontsize=5.5, color=color, style="italic")
 
-    # ── snarl 1 (multi-allelic site): shared AC, A-only ATC, B-only A
-    shared(bx[1], bx[2], "AC")
-    allele(bx[1], bx[2], up, "ATC", BLUE, above=True)    # A-only
-    allele(bx[1], bx[2], dn, "A",   RED,  above=False)   # B-only
-    # ── snarl 2 (insertion): shared T, A-only TAGG on a single node
-    shared(bx[3], bx[4], "T")
-    allele(bx[3], bx[4], dn, "TAGG", BLUE, above=False)  # A-only
+    # (a) input graph A = backbone + shared + A-only alleles
+    a = axes[0]; backbone(a, label=True)
+    shared(a, bx[1], bx[2], "AC");  allele(a, bx[1], bx[2], up, "ATC",  BLUE, True)
+    shared(a, bx[3], bx[4], "T");   allele(a, bx[3], bx[4], up, "TAGG", BLUE, True)
+    a.text(0.0, 0.98, r"(a) input graph $A$", fontsize=6.5, va="top", color="#222")
 
-    # legend (backbone included so the dark nodes read as stored strings too)
-    ax.plot([], [], color=DARK,  lw=1.4, label="backbone")
-    ax.plot([], [], color=GREEN, lw=1.8, label="shared")
-    ax.plot([], [], color=BLUE,  lw=1.5, label=r"$\Delta_{A\to B}$ ($A$-only)")
-    ax.plot([], [], color=RED,   lw=1.5, label=r"$\Delta_{B\to A}$ ($B$-only)")
-    ax.legend(loc="lower center", fontsize=6.0, ncol=2, frameon=False,
-              bbox_to_anchor=(0.5, 0.0))
+    # (b) input graph B = backbone + shared + B-only alleles
+    b = axes[1]; backbone(b)
+    shared(b, bx[1], bx[2], "AC");  allele(b, bx[1], bx[2], dn, "A", RED, False)
+    shared(b, bx[3], bx[4], "T")    # snarl 2: B carries only the shared allele
+    b.text(0.0, 0.98, r"(b) input graph $B$", fontsize=6.5, va="top", color="#222")
+
+    # (c) delta = alleles in exactly one graph (shared drawn for reference)
+    c = axes[2]; backbone(c)
+    shared(c, bx[1], bx[2], "AC")
+    allele(c, bx[1], bx[2], up, "ATC", BLUE, True)
+    allele(c, bx[1], bx[2], dn, "A",   RED,  False)
+    shared(c, bx[3], bx[4], "T")
+    allele(c, bx[3], bx[4], up, "TAGG", BLUE, True)
+    c.text(0.0, 0.98, r"(c) delta $\Delta_{A\to B}$, $\Delta_{B\to A}$",
+           fontsize=6.5, va="top", color="#222")
+
+    # "diff" arrow from the two inputs down to the delta
+    fig.text(0.5, 0.375, r"$\Downarrow$ diff", ha="center", va="center", fontsize=8)
+
+    # shared legend under the bottom panel
+    for col, lab in [(DARK, "backbone"), (GREEN, "shared allele (in both)"),
+                     (BLUE, r"$\Delta_{A\to B}$ ($A$-only)"),
+                     (RED,  r"$\Delta_{B\to A}$ ($B$-only)")]:
+        c.plot([], [], color=col, lw=1.6, label=lab)
+    c.legend(loc="upper center", fontsize=5.6, ncol=2, frameon=False,
+             bbox_to_anchor=(0.5, -0.02), handlelength=1.4, columnspacing=1.2)
+
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.99, bottom=0.09, hspace=0.22)
     fig.savefig(path); plt.close(fig)
 
 
