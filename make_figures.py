@@ -83,7 +83,7 @@ def fig_matching(path, csv=None):
         ax.semilogy(k_l, t_l, "-", color=BLUE, lw=1.8, label=r"LAPJV  $O(k^3)$")
         ax.semilogy(k_b, t_b, "s--", color=RED, lw=1.3, ms=4, label="brute force (measured)")
         ax.axvspan(8, 50, color=GREY, alpha=0.12)
-        ax.text(29, 1.3e2, "brute-force infeasible", color=GREY, fontsize=7, ha="center")
+        ax.text(20, 1.3e2, "brute-force infeasible", color=GREY, fontsize=7, ha="center")
         ax.set_xlim(2, 50)
     ax.set_xlabel("alleles per snarl, $k$"); ax.set_ylabel("time / snarl pair (ms)")
     ax.set_ylim(1e-2, 1e4)
