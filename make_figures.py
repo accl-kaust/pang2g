@@ -280,7 +280,7 @@ def fig_delta(path):
 
 def fig_veb(path):
     fig, axes = plt.subplots(3, 1, figsize=(3.4, 3.6),
-                             gridspec_kw={"height_ratios": [1.4, 0.7, 0.7]})
+                             gridspec_kw={"height_ratios": [1.0, 0.5, 0.5]})
     for ax in axes: _clean(ax)
     # --- (a) nested snarl tree ---
     a0 = axes[0]; a0.set_xlim(0, 1); a0.set_ylim(0, 1)
@@ -291,11 +291,11 @@ def fig_veb(path):
         "R":  (0.50, 0.90), "S1": (0.25, 0.65), "S2": (0.75, 0.65),
         "a":  (0.13, 0.40), "b":  (0.37, 0.40),
         "c":  (0.63, 0.40), "S3": (0.87, 0.40),
-        "d":  (0.78, 0.16), "e":  (0.96, 0.16),
+        "d":  (0.78, 0.16), "e":  (0.94, 0.16),
     }
     edges = [("R","S1"),("R","S2"),("S1","a"),("S1","b"),
              ("S2","c"),("S2","S3"),("S3","d"),("S3","e")]
-    node_r = 0.032
+    node_r = 0.05
     snarl_nodes = {"R", "S1", "S2", "S3"}
     # subtree highlight groups for vEB
     st_colors = {"S1": "#cde4f7", "S3": "#fde0d0"}
@@ -341,12 +341,12 @@ def fig_veb(path):
     cells(axes[2], veb_order, hi, "(c) vEB layout — subtrees contiguous")
     # bracket under vEB for S1 subtree
     a2 = axes[2]
-    a2.annotate("", xy=(0.105, 0.15), xytext=(0.39, 0.15),
+    a2.annotate("", xy=(0.205, 0.15), xytext=(0.41, 0.15),
                 arrowprops=dict(arrowstyle="|-|", color=BLUE, lw=0.8))
-    a2.text(0.25, 0.06, "S1 subtree", ha="center", fontsize=5.5, color=BLUE)
-    a2.annotate("", xy=(0.68, 0.15), xytext=(0.96, 0.15),
+    a2.text(0.305, 0.03, "S1 subtree", ha="center", fontsize=5.5, color=BLUE)
+    a2.annotate("", xy=(0.68, 0.15), xytext=(0.89, 0.15),
                 arrowprops=dict(arrowstyle="|-|", color=RED, lw=0.8))
-    a2.text(0.82, 0.06, "S3 subtree", ha="center", fontsize=5.5, color=RED)
+    a2.text(0.79, 0.03, "S3 subtree", ha="center", fontsize=5.5, color=RED)
 
     fig.tight_layout(); fig.savefig(path); plt.close(fig)
 
