@@ -83,11 +83,11 @@ def fig_matching(path, csv=None):
         ax.semilogy(k_l, t_l, "-", color=BLUE, lw=1.8, label=r"LAPJV  $O(k^3)$")
         ax.semilogy(k_b, t_b, "s--", color=RED, lw=1.3, ms=4, label="brute force (measured)")
         ax.axvspan(8, 50, color=GREY, alpha=0.12)
-        ax.text(29, 1.5e3, "brute-force infeasible", color=GREY, fontsize=7, ha="center")
+        ax.text(29, 1.3e2, "brute-force infeasible", color=GREY, fontsize=7, ha="center")
         ax.set_xlim(2, 50)
     ax.set_xlabel("alleles per snarl, $k$"); ax.set_ylabel("time / snarl pair (ms)")
     ax.set_ylim(1e-2, 1e4)
-    ax.legend(loc="upper left"); ax.grid(True, which="both", ls=":", alpha=0.4)
+    ax.legend(loc="upper right"); ax.grid(True, which="both", ls=":", alpha=0.4)
     fig.savefig(path); plt.close(fig)
 
 
@@ -231,19 +231,50 @@ def fig_pipeline(path):
 
 
 def fig_delta(path):
-    fig, ax = plt.subplots(figsize=(3.4, 2.3)); _clean(ax)
+    fig, ax = plt.subplots(figsize=(3.4, 2.4)); _clean(ax)
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-    xs = [0.1, 0.32, 0.55, 0.78, 0.92]
-    for x in xs: ax.add_patch(Circle((x, 0.5), 0.022, color="#444"))
-    ax.plot(xs, [0.5]*len(xs), color="#444", lw=1.4, zorder=0)
-    # A-only insertion (top), B-only deletion (bottom)
-    ax.plot([0.32, 0.435, 0.55], [0.5, 0.72, 0.5], color=BLUE, lw=1.8)
-    ax.add_patch(Circle((0.435, 0.72), 0.022, color=BLUE))
-    ax.text(0.435, 0.8, r"$\Delta_{A\to B}$ (ins)", ha="center", fontsize=7, color=BLUE)
-    ax.plot([0.55, 0.665, 0.78], [0.5, 0.28, 0.5], color=RED, lw=1.8)
-    ax.add_patch(Circle((0.665, 0.28), 0.022, color=RED))
-    ax.text(0.665, 0.18, r"$\Delta_{B\to A}$ (del)", ha="center", fontsize=7, color=RED)
-    ax.text(0.5, 0.95, "shared graph + base-pair deltas", ha="center", fontsize=8)
+    r = 0.018
+    backbone = list(np.linspace(0.08, 0.92, 6))
+    for x in backbone:
+        ax.add_patch(Circle((x, 0.50), r, color="#444", zorder=3))
+    ax.plot([backbone[0], backbone[1]], [0.50, 0.50], color="#444", lw=1.4, zorder=1)
+    ax.plot([backbone[2], backbone[3]], [0.50, 0.50], color="#444", lw=1.4, zorder=1)
+    ax.plot([backbone[4], backbone[5]], [0.50, 0.50], color="#444", lw=1.4, zorder=1)
+    # snarl 1 (between backbone[1] and backbone[2]): 3 alleles
+    s1_l, s1_r = backbone[1], backbone[2]
+    s1_mid = (s1_l + s1_r) / 2
+    # shared allele (top)
+    ax.plot([s1_l, s1_mid, s1_r], [0.50, 0.72, 0.50], color=GREEN, lw=1.8, zorder=1)
+    ax.add_patch(Circle((s1_mid, 0.72), r, color=GREEN, zorder=3))
+    ax.text(s1_mid, 0.72 + 0.055, "ACG", ha="center", fontsize=5.5, color=GREEN, style="italic")
+    ax.text(s1_mid, 0.60 + 0.05, "ATG", ha="center", fontsize=5.5, color=BLUE, style="italic")
+    ax.text(s1_mid, 0.30 - 0.055, "A–G", ha="center", fontsize=5.5, color=RED, style="italic")
+    # A-only allele (middle-top)
+    ax.plot([s1_l, s1_mid, s1_r], [0.50, 0.60, 0.50], color=BLUE, lw=1.5, zorder=1)
+    ax.add_patch(Circle((s1_mid, 0.60), r, color=BLUE, zorder=3))
+    # B-only allele (bottom)
+    ax.plot([s1_l, s1_mid, s1_r], [0.50, 0.30, 0.50], color=RED, lw=1.5, zorder=1)
+    ax.add_patch(Circle((s1_mid, 0.30), r, color=RED, zorder=3))
+    # snarl 2 (between backbone[3] and backbone[4]): 2 alleles
+    s2_l, s2_r = backbone[3], backbone[4]
+    s2_mid = (s2_l + s2_r) / 2
+    # shared allele
+    ax.plot([s2_l, s2_mid, s2_r], [0.50, 0.68, 0.50], color=GREEN, lw=1.8, zorder=1)
+    ax.add_patch(Circle((s2_mid, 0.68), r, color=GREEN, zorder=3))
+    ax.text(s2_mid, 0.68 + 0.055, "T", ha="center", fontsize=5.5, color=GREEN, style="italic")
+    # A-only allele with 2 nodes (multi-node insertion)
+    s2_n1 = s2_l + (s2_r - s2_l) * 0.33
+    s2_n2 = s2_l + (s2_r - s2_l) * 0.66
+    ax.plot([s2_l, s2_n1, s2_n2, s2_r], [0.50, 0.33, 0.33, 0.50], color=BLUE, lw=1.5, zorder=1)
+    ax.add_patch(Circle((s2_n1, 0.33), r, color=BLUE, zorder=3))
+    ax.add_patch(Circle((s2_n2, 0.33), r, color=BLUE, zorder=3))
+    ax.text((s2_n1 + s2_n2) / 2, 0.33 - 0.055, "TAGG", ha="center", fontsize=5.5, color=BLUE, style="italic")
+    # legend
+    ax.plot([], [], color=GREEN, lw=1.8, label="shared")
+    ax.plot([], [], color=BLUE, lw=1.5, label=r"$\Delta_{A\to B}$  ($A$-only)")
+    ax.plot([], [], color=RED, lw=1.5, label=r"$\Delta_{B\to A}$  ($B$-only)")
+    ax.legend(loc="lower center", fontsize=6.5, ncol=3, frameon=False,
+              bbox_to_anchor=(0.5, 0.02))
     fig.savefig(path); plt.close(fig)
 
 
