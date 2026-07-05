@@ -376,10 +376,12 @@ def fig_throughput(path, csv=None):
     ax.text(12, 15, "crossover", fontsize=6.5, color=GREY)
     ax.set_xlabel("haplotypes per population, $h$")
     ax.set_ylabel("wall time (s)")
+    # lower the red text a bit to avoid overlap with the graph line
     if mm2[-1] > 0 and g2g[-1] > 0:
         ax.annotate(f"{mm2[-1]/g2g[-1]:.1f}$\\times$ at $h$={int(h[-1])}",
-                    (h[-1], mm2[-1]), ha="right", va="top", fontsize=7, color=RED)
-    ax.legend(loc="upper left"); ax.grid(True, which="both", ls=":", alpha=0.4)
+                    (h[-1], mm2[-1]), ha="right", va="top", fontsize=7, color=RED, xytext=(-5, -25), textcoords="offset points")
+    # make the legend smaller and more compact, and add a grid
+    ax.legend(loc="upper left", fontsize=6); ax.grid(True, which="both", ls=":", alpha=0.4)
     fig.savefig(path); plt.close(fig)
 
 
@@ -404,8 +406,8 @@ def fig_scaling(path, csv=None):
             ax.plot(thr, thr, ":", color="0.6", label="linear")
             ax.plot(thr, dp, "o-", color=BLUE, label="DP phase")
             ax.plot(thr, e2e, "s-", color=RED, label="end-to-end")
-            ax.set_xscale("log", base=2); ax.set_yscale("log", base=2)
-        ax.set_xlabel("threads"); ax.set_ylabel("speedup vs. sequential")
+            ax.set_xscale("linear"); ax.set_yscale("log", base=2)
+        ax.set_xlabel("cores"); ax.set_ylabel("speedup vs. sequential")
         ax.set_title("Parallel scaling"); ax.legend(loc="upper left")
         ax.grid(True, which="both", ls=":", alpha=0.4)
         if diverged: _watermark(ax, r"INVALID — parallel $\neq$ sequential")
@@ -416,8 +418,8 @@ def fig_scaling(path, csv=None):
             ax.plot(t, t, ":", color="0.6", label="linear")
             ax.plot(t, t/(1+0.02*t), color=BLUE, label="DP phase")
             ax.plot(t, t/(1+0.15*t), color=RED, label="end-to-end")
-            ax.set_xscale("log", base=2); ax.set_yscale("log", base=2); ax.legend(loc="upper left")
-        _placeholder(path, "Parallel scaling (preliminary)", "threads", "speedup", s)
+            ax.set_xscale("linear"); ax.set_yscale("log", base=2); ax.legend(loc="upper left")
+        _placeholder(path, "Parallel scaling (preliminary)", "cores", "speedup", s)
 
 
 def fig_ablation(path):
