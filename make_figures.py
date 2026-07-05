@@ -197,20 +197,36 @@ def fig_snarltree(path):
 
 
 def fig_pipeline(path):
-    fig, ax = plt.subplots(figsize=(7.2, 1.7)); _clean(ax)
+    fig, ax = plt.subplots(figsize=(3.4, 4.2)); _clean(ax)
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-    stages = ["anchors\n(minimiser)", "decompose\n(snarl tree)", "vEB\nlayout",
-              "pair +\nmatch (LAPJV)", "delta\ngraphs"]
-    n = len(stages); w = 0.155; gap = (1 - 0.06 - n*w) / (n - 1); x = 0.03
-    xs = []
-    for i, s in enumerate(stages):
-        _box(ax, x, 0.32, w, 0.36, s, fs=7.2); xs.append(x); x += w + gap
+    stages = ["detect anchors\n(minimiser index)", "decompose\n(snarl trees)",
+              "pair snarls", "match alleles\n(LAPJV)", "emit deltas"]
+    parallel = [False, False, True, True, False]
+    n = len(stages); h = 0.10; w = 0.52
+    x0 = (1 - w) / 2
+    total_h = n * h + (n - 1) * 0.06
+    y_top = 0.5 + total_h / 2
+    ys = []
+    for i in range(n):
+        y = y_top - i * (h + 0.06) - h
+        ys.append(y)
+        if parallel[i]:
+            for off in [(0.03, 0.015), (0.015, 0.0075)]:
+                _box(ax, x0 + off[0], y + off[1], w, h, "",
+                     fc="#eef3fb", ec=BLUE, fs=7, lw=0.6)
+                ax.patches[-1].set_alpha(0.35)
+        _box(ax, x0, y, w, h, stages[i], fs=7.5)
     for i in range(n - 1):
-        _arrow(ax, xs[i]+w, 0.5, xs[i+1], 0.5)
-    ax.text(0.03+w/2, 0.83, "GFA $G_A$, $G_B$", ha="center", fontsize=7, color=BLUE)
-    _arrow(ax, 0.03+w/2, 0.78, 0.03+w/2, 0.69)
-    ax.text(xs[-1]+w/2, 0.17, r"$\Delta_{A\to B},\ \Delta_{B\to A}$, score", ha="center", fontsize=7, color=GREEN)
-    _arrow(ax, xs[-1]+w/2, 0.31, xs[-1]+w/2, 0.22)
+        _arrow(ax, 0.5, ys[i], 0.5, ys[i + 1] + h)
+    ax.text(0.5, y_top + 0.06, "GFA $G_A$, $G_B$", ha="center", fontsize=7.5, color=BLUE)
+    _arrow(ax, 0.5, y_top + 0.03, 0.5, y_top)
+    ax.text(0.5, ys[-1] - 0.06, r"$\Delta_{A\to B},\ \Delta_{B\to A}$, shared, score",
+            ha="center", fontsize=7.5, color=GREEN)
+    _arrow(ax, 0.5, ys[-1], 0.5, ys[-1] - 0.03)
+    ax.text(0.88, ys[2] + h / 2, "parallel", ha="center", va="center",
+            fontsize=6.5, color=GREY, rotation=90)
+    ax.annotate("", xy=(0.82, ys[3]), xytext=(0.82, ys[2] + h),
+                arrowprops=dict(arrowstyle="<->", color=GREY, lw=0.8))
     fig.savefig(path); plt.close(fig)
 
 
