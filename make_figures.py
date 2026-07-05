@@ -103,18 +103,18 @@ def fig_refdiffscaling(path):
                     75.84, 172.86, 348.88, 745.11, 1551.11])
     def fit(y):
         s, _ = np.polyfit(np.log(nodes), np.log(y), 1); return s
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.0, 2.7))
+    fig, (a1, a2) = plt.subplots(2, 1, figsize=(3.4, 4.2), sharex=True)
     a1.loglog(nodes, wall, "o-", color=BLUE, label=f"wall ($\\propto N^{{{fit(wall):.2f}}}$)")
     a1.loglog(nodes, dec, "s--", color="#7aa8d2", ms=4, label=f"decompose ($\\propto N^{{{fit(dec):.2f}}}$)")
     a1.loglog(nodes, wall[0]*nodes/nodes[0], ":", color="0.6", label="ideal linear")
-    a1.set(xlabel="total nodes (A+B)", ylabel="wall time (s)", title="Time")
-    a1.grid(True, which="both", ls=":", alpha=0.4); a1.legend(loc="upper left")
+    a1.set(ylabel="wall time (s)")
+    a1.set_title("Reference-anchored diff — single core, exact at every size", fontsize=8)
+    a1.grid(True, which="both", ls=":", alpha=0.4); a1.legend(loc="upper left", fontsize=6.5)
     a2.loglog(nodes, mem/1024, "o-", color=RED, label=f"peak RSS ($\\propto N^{{{fit(mem):.2f}}}$)")
     a2.loglog(nodes, (mem[0]/1024)*nodes/nodes[0], ":", color="0.6", label="ideal linear")
-    a2.set(xlabel="total nodes (A+B)", ylabel="peak memory (GiB)", title="Memory")
-    a2.grid(True, which="both", ls=":", alpha=0.4); a2.legend(loc="upper left")
-    fig.suptitle("Reference-anchored diff — single core, exact at every size", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.94)); fig.savefig(path); plt.close(fig)
+    a2.set(xlabel="total nodes (A+B)", ylabel="peak memory (GiB)")
+    a2.grid(True, which="both", ls=":", alpha=0.4); a2.legend(loc="upper left", fontsize=6.5)
+    fig.tight_layout(); fig.savefig(path); plt.close(fig)
 
 
 # ── ILLUSTRATIVE (matches cited stats; swap in real profiling) ────────────────
