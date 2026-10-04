@@ -27,7 +27,7 @@
 \begin{document}
 
 \title{PanG2G: Scalable Base-Pair-Resolution Graph-to-Graph
-Alignment of Population-Scale Pangenome Graphs
+Alignment of Pangenome Graphs
 }
 
 % \author{\IEEEauthorblockN{1\textsuperscript{st} Ahmad Shakleya}
@@ -36,23 +36,29 @@ Alignment of Population-Scale Pangenome Graphs
 % Thuwal, Makkah, Kingdom of Saudi Arabia \\
 % ahmad.shakleya@kaust.edu.sa}
 % \and
-% \IEEEauthorblockN{2\textsuperscript{nd} Suhaib Fahmy}
+% \IEEEauthorblockN{2\textsuperscript{nd} Suhaib A. Fahmy}
 % \IEEEauthorblockA{\textit{King Abdullah University of Science} \\
 % \textit{and Technology (KAUST)}\\
 % Thuwal, Makkah, Kingdom of Saudi Arabia \\
 % suhaib.fahmy@kaust.edu.sa}
 % }
 
-\author{Anonymous}
+\author{
+\IEEEauthorblockN{Ahmad~Shakleya and Suhaib~A.~Fahmy}
+\IEEEauthorblockA{King Abdullah University of Science and Technology,
+Thuwal, Saudi Arabia.}
+%%\email{ziyi.yang@kaust.edu.sa}
+\text{ahmad.shakleya@kaust.edu.sa}
+}
 
 \maketitle
 
 \begin{abstract}
-Pangenome variation graphs have replaced the single linear reference as the state of the art for representing human genetic diversity, yet a basic operation is still missing: directly comparing two such graphs to each other. On population pangenomes the delta graph shows the population-specific structural variation that a sequence-to-reference method cannot express without a linear projection. We present G2G, the first system for base-pair resolution graph-to-graph alignment of pangenome variation graphs. In this work we characterize the workload, describe the system and validate the reference-anchored output on a planted ground truth. The reference-anchored diff scales near-linearly to an $8.2$\,Gbp graph pair (${\sim}2.6\times$ the human genome) on a single core in $72$\,min at $100\%$ precision/recall, and the parallel snarl-pairing engine reaches $50\times$ DP-phase speedup at $64$ cores.
+Pangenome variation graphs have replaced the single linear reference as the state of the art for representing human genetic diversity, yet a basic operation is still missing: directly comparing two such graphs to each other. On population pangenomes the delta graph shows the population-specific structural variation that a sequence-to-reference method cannot express without a linear projection. We present PanG2G, the first system for base-pair resolution graph-to-graph alignment of pangenome variation graphs. In this work we characterize the workload, describe the system and validate the reference-anchored output on a planted ground truth. The reference-anchored diff scales near-linearly to an $8.2{\times}10^9$ bp graph pair (${\sim}2.6\times$ the human genome) on a single core in 72 min with $100\%$ precision/recall, and the parallel snarl-pairing engine reaches $50.1\times$ DP-phase speedup on $64$ cores.
 \end{abstract}
 
 \begin{IEEEkeywords}
-comparative genomics, pangenome, variation graph, graph alignment, structural variation, parallel bioinformatics
+comparative genomics, pangenome, variation graph, graph alignment, structural variation
 \end{IEEEkeywords}
 
 \input{Sections/0_Introduction}
