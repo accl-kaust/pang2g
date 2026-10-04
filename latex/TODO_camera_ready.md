@@ -1,77 +1,113 @@
-# BIBM 2026 camera-ready TODO
+# BIBM 2026 camera-ready TODO — status after the 2026-10-04 revision pass
 
-Branch: `claude/bibm-reviewer-comments-7fb1c9` (commits 1d90708, f2d4622, dba29ca).
-R1/R2/R3 = reviewer #1/#2/#3.
+Branch: `claude/camera-ready-paper-e5f755` (worktree; not merged to main).
+R1/R2/R3 = reviewer #1/#2/#3. Camera-ready deadline: **25 Oct 2026**; limit **8 pages
+including references** (BIBM 2026 CFP). The compiled draft is `latex/PanG2G_camera_ready_draft.pdf`
+(8 pages). Items marked **USER** need an action only you can take.
 
-## 1. Blocking: code and data release (R1.3, R2.1, R2's score depends on it)
+## 1. Code and data release (R1.3, R2.1)
 
-- [ ] Make `github.com/ahmadshakleya/G2G` public (it currently returns 404).
-- [ ] Check that the repo contains no secrets, cluster paths or credentials before making it public (e.g. KAUST ROCS/SANDS paths in `experiments/`).
-- [ ] Add a LICENSE and a README with build and run instructions (the root `README.md` only says `# G2G`).
-- [ ] Archive a tagged release on Zenodo and put the DOI where `% TODO` sits in `Sections/5_Conclusion.tex`.
-- [ ] Verify the availability claim that the repo "reruns every experiment and figure reported here". In particular:
-  - [ ] The paper says the AFR/EAS graphs come from **1000 Genomes phase-3 + vg construct**, but `experiments/exp6_hprc/` appears to build them from **HPRC assemblies**. Add the matching scripts or fix the paper.
-  - [ ] Scripts for the reference-anchored diff sweep (8 Mbp to 8.2 Gbp) and the F_ST sweep are included.
-  - [ ] `make_figures.py` regenerates every figure in `latex/figs/`.
-- [ ] Mention the 1000 Genomes panel URL/version, gnomAD-SV version and ClinVar release date in the repo (or the paper).
+- [ ] **USER** Make `github.com/ahmadshakleya/G2G` public (still 404 on 2026-10-04).
+- [x] Secrets / cluster paths scrubbed: personal e-mail removed from all `#SBATCH --mail-user` lines,
+      `--partition=mc/synode` replaced by a generic `batch` with a comment, `mcmgt01`/ROCS/SANDS references
+      removed from `experiments/README.md` and `download_all_login.sh`. No credentials were found.
+- [x] `LICENSE` (MIT), root `README.md` (build, run, reproduction table, data versions), `CITATION.cff`,
+      `.zenodo.json` added.
+- [ ] **USER** Mint the Zenodo DOI for the tagged release and replace `ZENODO-DOI-PLACEHOLDER` in
+      `Sections/5_Conclusion.tex` (and `README.md`).
+- [x] Availability claim verified and corrected:
+  - [x] The AFR/EAS graphs are built from the **1000 Genomes phase-3 panel + vg construct**
+        (`demo/09_fetch_biology_data.sh`, `demo/09_hprc_biology.sh`); the paper now says so and names the
+        releases. `experiments/exp6_hprc/` (HPRC + Minigraph-Cactus) is described as scripts only.
+  - [x] Reference-anchored sweep scripts (`demo/05_scaling_demo.sh`, `demo/06_scaling_limit.sh`) and the
+        F_ST sweep (`demo/hprc_enrich.py --fst-sweep`) are included and documented.
+  - [x] `make_figures.py` (root) regenerates **every** figure in `latex/figs/` from committed tables
+        (`results/*.tsv|csv`, `demo/sample_outputs/*.tsv`); `demo/make_figures.py` is a shim to it.
+- [x] Data versions in README and paper: 1000G release 20130502, GRCh37, gnomAD-SV v2.1,
+      ClinVar GRCh37 weekly release 2026-09-28, PGGB HLA-DRB1 haplotypes, tool versions.
 
-## 2. Code/paper mismatches (would be visible to anyone reading the public repo)
+## 2. Code/paper mismatches
 
-- [ ] **Snarl pairing.** The paper (Methodology, "Snarl decomposition and pairing") says greedy "highest-scoring unused B-partner, in topological order, anchor-guided". The C++ engine (`src/align.cpp`, `correspond_snarls`) pairs by **exact source/sink sequence key, FIFO among collisions** (since commit e05a276, 2026-06-27). The Python prototype is greedy but compares every pair of snarls, so it is quadratic, not linear as the paper says.
-  - [ ] Decide which version the paper describes, and rewrite the pairing paragraph, Algorithm 1 (`PairSnarls` "greedy, anchor-guided") and the "linear in the number of snarls" claim to match.
-  - [ ] Note that boundary-key FIFO pairing can drift: one extra snarl with a colliding key shifts every later pair with that key (R2.2). Short 1-bp boundary nodes make collisions frequent.
-- [ ] **Which code produced the ≥80% precision/recall (Q1)?** Before or after e05a276, C++ or Python? Also, `experiments/exp1_correctness/run.sh` sweeps 5–200 snarls, but the paper says 5–50.
-- [ ] **Anchors are unused for pairing.** `align_snarls` ignores the anchors argument; they only add α·sim to W. Either wire them in or stop claiming they "pin the coordinate systems" (Introduction, Methodology stage 1, Fig. 1 caption, Algorithm 1).
-- [ ] **Unpaired snarls are dropped from the delta.** `build_deltas` only emits unmatched alleles of paired snarls. This contradicts Definition 2 (Problem Definition) and the "every allele present in A but absent from B" claim (Introduction, Output subsection). Fix the code or the text.
-- [ ] **Shared graph.** It is not written as a graph, only as anchor/snarl lines in the GAF. The paper now says that in the Algorithm 1 caption; check the abstract, pipeline figure and Fig. 1 caption still read consistently.
-- [ ] **Anchor degree rule on real graphs.** Check how many nodes pass `in/out-degree ≤ 1` on the vg construct chr22 graphs. The new text assumes vg construct's 32-bp node chopping; confirm the default was used.
-- [ ] **`vg snarls` backend.** Methodology now says the built-in finder "fuses decomposition with allele enumeration". Confirm, and confirm that the `G2G_SNARLS=vg` path works.
-- [ ] **HPRC/MC runs.** If PanG2G was ever run on real Minigraph-Cactus (HPRC) graphs (`exp6_hprc/03_run_g2g_on_hprc.sh`), report it (R3 asked directly). Otherwise keep "this paper reports no results on nested Minigraph-Cactus graphs".
+- [x] **Snarl pairing.** Paper now describes the implemented boundary-key FIFO rule (default, linear) and
+      the new `--pairing interval` anchor-interval order-preserving DP (`src/align.cpp`,
+      `correspond_snarls_interval`). Algorithm 1 and the "linear" claim match the code. Boundary-key drift
+      (R2.2) is explained and measured (Q1, Fig. 4).
+- [x] **Which code produced the ≥80%?** It was the gtest assertion threshold, not a measurement; the paper
+      now reports the measured values (P=1.000, R=0.999–1.000 up to 10^5 snarls) and says so. `exp1/run.sh`'s
+      inline sweep (which parsed the wrong VCF column) was replaced by
+      `experiments/exp1_correctness/pairing_error_sweep.py` (5–10^5 snarls, both deltas).
+- [x] **Anchors.** Used for the α term and, in interval mode, to pin the coordinate systems; text and
+      Fig. 1 caption corrected; degree-rule statistics on real vg construct graphs added
+      (`experiments/plot/graph_degree_stats.py`).
+- [x] **Unpaired snarls** now contribute all alleles to the delta (`build_deltas`, shared by sequential and
+      parallel aligners; `AlignmentResult::unpaired_snarls_a/b`; tests in `tests/test_pairing.cpp`).
+- [x] **Shared graph** → "shared alignment (GAF-style file)" consistently in abstract/Fig. 1/Algorithm 1.
+- [x] **Anchor degree rule on real graphs** (HLA vg construct): 50% of nodes pass, >80% of them 1-bp SNP
+      alleles, ~15% ≥15 bp; 10–13% of bubbles share a boundary key. vg construct default (32-bp chopping)
+      confirmed.
+- [x] **`vg snarls` backend** works (`--snarls vg`, vg 1.76) and is byte-identical to the built-in finder
+      on the HLA graphs after the decomposer fix (below). Text no longer claims the built-in finder "fuses"
+      decomposition with allele enumeration; both backends share it.
+- [x] **HPRC/MC runs:** none were ever run; the paper keeps "no results on nested Minigraph-Cactus graphs".
+- [x] **NEW — decomposer bug fixed.** The old first-common-successor sink rule dropped the second of two
+      adjacent variants on vg construct graphs (HLA A-only recall 0.74). Replaced by a superbubble scan
+      (Onodera et al. 2013) in `src/decompose.cpp`: recall 0.99, identical to `vg snarls`, ~20× faster.
+      All 161 tests pass; synthetic exactness and linear scaling unchanged. Q4 was re-run (below).
 
-## 3. Experiments worth running (strengthen answers to reviewers)
+## 3. Experiments
 
-- [ ] Pairing error vs. graph size: run exp1 at 10^3–10^5 snarls (R2.2, R3 "20% is high"). Add a sentence or small plot with the trend.
-- [ ] Optional: interval-restricted, order-preserving pairing between anchors. The paper proposes it as the fix; even a prototype result would answer R2.2 well.
-- [ ] Optional: semi-linear baseline (Giraffe), since R3 asked. The paper currently says "not benchmarked".
-- [ ] Optional: hybrid LPT + chunked work-stealing scheduler at 128 threads (R2.3). The paper currently says it's future work.
+- [x] Pairing error vs. graph size (5–10^5 snarls, 1/2/8-bp boundaries, 0/10% private snarls, 3 seeds,
+      both pairing rules): `results/exp1b_pairing_error.csv`, Fig. 4 (`fig_pairing_error`).
+- [x] Interval-restricted, order-preserving pairing implemented and evaluated (F1 ≥ 0.999 everywhere).
+- [ ] Semi-linear baseline (Giraffe): not run; paper still says "not benchmarked".
+- [ ] Hybrid LPT + chunked work-stealing scheduler at 128 threads: not run (no 128-core node reachable;
+      IBEX needs key-based SSH, see below); still future work in the paper.
+- [x] Real-data check of both modes on HLA-DRB1 vg construct graphs (new Q1 paragraph;
+      `experiments/plot/hla_truth_check.py`).
+- [x] Q4 chr22 re-run with the fixed decomposer (local WSL, vg 1.76/bcftools 1.24): delta 608,718 alleles
+      (427,685 AFR-only, 181,033 EAS-only; was 587,010). Enrichment numbers updated in Q4, Fig. 8 and
+      `demo/sample_outputs/*.tsv`.
 
-## 4. Verify numbers and claims added in the revision
+## 4. Numbers and claims
 
-- [ ] "Up to 64 cores (78% DP-phase efficiency)": computed as 50.1/64. Confirm it is the DP-phase number.
-- [ ] "~67% of tasks are k=2 bubbles" used in Q2: taken from Finding 2 (synthetic, HPRC-calibrated). Confirm it applies to the scaling workload too.
-- [ ] Semi-linear paragraph: "cost should also grow linearly in h" is an expectation, not a measurement. Keep it phrased that way.
-- [ ] New Related Work claims:
-  - [ ] POA "can align two partial-order graphs" (Lee 2002).
-  - [ ] Aligning alignments is NP-complete (Kececioglu & Starrett 2004).
-  - [ ] Sequence-to-graph alignment is NP-complete with edits on the graph (Jain 2020).
-  - [ ] ODGI computes path-level similarity within one graph.
-  - [ ] HPRC release used `vg deconstruct` for VCFs.
+- [x] 78% DP-phase efficiency = 50.1/64 (DP phase) — kept.
+- [x] "~67% k=2" was the prototype workload; the scaling workload has 50.4% k=2 tasks
+      (`results/scaling_workload_k_hist.csv`) — Q2 corrected.
+- [x] Semi-linear cost "should also grow linearly in h" kept as an expectation.
+- [x] Related-work claims checked (POA aligns two POGs; Kececioglu & Starrett 2004 NP-complete; Jain et al.
+      2020 NP-complete with graph edits; ODGI path similarity within one graph; HPRC used vg deconstruct).
 
 ## 5. Bibliography
 
-- [ ] Check the six new entries (DOIs, pages, author lists): `lee2002poa`, `kececioglu2004aligning`, `jain2020complexity`, `riesen2009approximate`, `singh2008isorank`, `guarracino2022odgi`.
-- [ ] `xu2025parsga` key vs. author (Banerjee et al.). Fine for BibTeX but check the author list.
-- [ ] Uncited entries (BibTeX ignores them; delete for tidiness if you like): `SMITH1981195`, `li2009bwa`, `langmead2012fast`, `rautiainen2020graphaligner`, `ebler2022pangenie`, `kim2019hisat2`, `minkin2013sibelia`, `Hyun2022`, `Liao2023`.
+- [x] Six new entries checked (DOIs/pages). `xu2025parsga` author list completed
+      (Banerjee, Gibney, Xu, Aluru). `onodera2013superbubbles` added. URL/abstract fields stripped for space.
+- [x] Dropped for space (uncited now): santa_paper, segram_damla_onur, Secomandi2025, roberts2004minimizers,
+      dagum1998openmp. Uncited legacy entries left in the .bib (BibTeX ignores them).
 
 ## 6. Build and layout
 
-- [ ] Compile (pdflatex + bibtex ×2). The edits were never compiled.
-- [ ] Check the page count against the BIBM camera-ready limit (Problem Definition, Related Work and Results all grew). Trim if needed.
-- [ ] Check that the new `definition` environment (amsthm, `\theoremstyle{definition}`) renders correctly with IEEEtran.
-- [ ] Check that the new cross-references resolve: `sec:problem`, `sec:refdiff`, `eq:score`/`eq:dp` (now defined in a different subsection), `fig:delta` from the anchor paragraph.
-- [ ] Algorithm 1 still fits its column after the extra lines and longer caption.
-- [ ] Uncomment the author block if needed for camera-ready; check the IEEE copyright notice and PDF eXpress requirements.
+- [x] Compiles (pdflatex + bibtex) without undefined references; **8 pages** including references.
+- [x] `definition` environment renders with IEEEtran; cross-references resolve.
+- [x] Algorithm 1 fits its column.
+- [x] Author block uncommented. ⚠ **USER**: add the IEEE copyright notice / PDF eXpress step once BIBM sends
+      the camera-ready instructions (the CFP says the format will be specified at acceptance).
+- [x] Figures merged for space: Gini + matching cost (Fig. 3), parallel scaling + throughput (Fig. 5);
+      vEB schematic, F_ST-sweep figure and the scaling table removed (content kept in text).
 
 ## 7. Text polish
 
-- [ ] British spellings left in Results Q2: "linearise", "centralised", "serialises" (one changed to "serializes"), "characterises" (Methodology).
-- [ ] Results Q2: stray `)` in "...with minimap2 \cite{li2018minimap2})."
-- [ ] Methodology decomposition paragraph: "this are the large SV snarls" → "these are".
-- [ ] Discussion: subsection title typo "Limiations".
-- [ ] Results Q1: "whether the parallel engine reproduces the sequential result)" has a stray `)`.
-- [ ] "the first system to solve it" (Introduction contributions): pairing is not optimal, so consider "to address it".
-- [ ] Read the whole paper once for consistency between the new Problem Definition (Definition 2) and the rest.
+- [x] British spellings, stray parentheses, "this are", "Limiations", "first system to address it" fixed;
+      consistency pass with Definition 2 done.
 
 ## 8. Response to reviewers
 
-- [ ] Write the point-by-point response letter (R1: 3 points, R2: 3, R3: 6 major + 6 minor).
+- [x] `latex/response_to_reviewers.md` (point-by-point; reviewer comments are paraphrased — paste the
+      originals before sending).
+
+## Running on IBEX
+
+Nothing in this pass ran on IBEX: `ssh shaklea@ilogin.ibex.kaust.edu.sa` accepts only password
+authentication for the local key. Run `ssh-copy-id shaklea@ilogin.ibex.kaust.edu.sa` once and future
+sessions can submit the 128-thread scheduler experiment with `experiments/exp4_parallel_scaling/slurm.sh`
+(set `--partition=batch`, `--constraint=rome` for a 128-core node). All experiments above ran in WSL on the
+laptop (8 cores, 7 GB) or are taken from the committed logs of the original 64-core EPYC runs.

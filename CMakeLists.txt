@@ -116,3 +116,9 @@ enable_testing()
 if(G2G_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
+
+# ── Tools ─────────────────────────────────────────────────────
+# bench_matching: per-snarl bipartite matching cost vs. allele count k
+# (LAPJV vs. brute force); writes the CSV behind fig_matching.
+add_executable(bench_matching tools/bench_matching.cpp)
+target_link_libraries(bench_matching PRIVATE g2g_lib)

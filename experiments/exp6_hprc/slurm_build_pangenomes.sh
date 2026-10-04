@@ -6,14 +6,12 @@
 #SBATCH --job-name=g2g_exp6_build
 #SBATCH --output=logs/exp6_build_%j.out
 #SBATCH --error=logs/exp6_build_%j.err
-#SBATCH --partition=mc
+#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=400G
 #SBATCH --time=14:00:00
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=shakleyaahmed@gmail.com
 
 set -euo pipefail
 G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"

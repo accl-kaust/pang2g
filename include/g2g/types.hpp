@@ -104,10 +104,16 @@ struct AlignmentResult {
     std::vector<SnarlAlignment> snarl_alignments;
     float                       total_score{0.f};
 
-    // Delta graph: alleles present in only one of the two graphs.
-    // Populated by GraphAligner::build_deltas() (P3-7).
+    // Delta graph: alleles present in only one of the two graphs — the alleles
+    // LAPJV left unmatched inside paired snarls plus every allele of a snarl
+    // that found no partner.  Populated by build_deltas() (align.hpp).
     std::vector<DeltaAllele>    a_only_alleles;   // in A, not in B
     std::vector<DeltaAllele>    b_only_alleles;   // in B, not in A
+
+    // Snarls of A / B that were not paired with any snarl of the other graph
+    // (all of their alleles are in the delta above).
+    uint32_t                    unpaired_snarls_a{0};
+    uint32_t                    unpaired_snarls_b{0};
 };
 
 } // namespace g2g

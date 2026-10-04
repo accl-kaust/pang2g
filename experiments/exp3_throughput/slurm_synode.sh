@@ -12,14 +12,12 @@
 #SBATCH --job-name=g2g_exp3_throughput
 #SBATCH --output=logs/exp3_%j.out
 #SBATCH --error=logs/exp3_%j.err
-#SBATCH --partition=synode
+#SBATCH --partition=batch      # adjust: a 128+ core node (was a dedicated 384-core partition)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128
 #SBATCH --mem=512G
 #SBATCH --time=14:00:00
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=shakleyaahmed@gmail.com
 
 set -euo pipefail
 

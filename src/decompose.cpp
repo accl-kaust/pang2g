@@ -1,3 +1,31 @@
+/**
+ * src/decompose.cpp
+ * =================
+ * Snarl decomposition (built-in DAG back-end) and snarl-tree layout.
+ *
+ * Boundary detection is a superbubble scan in the spirit of Onodera, Sadakane
+ * and Shibuya (WABI 2013), restricted to DAGs: from every branching node s the
+ * scan walks the graph in topological order, pushing a node only once all of
+ * its predecessors have been visited, and stops at the first moment the
+ * frontier collapses to a single node t that is the only discovered-but-
+ * unvisited node.  Every s→t path then stays inside the visited set and every
+ * visited node lies on some s→t path, so (s,t) is a snarl in the Paten et al.
+ * sense.  The earlier "first node reached by all successors of s" rule was not
+ * a separator test: with vg construct's encoding of adjacent variants (the alt
+ * node of one SNP links directly to the reference node of the next) it closed
+ * the bubble one node too early and silently dropped the following variant.
+ *
+ * Each scan costs O(size of the bubble + its boundary); on bubble chains the
+ * whole decomposition is therefore near-linear in |V|+|E| (measured as N^1.00
+ * in the paper's scaling sweep).  A scan that discovers more than kMaxScan
+ * nodes without closing gives up on that source (no snarl is reported there),
+ * which bounds the worst case on graphs with unclosed tips.
+ *
+ * Nested snarls are enumerated too but only top-level snarls are kept
+ * (depth-1 scope, see the paper); their alleles are all s→t paths, capped at
+ * kMaxAlleles per snarl.
+ */
+
 #include <g2g/decompose.hpp>
 #include <algorithm>
 #include <atomic>
@@ -50,105 +78,65 @@ const std::vector<NodeId>& TopoCache::get(const VariationGraph& g) {
     return order;
 }
 
-// ── find_sink ─────────────────────────────────────────────────────────────────
+// ── Superbubble scan ──────────────────────────────────────────────────────────
 
-static std::optional<NodeId> find_sink(
-        NodeId source,
-        const VariationGraph& vg,
-        const std::vector<NodeId>& topo,
-        const std::vector<uint32_t>& /*topo_pos*/) {
+namespace {
 
-    auto succs = vg.successors(source);
-    if (succs.size() < 2) return std::nullopt;
+// Give up on a source once this many nodes have been discovered without the
+// bubble closing (bounds the cost on graphs with unclosed tips).
+constexpr uint32_t kMaxScan = 1u << 20;
 
-    std::vector<std::vector<bool>> reachable(succs.size(),
-                                              std::vector<bool>(vg.num_nodes(), false));
-    for (size_t si = 0; si < succs.size(); ++si) {
-        std::queue<NodeId> q;
-        q.push(succs[si]);
-        reachable[si][succs[si]] = true;
-        while (!q.empty()) {
-            NodeId u = q.front(); q.pop();
-            for (NodeId v : vg.successors(u))
-                if (!reachable[si][v]) { reachable[si][v] = true; q.push(v); }
+// Maximum alleles (s→t paths) enumerated per snarl; also the limit of the
+// uint16_t allele indices used in SnarlAlignment.
+constexpr std::size_t kMaxAlleles = 65535;
+
+struct ScanState {
+    std::vector<uint32_t> seen;      // stamp when first discovered
+    std::vector<uint32_t> visited;   // stamp when popped
+    uint32_t stamp{0};
+    explicit ScanState(uint32_t n) : seen(n, 0), visited(n, 0) {}
+};
+
+/**
+ * Superbubble sink of `s` (std::nullopt if s opens no snarl).  Labels: a node
+ * is "seen" when first discovered as a child, "visited" when popped.  A node is
+ * pushed only once all of its predecessors are visited; the bubble closes when
+ * the stack holds exactly one node and no other node is seen-but-unvisited.
+ */
+std::optional<NodeId> find_superbubble_sink(NodeId s, const VariationGraph& vg,
+                                            ScanState& st) {
+    if (vg.out_degree(s) < 2) return std::nullopt;
+    const uint32_t stamp = ++st.stamp;
+    std::vector<NodeId> stack{s};
+    st.seen[s] = stamp;
+    uint32_t seen_unvisited = 1;   // s itself (on the stack)
+    uint32_t discovered = 1;
+
+    while (!stack.empty()) {
+        NodeId v = stack.back();
+        stack.pop_back();
+        st.visited[v] = stamp;
+        --seen_unvisited;
+        if (v != s && vg.out_degree(v) == 0) return std::nullopt;   // tip escapes
+
+        for (NodeId u : vg.successors(v)) {
+            if (u == s) return std::nullopt;                        // cycle
+            if (st.seen[u] != stamp) {
+                st.seen[u] = stamp;
+                ++seen_unvisited;
+                if (++discovered > kMaxScan) return std::nullopt;
+            }
+            bool all_parents_visited = true;
+            for (NodeId p : vg.predecessors(u))
+                if (st.visited[p] != stamp) { all_parents_visited = false; break; }
+            if (all_parents_visited) stack.push_back(u);
         }
-    }
-
-    for (NodeId n : topo) {
-        if (n == source) continue;
-        bool in_all = true;
-        for (size_t si = 0; si < succs.size(); ++si)
-            if (!reachable[si][n]) { in_all = false; break; }
-        if (in_all) return n;
+        if (stack.size() == 1 && seen_unvisited == 1) return stack.back();   // (s, t)
     }
     return std::nullopt;
 }
 
-// ── find_sink_local — fast, EXACT, window-bounded sink search ─────────────────
-//
-// The full find_sink() above is O(V) per call (a whole-graph BFS per successor
-// plus a full topo scan), so calling it for every branching node makes
-// decomposition O(branches · V) — quadratic on large graphs.  This bounded
-// variant exploits a DAG property: topological positions increase monotonically
-// along every edge, so any path from a successor of `source` to a node whose
-// topo position is ≤ base+window stays ENTIRELY within that window.  Windowed
-// reachability is therefore exact for any in-window candidate, and the first
-// in-window node reached by all successors is exactly the sink find_sink() would
-// return — when the sink is in range.
-//
-// Return contract:
-//   sink set               → definitive sink (identical to the full search)
-//   {nullopt, false}       → definitively no sink (search stayed inside window)
-//   {nullopt, true}        → sink may lie beyond the window; caller must fall back
-struct LocalSink { std::optional<NodeId> sink; bool inconclusive; };
-
-static LocalSink find_sink_local(
-        NodeId source,
-        const VariationGraph& vg,
-        const std::vector<NodeId>& topo,
-        const std::vector<uint32_t>& topo_pos,
-        uint32_t window) {
-
-    auto succs = vg.successors(source);
-    if (succs.size() < 2) return {std::nullopt, false};
-
-    const uint32_t base = topo_pos[source];
-    const uint64_t hi   = static_cast<uint64_t>(base) + window;   // inclusive
-    const uint32_t span = window + 1;
-
-    std::vector<uint32_t> reach_count(span, 0);  // # successors reaching this pos
-    std::vector<uint32_t> visited(span, 0);      // per-successor BFS stamp
-    uint32_t stamp = 0;
-    bool inconclusive = false;
-    std::queue<NodeId> q;
-
-    for (NodeId start : succs) {
-        ++stamp;
-        if (static_cast<uint64_t>(topo_pos[start]) > hi) { inconclusive = true; continue; }
-        uint32_t so = topo_pos[start] - base;
-        visited[so] = stamp;
-        ++reach_count[so];
-        q.push(start);
-        while (!q.empty()) {
-            NodeId u = q.front(); q.pop();
-            for (NodeId v : vg.successors(u)) {
-                if (static_cast<uint64_t>(topo_pos[v]) > hi) { inconclusive = true; continue; }
-                uint32_t o = topo_pos[v] - base;
-                if (visited[o] != stamp) {
-                    visited[o] = stamp;
-                    ++reach_count[o];
-                    q.push(v);
-                }
-            }
-        }
-    }
-
-    const uint32_t need = static_cast<uint32_t>(succs.size());
-    for (uint32_t o = 1; o < span && base + o < topo.size(); ++o)
-        if (reach_count[o] == need) return {topo[base + o], false};   // first = sink
-
-    return {std::nullopt, inconclusive};
-}
+}  // namespace
 
 // ── annotate_work (P3-4) ──────────────────────────────────────────────────────
 //
@@ -198,10 +186,8 @@ void SnarlDecomposer::annotate_work(SnarlTree& tree) {
 //      rooted there in vEB order.
 //   4. Concatenate: top-half vEB | subtree-0 vEB | subtree-1 vEB | ...
 //
-// For Phase 3 (single-level snarls, depth=1) the reordering is a no-op, but
-// the infrastructure is in place for nested snarls once libsnarls is linked.
-// The function is instrumented so the ablation test (Experiment 5, Q3) can
-// compare traversal-order cache behaviour before vs. after vEB layout.
+// For depth-1 trees the reordering is a no-op, but the infrastructure is in
+// place for nested snarls once a nested back-end is linked.
 //
 // Implementation note: we use the simpler "split by subtree size" heuristic
 // rather than strict level splitting; this gives identical asymptotic behaviour
@@ -215,7 +201,7 @@ static void veb_layout_recursive(
     // Pre-order: root first, then children recursively in vEB order.
     // For trees of depth ≤ 1 this is equivalent to standard vEB layout;
     // for deeper trees the correct split-at-median implementation is needed
-    // (marked TODO for Phase 4 when libsnarls provides nested snarls).
+    // (marked TODO for when a nested back-end provides nested snarls).
     veb_order.push_back(root);
     for (uint32_t c : children[root])
         veb_layout_recursive(veb_order, children, c);
@@ -256,7 +242,7 @@ void SnarlDecomposer::apply_veb_order(SnarlTree& tree) {
 
     // Fix children_begin/end references: since current snarls are depth=1
     // (no children), these are all zero and need no update.
-    // For nested snarls (Phase 4), remap all children_begin/end ranges here.
+    // For nested snarls, remap all children_begin/end ranges here.
     // The allele-path indices (alleles_begin/end) index into
     // allele_path_offsets which is NOT reordered — it stays parallel to the
     // original snarl order.  We therefore remap the allele_path_offsets/
@@ -300,10 +286,10 @@ void SnarlDecomposer::apply_veb_order(SnarlTree& tree) {
 
 // ── build_tree_from_boundaries ────────────────────────────────────────────────
 //
-// Given snarl boundaries (source, sink) — from either the built-in dominator
-// approximation or the vg back-end — enumerate each snarl's alleles, drop
-// snarls nested inside another (keep top-level only), build the flat allele
-// store, annotate work, and apply the vEB layout.
+// Given snarl boundaries (source, sink) — from either the built-in superbubble
+// scan or the vg back-end — enumerate each snarl's alleles, drop snarls nested
+// inside another (keep top-level only), build the flat allele store, annotate
+// work, and apply the vEB layout.
 
 SnarlTree SnarlDecomposer::build_tree_from_boundaries(
         const VariationGraph& vg,
@@ -317,23 +303,37 @@ SnarlTree SnarlDecomposer::build_tree_from_boundaries(
         std::vector<std::vector<NodeId>> alleles;
     };
     std::vector<RawSnarl> raw;
+    static std::atomic<bool> warned_cap{false};
 
     for (const auto& [s, t] : boundaries) {
         if (s >= vg.num_nodes() || t >= vg.num_nodes()) continue;
 
+        // Every s→t path is one allele.  The topo bound keeps the DFS inside
+        // the snarl; the allele cap keeps pathological interleaved runs
+        // (Fibonacci-many paths) from exhausting memory or uint16_t indices.
         std::vector<std::vector<NodeId>> alleles;
+        bool capped = false;
         std::function<void(NodeId, std::vector<NodeId>&)> dfs =
             [&](NodeId u, std::vector<NodeId>& path) {
-                if (u == t) { alleles.push_back(path); return; }
+                if (capped) return;
+                if (u == t) {
+                    if (alleles.size() >= kMaxAlleles) { capped = true; return; }
+                    alleles.push_back(path);
+                    return;
+                }
                 for (NodeId v : vg.successors(u)) {
                     if (topo_pos[v] > topo_pos[t]) continue;
                     path.push_back(v);
                     dfs(v, path);
                     path.pop_back();
+                    if (capped) return;
                 }
             };
         std::vector<NodeId> path = {s};
         dfs(s, path);
+        if (capped && !warned_cap.exchange(true))
+            std::fprintf(stderr, "[g2g] warning: a snarl has more than %zu alleles; "
+                                 "only the first %zu are kept\n", kMaxAlleles, kMaxAlleles);
 
         if (alleles.size() < 2) continue;
 
@@ -405,7 +405,7 @@ SnarlTree SnarlDecomposer::decompose() const {
     std::vector<std::pair<NodeId, NodeId>> boundaries;
 
     // Boundary source: vg snarl finder (opt-in, G2G_SNARLS=vg) or the built-in
-    // dominator approximation.  vg falls back to built-in if unavailable.
+    // superbubble scan.  vg falls back to built-in if unavailable.
     const char* mode = std::getenv("G2G_SNARLS");
     bool have_vg = false;
     if (mode && std::string(mode) == "vg") {
@@ -424,19 +424,11 @@ SnarlTree SnarlDecomposer::decompose() const {
     }
 
     if (!have_vg) {
-        // Local topo-window for the fast sink search.  Reference-anchored
-        // pangenome bubbles are local (a few nodes), so the sink is almost
-        // always well within this; anything larger falls back to the exact
-        // full-graph search, so the boundaries produced are identical.
-        constexpr uint32_t kSinkWindow = 1024;
+        ScanState st(vg_.num_nodes());
         for (NodeId s : topo) {
             if (vg_.out_degree(s) < 2) continue;
-            LocalSink ls = find_sink_local(s, vg_, topo, topo_pos, kSinkWindow);
-            std::optional<NodeId> sink_opt = ls.sink;
-            if (!sink_opt && ls.inconclusive)        // sink may be beyond window
-                sink_opt = find_sink(s, vg_, topo, topo_pos);
-            if (!sink_opt) continue;
-            boundaries.emplace_back(s, *sink_opt);
+            if (auto t = find_superbubble_sink(s, vg_, st))
+                boundaries.emplace_back(s, *t);
         }
     }
 

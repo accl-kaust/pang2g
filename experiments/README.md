@@ -4,15 +4,17 @@ Experiment suite for the Graph-to-Graph (G2G) pangenome aligner. Six
 experiments cover correctness, baseline consistency, throughput, parallel
 scaling, an ablation study, and biological validation on HPRC data.
 
-Everything here is tuned for the **KAUST ROCS / SANDS testbed** (Slurm head
-node `mcmgt01`, partitions `mc` and `synode`, conda/mamba, no sudo). All jobs
-record wall time and peak memory.
+Everything here runs on a Slurm cluster with conda/mamba and no sudo (it was
+developed on a 64-core AMD EPYC 7763 node; set `--partition`/`--account` in the
+`slurm.sh` files for your site, e.g. `batch` on KAUST Ibex, where CPU jobs are
+submitted from `ilogin`). All jobs record wall time and peak memory.
 
 ---
 
 ## 0. One-time setup
 
-Run these once from the **repo root**, on the head node `mcmgt01`.
+Run these once from the **repo root**, on a login node (compute nodes usually
+have no outbound network).
 
 ```bash
 # 1. Create the conda env (cmake, compilers, ninja, minimap2, bedtools,
@@ -65,18 +67,18 @@ bash experiments/download/install_tools.sh
 from.
 
 ```bash
-cd ~/Research/G2G/G2G_Project_Summer_2026
+cd /path/to/G2G
 conda activate g2g_eval
 ```
 
 | Exp | Command | Partition | CPUs / RAM / Time | Needs data? |
 |---|---|---|---|---|
-| 1 — Correctness | `sbatch experiments/exp1_correctness/slurm.sh` | mc | 16 / 32G / 2h | no (synthetic) |
-| 2 — minimap2 consistency | `sbatch experiments/exp2_minimap2/slurm.sh` | mc | 16 / 64G / 4h | no (synthetic) |
-| 3 — Throughput | `sbatch experiments/exp3_throughput/slurm.sh` | mc | 64 / 256G / 14h | no (synthetic) |
-| 4 — Parallel scaling | `sbatch experiments/exp4_parallel_scaling/slurm.sh` | mc | 128 / 400G / 12h | no (synthetic) |
-| 5 — Ablation | `sbatch experiments/exp5_ablation/slurm.sh` | mc | 64 / 256G / 12h | no (synthetic) |
-| 6 — HPRC biology | see [§4](#4-experiment-6-hprc-biological-validation) | mc | 64 / 400G / 14h | **yes** |
+| 1 — Correctness | `sbatch experiments/exp1_correctness/slurm.sh` | batch | 16 / 32G / 2h | no (synthetic) |
+| 2 — minimap2 consistency | `sbatch experiments/exp2_minimap2/slurm.sh` | batch | 16 / 64G / 4h | no (synthetic) |
+| 3 — Throughput | `sbatch experiments/exp3_throughput/slurm.sh` | batch | 64 / 256G / 14h | no (synthetic) |
+| 4 — Parallel scaling | `sbatch experiments/exp4_parallel_scaling/slurm.sh` | batch | 128 / 400G / 12h | no (synthetic) |
+| 5 — Ablation | `sbatch experiments/exp5_ablation/slurm.sh` | batch | 64 / 256G / 12h | no (synthetic) |
+| 6 — HPRC biology | see [§4](#4-experiment-6-hprc-biological-validation) | batch | 64 / 400G / 14h | **yes** |
 
 Experiments 1–5 are fully synthetic and need no downloads — submit them right
 away.
@@ -96,8 +98,7 @@ sbatch experiments/exp4_parallel_scaling/slurm_synode.sh  # 256 CPU / 768G
 
 ```bash
 squeue --me                 # queue / running state
-jobstats <jobid>            # resource-utilization summary (CPU/mem/peak)
-jobstats <jobid> -g         # Grafana dashboard URL (login rocs/rocs)
+sacct -j <jobid> --format=JobID,Elapsed,MaxRSS,State   # resource summary
 tail -f logs/exp1_<jobid>.out
 ```
 
@@ -151,12 +152,12 @@ do get write access to a larger shared volume, just export
 use it. Run the stages in order; each later stage depends on the previous.
 
 > **Compute nodes have no internet.** Stages 0 and 1 (anything that
-> downloads) must run on the **login node** `mcmgt01`, *not* as a Slurm job —
+> downloads) must run on the **login node**, *not* as a Slurm job —
 > a batch job has no outbound network and will hang/fail. Only the
 > compute-heavy stages (2 and 3) are submitted with `sbatch`.
 
 ```bash
-# ── On the LOGIN NODE (mcmgt01), inside tmux ──────────────────────
+# ── On the LOGIN NODE, inside tmux ──────────────────────
 
 # Stage 0 — install third-party tools (PanGraph, minigraph, cactus, gfatools)
 bash experiments/download/install_tools.sh

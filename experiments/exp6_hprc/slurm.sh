@@ -26,14 +26,12 @@
 #SBATCH --job-name=g2g_exp6_hprc
 #SBATCH --output=logs/exp6_%j.out
 #SBATCH --error=logs/exp6_%j.err
-#SBATCH --partition=mc
+#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=400G
 #SBATCH --time=14:00:00
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=shakleyaahmed@gmail.com
 
 set -euo pipefail
 

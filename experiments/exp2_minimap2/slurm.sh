@@ -3,14 +3,12 @@
 #SBATCH --job-name=g2g_exp2_minimap2
 #SBATCH --output=logs/exp2_%j.out
 #SBATCH --error=logs/exp2_%j.err
-#SBATCH --partition=mc
+#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=shakleyaahmed@gmail.com
 
 set -euo pipefail
 G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"

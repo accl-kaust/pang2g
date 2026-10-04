@@ -121,17 +121,19 @@ std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
     const VariationGraph& ga,
     const VariationGraph& gb,
     const SnarlTree& ta,
-    const SnarlTree& tb) const
+    const SnarlTree& tb,
+    const std::vector<AnchorMatch>& anchors) const
 {
     const uint32_t na = static_cast<uint32_t>(ta.snarls.size());
 
     std::vector<int32_t> task_idx_for_ia(na, -1);
 
-    // Pair snarls by boundary correspondence (shared with the sequential
-    // aligner's intent) rather than by subtree size.  subtree_work is used
-    // only as the scheduler priority below.
+    // Pair snarls with the SAME rule as the sequential aligner (pair_snarls:
+    // boundary-key by default, anchor-interval DP with PairingMode::Interval)
+    // rather than by subtree size.  subtree_work is used only as the scheduler
+    // priority below.
     std::vector<std::pair<uint32_t, uint32_t>> corr =
-        correspond_snarls(ga, gb, ta, tb);
+        pair_snarls(ga, gb, ta, tb, anchors, params_.pairing);
 
     std::vector<SnarlPairTask> tasks;
     tasks.reserve(corr.size());
@@ -190,12 +192,12 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     const VariationGraph& gb,
     const SnarlTree& ta,
     const SnarlTree& tb,
-    const std::vector<AnchorMatch>& /*anchors*/) const
+    const std::vector<AnchorMatch>& anchors) const
 {
     using Clock = std::chrono::steady_clock;
     auto t0 = Clock::now();
 
-    std::vector<SnarlPairTask> tasks = build_task_dag(ga, gb, ta, tb);
+    std::vector<SnarlPairTask> tasks = build_task_dag(ga, gb, ta, tb, anchors);
     const uint32_t ntasks = static_cast<uint32_t>(tasks.size());
 
     // Per-task result slots
@@ -449,48 +451,10 @@ AlignmentResult ParallelAligner::align(
     for (const auto& sa : result.snarl_alignments)
         result.total_score += sa.score;
 
-    // Delta graph construction
-    auto node_name = [](const VariationGraph& vg, NodeId n) -> std::string {
-        if (n < vg.node_names.size()) return vg.node_names[n];
-        return std::to_string(n);
-    };
-    auto make_snarl_id = [&](const VariationGraph& vg, const Snarl& s) {
-        return node_name(vg, s.source) + ">" + node_name(vg, s.sink);
-    };
-    auto inner_seq = [](const VariationGraph& vg,
-                         g2g::span<const NodeId> full_path) -> std::string {
-        std::string seq;
-        if (full_path.size() > 2) {
-            for (NodeId n : full_path.subspan(1, full_path.size() - 2)) {
-                auto sv = vg.seq(n);
-                seq.append(sv.data(), sv.size());
-            }
-        }
-        return seq;
-    };
-
-    for (const auto& aln : result.snarl_alignments) {
-        if (aln.snarl_a_idx >= ta.snarls.size()) continue;
-        if (aln.snarl_b_idx >= tb.snarls.size()) continue;
-        const Snarl& sa = ta.snarls[aln.snarl_a_idx];
-        const Snarl& sb = tb.snarls[aln.snarl_b_idx];
-        for (uint16_t idx : aln.a_only) {
-            auto path = ta.allele_path(sa.alleles_begin, idx);
-            DeltaAllele da;
-            da.snarl_id = make_snarl_id(ga, sa);
-            da.path     = std::vector<NodeId>(path.begin(), path.end());
-            da.sequence = inner_seq(ga, path);
-            result.a_only_alleles.push_back(std::move(da));
-        }
-        for (uint16_t idx : aln.b_only) {
-            auto path = tb.allele_path(sb.alleles_begin, idx);
-            DeltaAllele db;
-            db.snarl_id = make_snarl_id(gb, sb);
-            db.path     = std::vector<NodeId>(path.begin(), path.end());
-            db.sequence = inner_seq(gb, path);
-            result.b_only_alleles.push_back(std::move(db));
-        }
-    }
+    // Delta graph construction — the same routine as the sequential aligner, so
+    // the two paths emit byte-identical deltas (unmatched alleles of paired
+    // snarls plus every allele of an unpaired snarl).
+    build_deltas(ga, gb, ta, tb, result);
 
     return result;
 }

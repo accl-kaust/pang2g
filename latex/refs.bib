@@ -9,10 +9,8 @@ day={22},
 volume={26},
 number={1},
 pages={138},
-abstract={A pangenome can reveal the genetic diversity across different individuals simultaneously. It offers a more comprehensive reference for genome analysis compared to a single linear genome that may introduce allele bias. Pangenomes are often represented as genome graphs, making sequence-to-graph mapping a fundamental task for pangenome construction and analysis. Numerous sequence-to-graph mapping algorithms have been developed over the past few years. Here, we provide a review of the advancements in sequence-to-graph mapping algorithms in the pangenome era. We also discuss the challenges and opportunities that arise in the context of pangenome graphs.},
 issn={1474-760X},
 doi={10.1186/s13059-025-03606-6},
-url={https://doi.org/10.1186/s13059-025-03606-6}
 }
 
 ﻿@Article{Secomandi2025,
@@ -26,10 +24,8 @@ day={01},
 volume={57},
 number={1},
 pages={13-26},
-abstract={Complete datasets of genetic variants are key to biodiversity genomic studies. Long-read sequencing technologies allow the routine assembly of highly contiguous, haplotype-resolved reference genomes. However, even when complete, reference genomes from a single individual may bias downstream analyses and fail to adequately represent genetic diversity within a population or species. Pangenome graphs assembled from aligned collections of high-quality genomes can overcome representation bias by integrating sequence information from multiple genomes from the same population, species or genus into a single reference. Here, we review the available tools and data structures to build, visualize and manipulate pangenome graphs while providing practical examples and discussing their applications in biodiversity and conservation genomics across the tree of life.},
 issn={1546-1718},
 doi={10.1038/s41588-024-02029-6},
-url={https://doi.org/10.1038/s41588-024-02029-6}
 }
 
 ﻿@Article{Garrison2024,
@@ -43,10 +39,8 @@ day={01},
 volume={21},
 number={11},
 pages={2008-2012},
-abstract={Pangenome graphs can represent all variation between multiple reference genomes, but current approaches to build them exclude complex sequences or are based upon a single reference. In response, we developed the PanGenome Graph Builder, a pipeline for constructing pangenome graphs without bias or exclusion. The PanGenome Graph Builder uses all-to-all alignments to build a variation graph in which we can identify variation, measure conservation, detect recombination events and infer phylogenetic relationships.},
 issn={1548-7105},
 doi={10.1038/s41592-024-02430-3},
-url={https://doi.org/10.1038/s41592-024-02430-3}
 }
 
 }
@@ -178,10 +172,8 @@ day={01},
 volume={617},
 number={7960},
 pages={312-324},
-abstract={Here the Human Pangenome Reference Consortium presents a first draft of the human pangenome reference. The pangenome contains 47 phased, diploid assemblies from a cohort of genetically diverse individuals1. These assemblies cover more than 99{\%} of the expected sequence in each genome and are more than 99{\%} accurate at the structural and base pair levels. Based on alignments of the assemblies, we generate a draft pangenome that captures known variants and haplotypes and reveals new alleles at structurally complex loci. We also add 119{\thinspace}million base pairs of euchromatic polymorphic sequences and 1,115 gene duplications relative to the existing reference GRCh38. Roughly 90{\thinspace}million of the additional base pairs are derived from structural variation. Using our draft pangenome to analyse short-read data reduced small variant discovery errors by 34{\%} and increased the number of structural variants detected per haplotype by 104{\%} compared with GRCh38-based workflows, which enabled the typing of the vast majority of structural variant alleles per sample.},
 issn={1476-4687},
 doi={10.1038/s41586-023-05896-x},
-url={https://doi.org/10.1038/s41586-023-05896-x}
 }
 
 ﻿@Article{Liao2023-short,
@@ -195,10 +187,8 @@ day={01},
 volume={617},
 number={7960},
 pages={312-324},
-abstract={Here the Human Pangenome Reference Consortium presents a first draft of the human pangenome reference. The pangenome contains 47 phased, diploid assemblies from a cohort of genetically diverse individuals1. These assemblies cover more than 99{\%} of the expected sequence in each genome and are more than 99{\%} accurate at the structural and base pair levels. Based on alignments of the assemblies, we generate a draft pangenome that captures known variants and haplotypes and reveals new alleles at structurally complex loci. We also add 119{\thinspace}million base pairs of euchromatic polymorphic sequences and 1,115 gene duplications relative to the existing reference GRCh38. Roughly 90{\thinspace}million of the additional base pairs are derived from structural variation. Using our draft pangenome to analyse short-read data reduced small variant discovery errors by 34{\%} and increased the number of structural variants detected per haplotype by 104{\%} compared with GRCh38-based workflows, which enabled the typing of the vast majority of structural variant alleles per sample.},
 issn={1476-4687},
 doi={10.1038/s41586-023-05896-x},
-url={https://doi.org/10.1038/s41586-023-05896-x}
 }
 
 @inproceedings{segram_damla_onur,
@@ -208,9 +198,7 @@ year = {2022},
 isbn = {9781450386104},
 publisher = {Association for Computing Machinery},
 address = {New York, NY, USA},
-url = {https://doi.org/10.1145/3470496.3527436},
 doi = {10.1145/3470496.3527436},
-abstract = {A critical step of genome sequence analysis is the mapping of sequenced DNA fragments (i.e., reads) collected from an individual to a known linear reference genome sequence (i.e., sequence-to-sequence mapping). Recent works replace the linear reference sequence with a graph-based representation of the reference genome, which captures the genetic variations and diversity across many individuals in a population. Mapping reads to the graph-based reference genome (i.e., sequence-to-graph mapping) results in notable quality improvements in genome analysis. Unfortunately, while sequence-to-sequence mapping is well studied with many available tools and accelerators, sequence-to-graph mapping is a more difficult computational problem, with a much smaller number of practical software tools currently available.We analyze two state-of-the-art sequence-to-graph mapping tools and reveal four key issues. We find that there is a pressing need to have a specialized, high-performance, scalable, and low-cost algorithm/hardware co-design that alleviates bottlenecks in both the seeding and alignment steps of sequence-to-graph mapping. Since sequence-to-sequence mapping can be treated as a special case of sequence-to-graph mapping, we aim to design an accelerator that is efficient for both linear and graph-based read mapping.To this end, we propose SeGraM, a universal algorithm/hardware co-designed genomic mapping accelerator that can effectively and efficiently support both <u>se</u>quence-to-<u>gra</u>ph <u>m</u>apping and sequence-to-sequence mapping, for both short and long reads. To our knowledge, SeGraM is the first algorithm/hardware co-design for accelerating sequence-to-graph mapping. SeGraM consists of two main components: (1) MinSeed, the first <u>min</u>imizer-based <u>seed</u>ing accelerator, which finds the candidate locations in a given genome graph; and (2) BitAlign, the first <u>bit</u>vector-based sequence-to-graph <u>align</u>ment accelerator, which performs alignment between a given read and the subgraph identified by MinSeed. We couple SeGraM with high-bandwidth memory to exploit low latency and highly-parallel memory access, which alleviates the memory bottleneck.We demonstrate that SeGraM provides significant improvements for multiple steps of the sequence-to-graph (i.e., S2G) and sequence-to-sequence (i.e., S2S) mapping pipelines. First, SeGraM outperforms state-of-the-art S2G mapping tools by 5.9\texttimes{}/3.9\texttimes{} and 106\texttimes{}/- 742\texttimes{} for long and short reads, respectively, while reducing power consumption by 4.1\texttimes{}/4.4\texttimes{} and 3.0\texttimes{}/3.2\texttimes{}. Second, BitAlign outperforms a state-of-the-art S2G alignment tool by 41\texttimes{}-539\texttimes{} and three S2S alignment accelerators by 1.2\texttimes{}-4.8\texttimes{}. We conclude that SeGraM is a high-performance and low-cost universal genomics mapping accelerator that efficiently supports both sequence-to-graph and sequence-to-sequence mapping pipelines.},
 booktitle = {Proceedings of the 49th Annual International Symposium on Computer Architecture},
 pages = {638–655},
 numpages = {18},
@@ -239,9 +227,7 @@ pages = {443-453},
 year = {1970},
 issn = {0022-2836},
 doi = {https://doi.org/10.1016/0022-2836(70)90057-4},
-url = {https://www.sciencedirect.com/science/article/pii/0022283670900574},
 author = {Saul B. Needleman and Christian D. Wunsch},
-abstract = {A computer adaptable method for finding similarities in the amino acid sequences of two proteins has been developed. From these findings it is possible to determine whether significant homology exists between the proteins. This information is used to trace their possible evolutionary development. The maximum match is a number dependent upon the similarity of the sequences. One of its definitions is the largest number of amino acids of one protein that can be matched with those of a second protein allowing for all possible interruptions in either of the sequences. While the interruptions give rise to a very large number of comparisons, the method efficiently excludes from consideration those comparisons that cannot contribute to the maximum match. Comparisons are made from the smallest unit of significance, a pair of amino acids, one from each protein. All possible pairs are represented by a two-dimensional array, and all possible comparisons are represented by pathways through the array. For this maximum match only certain of the possible pathways must be evaluated. A numerical value, one in this case, is assigned to every cell in the array representing like amino acids. The maximum match is the largest number that would result from summing the cell values of every pathway.}
 }
 
 @article{SMITH1981195,
@@ -253,7 +239,6 @@ pages = {195-197},
 year = {1981},
 issn = {0022-2836},
 doi = {https://doi.org/10.1016/0022-2836(81)90087-5},
-url = {https://www.sciencedirect.com/science/article/pii/0022283681900875},
 author = {T.F. Smith and M.S. Waterman}
 }
 
@@ -279,10 +264,8 @@ day={04},
 volume={23},
 number={1},
 pages={7},
-abstract={With the exponential growth of publicly available genome sequences, pangenome analyses have provided increasingly complete pictures of genetic diversity for many microbial species. However, relatively few studies have scaled beyond single pangenomes to compare global genetic diversity both within and across different species. We present here several methods for ``comparative pangenomics'' that can be used to contextualize multi-pangenome scale genetic diversity with gene function for multiple species at multiple resolutions: pangenome shape, genes, sequence variants, and positions within variants.},
 issn={1471-2164},
 doi={10.1186/s12864-021-08223-8},
-url={https://doi.org/10.1186/s12864-021-08223-8}
 }
 
 @article{GUPTA1996287,
@@ -294,9 +277,7 @@ pages = {287-298},
 year = {1996},
 issn = {0304-3975},
 doi = {https://doi.org/10.1016/0304-3975(96)00046-1},
-url = {https://www.sciencedirect.com/science/article/pii/0304397596000461},
 author = {Arvind Gupta and Naomi Nishimura},
-abstract = {We present a clear demarcation between classes of bounded tree-width graphs for which the subgraph isomorphism problem is NP-complete and those for which it can be solved in polynomial time. In previous work, it has been shown that this problem is solvable in polynomial time if the source graph either has bounded degree or is k-connected, for k the tree-width of the two graphs. As well, it has also been shown that for certain specific connectivity or degree conditions, the problem becomes NP-complete. Here we give a complete characterization of the complexity of this problem on bounded tree-width graphs for all possible connectivity conditions of the two input graphs. Specifically, we show that when the source graph is not k-connected or has more than k vertices of unbounded degree the problem is NP-complete; this answers an open question of Matoušek and Thomas. Many of our reductions are restricted to using a subset of graphs of bounded tree-width, namely graphs of bounded path-width. As a direct result of our constructions, we also show that when the source and target graphs have connectivity less than k or at least one has k vertices of unbounded degree, the subgraph isomorphism problem for bounded path-width graphs is NP-complete.}
 }
 
 @InProceedings{paten2018superbubbles,
@@ -309,7 +290,6 @@ year="2017",
 publisher="Springer International Publishing",
 address="Cham",
 pages="173--189",
-abstract="A superbubble is a type of directed acyclic subgraph with single distinct source and sink vertices. In genome assembly and genetics, the possible paths through a superbubble can be considered to represent the set of possible sequences at a location in a genome. Bidirected and biedged graphs are a generalization of digraphs that are increasingly being used to more fully represent genome assembly and variation problems. Here we define snarls and ultrabubbles, generalizations of superbubbles for bidirected and biedged graphs, and give an efficient algorithm for the detection of these more general structures. Key to this algorithm is the cactus graph, which we show encodes the nested decomposition of a graph into snarls and ultrabubbles within its structure. We propose and demonstrate empirically that this decomposition on bidirected and biedged graphs solves a fundamental problem by defining genetic sites for any collection of genomic variations, including complex structural variations, without need for any single reference genome coordinate system. Furthermore, the nesting of the decomposition gives a natural way to describe and model variations contained within large variations, a case not currently dealt with by existing formats, e.g. VCF.",
 isbn="978-3-319-56970-3"
 }
 
@@ -344,10 +324,8 @@ ABSTRACT={We generalize a problem of finding maximum-scoring segment sets, previ
     pages = {1754-1760},
     year = {2009},
     month = {07},
-    abstract = {Motivation: The enormous amount of short reads generated by the new DNA sequencing technologies call for the development of fast and accurate read alignment programs. A first generation of hash table-based methods has been developed, including MAQ, which is accurate, feature rich and fast enough to align short reads from a single individual. However, MAQ does not support gapped alignment for single-end reads, which makes it unsuitable for alignment of longer reads where indels may occur frequently. The speed of MAQ is also a concern when the alignment is scaled up to the resequencing of hundreds of individuals.Results: We implemented Burrows-Wheeler Alignment tool (BWA), a new read alignment package that is based on backward search with Burrows–Wheeler Transform (BWT), to efficiently align short sequencing reads against a large reference sequence such as the human genome, allowing mismatches and gaps. BWA supports both base space reads, e.g. from Illumina sequencing machines, and color space reads from AB SOLiD machines. Evaluations on both simulated and real data suggest that BWA is ∼10–20× faster than MAQ, while achieving similar accuracy. In addition, BWA outputs alignment in the new standard SAM (Sequence Alignment/Map) format. Variant calling and other downstream analyses after the alignment can be achieved with the open source SAMtools software package.Availability:  http://maq.sourceforge.netContact:  rd@sanger.ac.uk},
     issn = {1367-4803},
     doi = {10.1093/bioinformatics/btp324},
-    url = {https://doi.org/10.1093/bioinformatics/btp324},
     eprint = {https://academic.oup.com/bioinformatics/article-pdf/25/14/1754/48994219/bioinformatics_25_14_1754.pdf},
 }
 
@@ -362,10 +340,8 @@ day={01},
 volume={9},
 number={4},
 pages={357-359},
-abstract={The Bowtie 2 software achieves fast, sensitive, accurate and memory-efficient gapped alignment of sequencing reads using the full-text minute index and hardware-accelerated dynamic programming algorithms.},
 issn={1548-7105},
 doi={10.1038/nmeth.1923},
-url={https://doi.org/10.1038/nmeth.1923}
 }
 
 @article{li2018minimap2,
@@ -377,10 +353,8 @@ url={https://doi.org/10.1038/nmeth.1923}
     pages = {3094-3100},
     year = {2018},
     month = {09},
-    abstract = {Recent advances in sequencing technologies promise ultra-long reads of ∼100 kb in average, full-length mRNA or cDNA reads in high throughput and genomic contigs over 100 Mb in length. Existing alignment programs are unable or inefficient to process such data at scale, which presses for the development of new alignment algorithms.Minimap2 is a general-purpose alignment program to map DNA or long mRNA sequences against a large reference database. It works with accurate short reads of ≥100 bp in length, ≥1 kb genomic reads at error rate ∼15\%, full-length noisy Direct RNA or cDNA reads and assembly contigs or closely related full chromosomes of hundreds of megabases in length. Minimap2 does split-read alignment, employs concave gap cost for long insertions and deletions and introduces new heuristics to reduce spurious alignments. It is 3–4 times as fast as mainstream short-read mappers at comparable accuracy, and is ≥30 times faster than long-read genomic or cDNA mappers at higher accuracy, surpassing most aligners specialized in one type of alignment.https://github.com/lh3/minimap2Supplementary data are available at Bioinformatics online.},
     issn = {1367-4803},
     doi = {10.1093/bioinformatics/bty191},
-    url = {https://doi.org/10.1093/bioinformatics/bty191},
     eprint = {https://academic.oup.com/bioinformatics/article-pdf/34/18/3094/48919122/bioinformatics_34_18_3094.pdf},
 }
 
@@ -393,10 +367,8 @@ url={https://doi.org/10.1038/nmeth.1923}
     pages = {3363-3369},
     year = {2004},
     month = {12},
-    abstract = {Motivation: Comparison of nucleic acid and protein sequences is a fundamental tool of modern bioinformatics. A dominant method of such string matching is the ‘seed-and-extend’ approach, in which occurrences of short subsequences called ‘seeds’ are used to search for potentially longer matches in a large database of sequences. Each such potential match is then checked to see if it extends beyond the seed. To be effective, the seed-and-extend approach needs to catalogue seeds from virtually every substring in the database of search strings. Projects such as mammalian genome assemblies and large-scale protein matching, however, have such large sequence databases that the resulting list of seeds cannot be stored in RAM on a single computer. This significantly slows the matching process.Results: We present a simple and elegant method in which only a small fraction of seeds, called ‘minimizers’, needs to be stored. Using minimizers can speed up string-matching computations by a large factor while missing only a small fraction of the matches found using all seeds.},
     issn = {1367-4803},
     doi = {10.1093/bioinformatics/bth408},
-    url = {https://doi.org/10.1093/bioinformatics/bth408},
     eprint = {https://academic.oup.com/bioinformatics/article-pdf/20/18/3363/48906547/bioinformatics_20_18_3363.pdf},
 }
 
@@ -411,10 +383,8 @@ day={01},
 volume={36},
 number={9},
 pages={875-879},
-abstract={Reducing read mapping bias and improving complex variant detection with a highly scalable computational toolkit that implements variation graphs.},
 issn={1546-1696},
 doi={10.1038/nbt.4227},
-url={https://doi.org/10.1038/nbt.4227}
 }
 
 ﻿@Article{rautiainen2020graphaligner,
@@ -428,29 +398,14 @@ day={24},
 volume={21},
 number={1},
 pages={253},
-abstract={Genome graphs can represent genetic variation and sequence uncertainty. Aligning sequences to genome graphs is key to many applications, including error correction, genome assembly, and genotyping of variants in a pangenome graph. Yet, so far, this step is often prohibitively slow. We present GraphAligner, a tool for aligning long reads to genome graphs. Compared to the state-of-the-art tools, GraphAligner is 13x faster and uses 3x less memory. When employing GraphAligner for error correction, we find it to be more than twice as accurate and over 12x faster than extant tools.Availability: Package manager: https://anaconda.org/bioconda/graphalignerand source code: https://github.com/maickrau/GraphAligner},
 issn={1474-760X},
 doi={10.1186/s13059-020-02157-2},
-url={https://doi.org/10.1186/s13059-020-02157-2}
 }
 
 @ARTICLE{siren2021giraffe,
   title     = "Pangenomics enables genotyping of known structural variants in
                5202 diverse genomes",
   author    = "Sir{\'e}n, Jouni and others",
-  abstract  = "We introduce Giraffe, a pangenome short-read mapper that can
-               efficiently map to a collection of haplotypes threaded through a
-               sequence graph. Giraffe maps sequencing reads to thousands of
-               human genomes at a speed comparable to that of standard methods
-               mapping to a single reference genome. The increased mapping
-               accuracy enables downstream improvements in genome-wide
-               genotyping pipelines for both small variants and larger
-               structural variants. We used Giraffe to genotype 167,000
-               structural variants, discovered in long-read studies, in 5202
-               diverse human genomes that were sequenced using short reads. We
-               conclude that pangenomics facilitates a more comprehensive
-               characterization of variation and, as a result, has the
-               potential to improve many genomic analyses.",
   journal   = "Science",
   publisher = "American Association for the Advancement of Science (AAAS)",
   volume    =  374,
@@ -472,10 +427,8 @@ day={01},
 volume={37},
 number={8},
 pages={907-915},
-abstract={The human reference genome represents only a small number of individuals, which limits its usefulness for genotyping. We present a method named HISAT2 (hierarchical indexing for spliced alignment of transcripts 2) that can align both DNA and RNA sequences using a graph Ferragina Manzini index. We use HISAT2 to represent and search an expanded model of the human reference genome in which over 14.5 million genomic variants in combination with haplotypes are incorporated into the data structure used for searching and alignment. We benchmark HISAT2 using simulated and real datasets to demonstrate that our strategy of representing a population of genomes, together with a fast, memory-efficient search algorithm, provides more detailed and accurate variant analyses than other methods. We apply HISAT2 for HLA typing and DNA fingerprinting; both applications form part of the HISAT-genotype software that enables analysis of haplotype-resolved genes or genomic regions. HISAT-genotype outperforms other computational methods and matches or exceeds the performance of laboratory-based assays.},
 issn={1546-1696},
 doi={10.1038/s41587-019-0201-4},
-url={https://doi.org/10.1038/s41587-019-0201-4}
 }
 
 ﻿@Article{ebler2022pangenie,
@@ -489,10 +442,8 @@ day={01},
 volume={54},
 number={4},
 pages={518-525},
-abstract={Typical genotyping workflows map reads to a reference genome before identifying genetic variants. Generating such alignments introduces reference biases and comes with substantial computational burden. Furthermore, short-read lengths limit the ability to characterize repetitive genomic regions, which are particularly challenging for fast k-mer-based genotypers. In the present study, we propose a new algorithm, PanGenie, that leverages a haplotype-resolved pangenome reference together with k-mer counts from short-read sequencing data to genotype a wide spectrum of genetic variation---a process we refer to as genome inference. Compared with mapping-based approaches, PanGenie is more than 4 times faster at 30-fold coverage and achieves better genotype concordances for almost all variant types and coverages tested. Improvements are especially pronounced for large insertions (≥50{\thinspace}bp) and variants in repetitive regions, enabling the inclusion of these classes of variants in genome-wide association studies. PanGenie efficiently leverages the increasing amount of haplotype-resolved assemblies to unravel the functional impact of previously inaccessible variants while being faster compared with alignment-based workflows.},
 issn={1546-1718},
 doi={10.1038/s41588-022-01043-w},
-url={https://doi.org/10.1038/s41588-022-01043-w}
 }
 
 ﻿@Article{li2020minigraph,
@@ -507,10 +458,8 @@ day={16},
 volume={21},
 number={1},
 pages={265},
-abstract={The recent advances in sequencing technologies enable the assembly of individual genomes to the quality of the reference genome. How to integrate multiple genomes from the same species and make the integrated representation accessible to biologists remains an open challenge. Here, we propose a graph-based data model and associated formats to represent multiple genomes while preserving the coordinate of the linear reference genome. We implement our ideas in the minigraph toolkit and demonstrate that we can efficiently construct a pangenome graph and compactly encode tens of thousands of structural variants missing from the current reference genome.},
 issn={1474-760X},
 doi={10.1186/s13059-020-02168-z},
-url={https://doi.org/10.1186/s13059-020-02168-z}
 }
 
 ﻿@Article{hickey2023pangenome,
@@ -524,10 +473,8 @@ day={01},
 volume={42},
 number={4},
 pages={663-673},
-abstract={Pangenome references address biases of reference genomes by storing a representative set of diverse haplotypes and their alignment, usually as a graph. Alternate alleles determined by variant callers can be used to construct pangenome graphs, but advances in long-read sequencing are leading to widely available, high-quality phased assemblies. Constructing a pangenome graph directly from assemblies, as opposed to variant calls, leverages the graph's ability to represent variation at different scales. Here we present the Minigraph-Cactus pangenome pipeline, which creates pangenomes directly from whole-genome alignments, and demonstrate its ability to scale to 90 human haplotypes from the Human Pangenome Reference Consortium. The method builds graphs containing all forms of genetic variation while allowing use of current mapping and genotyping tools. We measure the effect of the quality and completeness of reference genomes used for analysis within the pangenomes and show that using the CHM13 reference from the Telomere-to-Telomere Consortium improves the accuracy of our methods. We also demonstrate construction of a Drosophila melanogaster pangenome.},
 issn={1546-1696},
 doi={10.1038/s41587-023-01793-w},
-url={https://doi.org/10.1038/s41587-023-01793-w}
 }
 
 @article{garrison2023pangenome,
@@ -539,38 +486,14 @@ url={https://doi.org/10.1038/s41587-023-01793-w}
     pages = {btac743},
     year = {2023},
     month = {01},
-    abstract = {Pangenome variation graphs model the mutual alignment of collections of DNA sequences. A set of pairwise alignments implies a variation graph, but there are no scalable methods to generate such a graph from these alignments. Existing related approaches depend on a single reference, a specific ordering of genomes or a de Bruijn model based on a fixed k-mer length. A scalable, self-contained method to build pangenome graphs without such limitations would be a key step in pangenome construction and manipulation pipelines.We design the seqwish algorithm, which builds a variation graph from a set of sequences and alignments between them. We first transform the alignment set into an implicit interval tree. To build up the variation graph, we query this tree-based representation of the alignments to reduce transitive matches into single DNA segments in a sequence graph. By recording the mapping from input sequence to output graph, we can trace the original paths through this graph, yielding a pangenome variation graph. We present an implementation that operates in external memory, using disk-backed data structures and lock-free parallel methods to drive the core graph induction step. We demonstrate that our method scales to very large graph induction problems by applying it to build pangenome graphs for several species.seqwish is published as free software under the MIT open source license. Source code and documentation are available at https://github.com/ekg/seqwish. seqwish can be installed via Bioconda https://bioconda.github.io/recipes/seqwish/README.html or GNU Guix https://github.com/ekg/guix-genomics/blob/master/seqwish.scm.},
     issn = {1367-4811},
     doi = {10.1093/bioinformatics/btac743},
-    url = {https://doi.org/10.1093/bioinformatics/btac743},
     eprint = {https://academic.oup.com/bioinformatics/article-pdf/39/1/btac743/48448986/btac743.pdf},
 }
 
 @ARTICLE{noll2023pangraph,
   title    = "{PanGraph}: scalable bacterial pan-genome graph construction",
   author   = "Noll, Nicholas and others",
-  abstract = "The genomic diversity of microbes is commonly parameterized as
-              SNPs relative to a reference genome of a well-characterized, but
-              arbitrary, isolate. However, any reference genome contains only a
-              fraction of the microbial pangenome, the total set of genes
-              observed in a given species. Reference-based approaches are thus
-              blind to the dynamics of the accessory genome, as well as
-              variation within gene order and copy number. With the widespread
-              usage of long-read sequencing, the number of high-quality,
-              complete genome assemblies has increased dramatically. In
-              addition to pangenomic approaches that focus on the variation in
-              the sets of genes present in different genomes, complete
-              assemblies allow investigations of the evolution of genome
-              structure and gene order. This latter problem, however, is
-              computationally demanding with few tools available that shed
-              light on these dynamics. Here, we present PanGraph, a Julia-based
-              library and command line interface for aligning whole genomes
-              into a graph. Each genome is represented as a path along
-              vertices, which in turn encapsulate homologous multiple sequence
-              alignments. The resultant data structure succinctly summarizes
-              population-level nucleotide and structural polymorphisms and can
-              be exported into several common formats for either downstream
-              analysis or immediate visualization.",
   journal  = "Microb. Genom.",
   volume   =  9,
   number   =  6,
@@ -589,10 +512,8 @@ url={https://doi.org/10.1038/s41587-023-01793-w}
     pages = {3476-3483},
     year = {2014},
     month = {12},
-    abstract = {Motivation: Genomics is expanding from a single reference per species paradigm into a more comprehensive pan-genome approach that analyzes multiple individuals together. A compressed de Bruijn graph is a sophisticated data structure for representing the genomes of entire populations. It robustly encodes shared segments, simple single-nucleotide polymorphisms and complex structural variations far beyond what can be represented in a collection of linear sequences alone. Results: We explore deep topological relationships between suffix trees and compressed de Bruijn graphs and introduce an algorithm, splitMEM, that directly constructs the compressed de Bruijn graph in time and space linear to the total number of genomes for a given maximum genome size. We introduce suffix skips to traverse several suffix links simultaneously and use them to efficiently decompose maximal exact matches into graph nodes. We demonstrate the utility of splitMEM by analyzing the nine-strain pan-genome of Bacillus anthracis and up to 62 strains of Escherichia coli , revealing their core-genome properties. Availability and implementation: Source code and documentation available open-source http://splitmem.sourceforge.net . Contact:  mschatz@cshl.eduSupplementary information:  Supplementary data are available at Bioinformatics online. },
     issn = {1367-4803},
     doi = {10.1093/bioinformatics/btu756},
-    url = {https://doi.org/10.1093/bioinformatics/btu756},
     eprint = {https://academic.oup.com/bioinformatics/article-pdf/30/24/3476/48932387/bioinformatics_30_24_3476.pdf},
 }
 
@@ -607,12 +528,11 @@ year="2013",
 publisher="Springer Berlin Heidelberg",
 address="Berlin, Heidelberg",
 pages="215--229",
-abstract="Comparing strains within the same microbial species has proven effective in the identification of genes and genomic regions responsible for virulence, as well as in the diagnosis and treatment of infectious diseases. In this paper, we present Sibelia, a tool for finding synteny blocks in multiple closely related microbial genomes using iterative de Bruijn graphs. Unlike most other tools, Sibelia can find synteny blocks that are repeated within genomes as well as blocks shared by multiple genomes. It represents synteny blocks in a hierarchy structure with multiple layers, each of which representing a different granularity level. Sibelia has been designed to work efficiently with a large number of microbial genomes; it finds synteny blocks in 31 S. aureus genomes within 31 minutes and in 59 E.coli genomes within 107 minutes on a standard desktop. Sibelia software is distributed under the GNU GPL v2 license and is available at: https://github.com/bioinf/Sibelia. Sibelia's web-server is available at: http://etool.me/software/sibelia.",
 isbn="978-3-642-40453-5"
 }
 
 @INPROCEEDINGS{xu2025parsga,
-  author={Banerjee, Aranya and others},
+  author={Banerjee, Aranya and Gibney, Daniel and Xu, Helen and Aluru, Srinivas},
   booktitle={2025 IEEE International Parallel and Distributed Processing Symposium (IPDPS)}, 
   title={A Work-Optimal Parallel Algorithm for Aligning Sequences to Genome Graphs}, 
   year={2025},
@@ -641,10 +561,8 @@ day={01},
 volume={38},
 number={4},
 pages={325-340},
-abstract={We develop a shortest augmenting path algorithm for the linear assignment problem. It contains new initialization routines and a special implementation of Dijkstra's shortest path method. For both dense and sparse problems computational experiments show this algorithm to be uniformly faster than the best algorithms from the literature. A Pascal implementation is presented.},
 issn={1436-5057},
 doi={10.1007/BF02278710},
-url={https://doi.org/10.1007/BF02278710}
 }
 
 @article{vanemde1977preserving,
@@ -656,7 +574,6 @@ pages = {80-82},
 year = {1977},
 issn = {0020-0190},
 doi = {https://doi.org/10.1016/0020-0190(77)90031-X},
-url = {https://www.sciencedirect.com/science/article/pii/002001907790031X},
 author = {P. {van Emde Boas}},
 keywords = {Set-manipulation, trees, analysis of algorithms}
 }
@@ -682,7 +599,6 @@ address = {USA},
 volume = {17},
 number = {2},
 issn = {0036-1399},
-url = {https://doi.org/10.1137/0117039},
 doi = {10.1137/0117039},
 journal = {SIAM J. Appl. Math.},
 month = mar,
@@ -712,36 +628,14 @@ day={01},
 volume={581},
 number={7809},
 pages={444-451},
-abstract={Structural variants (SVs) rearrange large segments of DNA1 and can have profound consequences in evolution and human disease2,3. As national biobanks, disease-association studies, and clinical genetic testing have grown increasingly reliant on genome sequencing, population references such as the Genome Aggregation Database (gnomAD)4 have become integral in the interpretation of single-nucleotide variants (SNVs)5. However, there are no reference maps of SVs from high-coverage genome sequencing comparable to those for SNVs. Here we present a reference of sequence-resolved SVs constructed from 14,891 genomes across diverse global populations (54{\%} non-European) in gnomAD. We discovered a rich and complex landscape of 433,371 SVs, from which we estimate that SVs are responsible for 25--29{\%} of all rare protein-truncating events per genome. We found strong correlations between natural selection against damaging SNVs and rare SVs that disrupt or duplicate protein-coding sequence, which suggests that genes that are highly intolerant to loss-of-function are also sensitive to increased dosage6. We also uncovered modest selection against noncoding SVs in cis-regulatory elements, although selection against protein-truncating SVs was stronger than all noncoding effects. Finally, we identified very large (over one megabase), rare SVs in 3.9{\%} of samples, and estimate that 0.13{\%} of individuals may carry an SV that meets the existing criteria for clinically important incidental findings7. This SV resource is freely distributed via the gnomAD browser8 and will have broad utility in population genetics, disease-association studies, and diagnostic screening.},
 issn={1476-4687},
 doi={10.1038/s41586-020-2287-8},
-url={https://doi.org/10.1038/s41586-020-2287-8}
 }
 
 @ARTICLE{landrum2018clinvar,
   title     = "{ClinVar}: improving access to variant interpretations and
                supporting evidence",
   author    = "Landrum, Melissa J and others",
-  abstract  = "ClinVar (https://www.ncbi.nlm.nih.gov/clinvar/) is a freely
-               available, public archive of human genetic variants and
-               interpretations of their significance to disease, maintained at
-               the National Institutes of Health. Interpretations of the
-               clinical significance of variants are submitted by clinical
-               testing laboratories, research laboratories, expert panels and
-               other groups. ClinVar aggregates data by variant-disease pairs,
-               and by variant (or set of variants). Data aggregated by variant
-               are accessible on the website, in an improved set of variant
-               call format files and as a new comprehensive XML report. ClinVar
-               recently started accepting submissions that are focused
-               primarily on providing phenotypic information for individuals
-               who have had genetic testing. Submissions may come from clinical
-               providers providing their own interpretation of the variant
-               ('provider interpretation') or from groups such as patient
-               registries that primarily provide phenotypic information from
-               patients ('phenotyping only'). ClinVar continues to make
-               improvements to its search and retrieval functions. Several new
-               fields are now indexed for more precise searching, and filters
-               allow the user to narrow down a large set of search results.",
   journal   = "Nucleic Acids Res.",
   publisher = "Oxford University Press (OUP)",
   volume    =  46,
@@ -814,4 +708,16 @@ url={https://doi.org/10.1038/s41586-020-2287-8}
   pages   = {3319--3326},
   year    = {2022},
   doi     = {10.1093/bioinformatics/btac308}
+}
+
+@inproceedings{onodera2013superbubbles,
+  author    = {Onodera, Taku and Sadakane, Kunihiko and Shibuya, Tetsuo},
+  title     = {Detecting superbubbles in assembly graphs},
+  booktitle = {Algorithms in Bioinformatics (WABI 2013)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {8126},
+  pages     = {338--348},
+  publisher = {Springer},
+  year      = {2013},
+  doi       = {10.1007/978-3-642-40453-5_26}
 }

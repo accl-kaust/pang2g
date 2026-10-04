@@ -106,11 +106,17 @@ public:
     uint32_t    num_threads() const { return num_threads_; }
     RunStats    last_stats()  const { return last_stats_; }
 
+    /**
+     * One task per snarl pair.  Pairing follows params.pairing (boundary-key
+     * by default, anchor-interval with PairingMode::Interval, which needs the
+     * anchors); priority = summed subtree work of the two snarls.
+     */
     std::vector<SnarlPairTask> build_task_dag(
         const VariationGraph& ga,
         const VariationGraph& gb,
         const SnarlTree& ta,
-        const SnarlTree& tb) const;
+        const SnarlTree& tb,
+        const std::vector<AnchorMatch>& anchors = {}) const;
 
 private:
     AlignerParams    params_;

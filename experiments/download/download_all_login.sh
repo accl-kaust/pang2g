@@ -2,9 +2,9 @@
 # ============================================================
 # Experiment 6 — download ALL datasets on the LOGIN NODE.
 #
-# The compute nodes (partition `mc`/`synode`) have NO internet access, so the
-# Exp6 downloads cannot run as a Slurm job — they must run on the login node
-# `mcmgt01`, which does have outbound network. Because the HPRC pull is large
+# The compute nodes have NO internet access, so the
+# Exp6 downloads cannot run as a Slurm job — they must run on a login node,
+# which does have outbound network. Because the HPRC pull is large
 # (~400 GB) and long-running, run this inside a tmux session so it survives
 # disconnects:
 #
@@ -32,12 +32,10 @@ G2G_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export G2G_DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
 export N_PER_POP="${N_PER_POP:-20}"
 
-# Refuse to run on a compute node — those have no internet.
-HOST="$(hostname -s)"
-if [[ "$HOST" != mcmgt* ]]; then
-    echo "[dl] WARNING: hostname is '$HOST', not the login node (mcmgt01)." >&2
-    echo "[dl] Compute nodes have no internet; downloads will hang/fail." >&2
-    echo "[dl] Run this on the login node inside tmux. Continuing in 5s..." >&2
+# Run this on a LOGIN node: compute nodes usually have no outbound network.
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+    echo "[dl] WARNING: running inside a Slurm job; compute nodes have no internet." >&2
+    echo "[dl] Run this on a login node inside tmux. Continuing in 5s..." >&2
     sleep 5
 fi
 

@@ -97,7 +97,7 @@ are made, then diffs them:
 
 ```
 cg_A: 4500 nodes (acyclic)   cg_B: 3742 nodes (acyclic)
-g2g --ref GRCh38  ->  snarl_pairs=863  a_only=266  b_only=93   (~0.1 s)
+g2g --ref GRCh38  ->  snarl_pairs=1024  a_only=349  b_only=12   (~0.1 s)
 self-diff (cg_A vs cg_A)  ->  a_only=0  b_only=0
 ```
 
@@ -250,10 +250,11 @@ script. The analysis stage is byte-for-byte the same engine validated above.
 
 ## Paper figures
 
-[`make_figures.py`](make_figures.py) regenerates every figure the paper
-references into `figs/*.pdf`. Schematic figures are drawn from scratch; the
-data figures read the result TSVs from the demos above and fall back to a
-watermarked `PRELIMINARY` sketch when no CSV is supplied:
+The figure generator lives at the repository root (`../make_figures.py`;
+`demo/make_figures.py` forwards to it). With no arguments it regenerates every
+figure of the paper into `latex/figs/` from the committed measurement tables in
+`results/` and `demo/sample_outputs/`; pass a `--<figure>-csv` flag to plot a
+fresh run of one of the demos above:
 
 ```bash
 python3 demo/make_figures.py \

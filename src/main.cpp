@@ -28,6 +28,7 @@
 #include <g2g/io.hpp>
 #include <g2g/parallel.hpp>
 #include <g2g/refdiff.hpp>
+#include <g2g/sequence.hpp>
 
 #include <chrono>
 #include <cstdlib>
@@ -55,6 +56,7 @@ struct Args {
     bool     verbose_timing = false;
     std::string snarls;     // "vg" | "builtin" | "" (default = builtin)
     std::string ref;        // reference path name → reference-coordinate diff
+    fs::path dump_snarls;   // write the decomposed snarls of both graphs (debug)
     g2g::AlignerParams params;
 };
 
@@ -75,9 +77,17 @@ static void print_help(const char* prog) {
         "                     (robust to differing node segmentation; emits real\n"
         "                     coordinates). Both graphs must contain that path.\n"
         "  --sequential       Use single-threaded aligner (ignored with --ref)\n"
+        "  --pairing <mode>   Snarl pairing for the graph-to-graph aligner:\n"
+        "                     'boundary' (default): identical source/sink boundary\n"
+        "                     sequences, repeats consumed positionally, O(n);\n"
+        "                     'interval': anchor-guided, order-preserving DP between\n"
+        "                     consecutive shared anchors (contains pairing errors\n"
+        "                     to one anchor interval). Ignored with --ref.\n"
         "  --snarls <backend> Snarl decomposition: 'builtin' (default, DAG-only)\n"
         "                     or 'vg' (use the vg toolkit; needs vg on PATH or\n"
         "                     $G2G_VG; falls back to builtin if unavailable)\n"
+        "  --dump-snarls <f>  Write every decomposed snarl of both graphs to <f>\n"
+        "                     (graph, source>sink, k, allele sequences) for debugging\n"
         "  --verbose-timing   Print [timing] (io/decompose/index/dp/wall) and\n"
         "                     [mem] (peak_rss_mb) lines, plus [runstats] (tasks/\n"
         "                     steals/imbalance) for the parallel runtime, to stderr\n"
@@ -113,6 +123,12 @@ static Args parse_args(int argc, char** argv) {
         else if (flag == "--gap")   a.params.gap   = std::stof(need_next());
         else if (flag == "--ref") a.ref = need_next();
         else if (flag == "--sequential") a.sequential = true;
+        else if (flag == "--pairing") {
+            std::string m = need_next();
+            if (m == "boundary")      a.params.pairing = g2g::PairingMode::Boundary;
+            else if (m == "interval") a.params.pairing = g2g::PairingMode::Interval;
+            else { std::cerr << "ERROR: --pairing expects 'boundary' or 'interval'\n"; std::exit(1); }
+        }
         else if (flag == "--snarls") {
             a.snarls = need_next();
             if (a.snarls != "vg" && a.snarls != "builtin") {
@@ -120,6 +136,7 @@ static Args parse_args(int argc, char** argv) {
                 std::exit(1);
             }
         }
+        else if (flag == "--dump-snarls") a.dump_snarls = need_next();
         else if (flag == "--verbose-timing") a.verbose_timing = true;
         else if (flag == "-h" || flag == "--help") { print_help(argv[0]); std::exit(0); }
         else { std::cerr << "Unknown option: " << flag << "\n"; std::exit(1); }
@@ -178,6 +195,27 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // ── Optional snarl dump (debugging aid) ───────────────────
+    if (!args.dump_snarls.empty()) {
+        std::ofstream f(args.dump_snarls);
+        if (!f) { std::cerr << "ERROR: cannot open " << args.dump_snarls << "\n"; return 1; }
+        f << "#graph\tsource>sink\tk\talleles\n";
+        auto dump = [&](const char* tag, const g2g::VariationGraph& g, const g2g::SnarlTree& t) {
+            std::vector<std::string> seqs;
+            for (const auto& s : t.snarls) {
+                g2g::allele_sequences(g, s, t, seqs);
+                f << tag << "\t" << g.node_names[s.source] << ">" << g.node_names[s.sink]
+                  << "\t" << s.allele_count() << "\t";
+                for (std::size_t i = 0; i < seqs.size(); ++i)
+                    f << (i ? "," : "") << (seqs[i].empty() ? "-" : seqs[i]);
+                f << "\n";
+            }
+        };
+        dump("A", ga, ta);
+        dump("B", gb, tb);
+        std::cerr << "[g2g] snarls written to " << args.dump_snarls << "\n";
+    }
+
     // ── Run alignment / diff ──────────────────────────────────
     g2g::AlignmentResult result;
     g2g::RunStats run_stats{};   // .phases filled in both paths; scheduler
@@ -219,6 +257,14 @@ int main(int argc, char** argv) {
               << "  a_only="          << result.a_only_alleles.size()
               << "  b_only="          << result.b_only_alleles.size()
               << "\n";
+    if (args.ref.empty()) {
+        std::cerr << "[g2g] anchors=" << result.anchors.size()
+                  << "  unpaired_snarls_a=" << result.unpaired_snarls_a
+                  << "  unpaired_snarls_b=" << result.unpaired_snarls_b
+                  << "  pairing=" << (args.params.pairing == g2g::PairingMode::Interval
+                                        ? "interval" : "boundary")
+                  << "\n";
+    }
 
     // ── Verbose timing / runtime stats ────────────────────────
     if (args.verbose_timing) {

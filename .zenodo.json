@@ -1,0 +1,14 @@
+{
+  "title": "PanG2G: Scalable Base-Pair-Resolution Graph-to-Graph Alignment of Pangenome Graphs (BIBM 2026 camera-ready release)",
+  "upload_type": "software",
+  "license": "MIT",
+  "creators": [
+    {"name": "Shakleya, Ahmad", "affiliation": "King Abdullah University of Science and Technology (KAUST)"},
+    {"name": "Fahmy, Suhaib A.", "affiliation": "King Abdullah University of Science and Technology (KAUST)"}
+  ],
+  "description": "Source code, Python reference prototype, synthetic graph generators, experiment harnesses, measured result tables and figure script for the IEEE BIBM 2026 paper 'PanG2G: Scalable Base-Pair-Resolution Graph-to-Graph Alignment of Pangenome Graphs'.",
+  "keywords": ["pangenome", "variation graph", "graph alignment", "structural variation", "comparative genomics"],
+  "related_identifiers": [
+    {"identifier": "https://github.com/ahmadshakleya/G2G", "relation": "isSupplementTo", "scheme": "url"}
+  ]
+}

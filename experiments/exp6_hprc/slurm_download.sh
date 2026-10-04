@@ -15,7 +15,7 @@
 #SBATCH --job-name=g2g_exp6_download
 #SBATCH --output=logs/exp6_download_%j.out
 #SBATCH --error=logs/exp6_download_%j.err
-#SBATCH --partition=mc
+#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --time=00:01:00

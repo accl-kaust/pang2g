@@ -2,150 +2,89 @@
 \label{sec:eval}
 
 \subsection{Q1: Validation}
-We generate graph pairs with planted shared, $A$-only, and $B$-only alleles at known positions and check that the deltas recover them. Three properties must be distinguished: (i) implementation determinism, whether the parallel engine reproduces the sequential result); (ii) optimization quality, how close it gets to the best alignment under the scoring model; (iii) biological truth, whether $(\alpha,\beta,\gamma)$ captures the correct allele correspondence. Property (iii) is not formally established: the weights are hand-tuned and validated only indirectly in order to measure consistency with minimap2 on small graphs.
+We generate graph pairs with planted shared, $A$-only and $B$-only alleles and check that the deltas recover them, distinguishing three properties: (i) implementation determinism (the parallel engine reproduces the sequential result); (ii) optimization quality under the scoring model; (iii) biological truth, whether $(\alpha,\beta,\gamma)$ captures the correct correspondence, which is not formally established: the weights are hand-tuned and validated only indirectly, on the real graphs below.
 
-Across planted graphs of 5-50 snarls, the largest for which we have ground truth, the aligner attains $\ge 80\%$ recall and precision on both delta sets. The gap from 100\% comes from snarl pairing, not allele matching (property ii). Within each correctly paired snarl, LAPJV recovers the planted alleles exactly and shared alleles never leak, so every error traces to two similar nearby snarls being mispaired, which sends their alleles to the wrong delta. The ${\sim}20\%$ error is therefore the measured cost of greedy pairing on these workloads, not a bound on it. For graphs this simple it is high, and real graphs, with more complex regions and more similar nearby snarls, are likely to fare worse under greedy pairing; it is the main accuracy limitation of the snarl-pairing mode.
+\textbf{Planted graphs.} On planted pairs of $5$ to $10^5$ snarls (two shared and one private allele per side, 8-bp boundary nodes, three seeds each) both pairing rules recover the planted deltas with precision $1.000$ and recall $0.999$-$1.000$ on both delta sets; the residual is pairs of random 12-mers that fall within the $\tau=0.75$ similarity floor and are matched, a property of the scoring model (iii), not of pairing. (The submitted version reported ``$\ge 80\%$'', the assertion threshold of the test suite rather than a measurement.) Within each paired snarl LAPJV recovers the planted alleles exactly and shared alleles never leak.
 
-Whether this error grows with graph size is not established here, and there is a mechanism by which it could. Greedy pairing commits in topological order, so one mispairing consumes a $B$-snarl that a later $A$-snarl needed, which must then take its next-best partner: errors can cascade, and the number of similar candidate snarls grows with the graph. Accuracy is validated at 5-50 snarls, whereas deployment is $10^6$-$10^7$, a 5-6 order gap. The scaling runs reach $10^9$ nodes but verify only parallel-vs-sequential consistency (property i), which both paths pass. Besides pairing drift, two further failure modes are plausible but invisible here: FNV-1a minimizer collisions (bound at $10^8$ $k$-mers in 32-bit space) and window overflow in the bounded decomposition. We therefore make no accuracy claim for the snarl-pairing aligner at deployment scale. Two facts limit the practical impact. First, the deployment-scale results in this paper (\S\ref{sec:refdiff} and Q4) use the reference-anchored mode, which has no pairing step and hence no drift. Second, the cascade can be contained: restricting each $A$-snarl's candidates to the $B$-snarls between the same two consecutive anchors, and pairing within that interval by an order-preserving dynamic program (a Needleman-Wunsch over the two snarl sequences), would make pairing optimal per interval and stop any error at the next anchor. Measuring pairing error as a function of graph size and implementing interval-restricted pairing are our immediate next steps.
-
-For reference-anchored diff where snarls match by absolute coordinate rather than greedy pairing, this mode satisfies property (ii) without approximation whenever both graphs embed the same reference with consistent representations. It achieves 100\% precision/recall on every planted workload and self-diffs to empty.
-
-\subsection{Q2: Throughput and scaling}
-We measure parallel scaling and single-core scaling past whole-genome size, and throughput against a linearise-and-map baseline, where we extract haplotypes and map to the reference with minimap2 \cite{li2018minimap2}). Three ceilings bound the speedup. (1) End-to-end speedup saturates at $2.65\times$: the ${\sim}7.8$\,s serial set-up (parsing, index build, decomposition) dominates the $20.6$\,s single-thread run, so Amdahl's law caps the return. (2) A hard critical-path bound: each snarl pair is one indivisible LAPJV call, so DP-phase speedup $\le W_{\text{total}}/W_{\max}$ with work $\propto k^3$ and $k$ up to 50. The largest task vs.\ a $k{=}2$ bubble is a ${\sim}15{,}600\times$ spread, so the heavy tail that motivates dynamic scheduling (finding 2) simultaneously caps it. (3) The DP phase hits a cliff above 64 cores ($50.1\times{\to}52.6\times$, ${\sim}5\%$ for doubled threads). The scheduler holds the load-imbalance factor at $1.00$-$1.01$ yet 128-thread efficiency is only $41\%$: not a contradiction but the signature of a centralised queue. The single mutex serializes dispatch, so threads receive equal work but spend most time waiting for it. The cause is the light end of the same distribution: ${\sim}67\%$ of tasks are $k{=}2$ bubbles, over which one lock acquisition per task is poorly amortized. The ablations (Q3) show that both halves of the design matter, ordering by work (FIFO costs $1.20\times$) and dynamic dispatch (a static partition costs $1.91\times$), but not that they must share one lock. A hybrid that keeps the LPT queue for the heavy tail and hands the small bubbles out in contiguous chunks through per-thread work-stealing deques would preserve largest-first ordering while removing most lock acquisitions; we leave it to future work. Up to 64 cores (78\% DP-phase efficiency) the single queue is not the limiter.
-
-With those limits, DP-phase scaling to 64 cores is near-ideal: $2.0,4.0,7.9,15.4,29.4,50.1\times$ at $2$-$64$ cores (Fig. \ref{fig:throughput}). The harness confirms the parallel result is byte-identical to the sequential at every count (property i).
-
-The two systems compute different objects: PanG2G produces a graph-to-graph delta directly, whereas linearize-and-map produces per-haplotype alignments still needing calling and merging. We use this comparison because no graph-to-graph tool exists, and we time only its alignment step, omitting downstream calling, making the baseline faster than a full workflow. The thread asymmetry, with minimap2 multi-threaded and PanG2G single-threaded, also favors it. PanG2G's cost is graph-size-dominated: even at $h{=}2$ the graph carries the full ${\sim}51$\,Mb chr-22 backbone, so adding haplotypes only saturates shared variation and time grows sublinearly ($18.3{\to}54.1$\,s over $h{=}2{\to}200$) while the minimap2 baseline is linear ($7.9{\to}684$\,s). The curves cross near $h{\approx}10$. By $h{=}200$ PanG2G is $12.7\times$ faster and widening (Fig. \ref{fig:throughput}): it aligns the compressed graph directly instead of expanding it back to $h$ sequences. A semi-linear baseline, mapping each haplotype of one population to the other population's pangenome with a sequence-to-graph mapper such as Giraffe \cite{siren2021giraffe}, removes reference bias on the mapping side, but it still expands one graph into $h$ sequences, so its cost should also grow linearly in $h$, and it yields per-haplotype alignments that need calling and merging. We have not benchmarked it; it is the natural next comparison.
+\textbf{Pairing error at scale.} The boundary-key rule can only err when boundary keys repeat and a snarl exists in one graph alone, which shifts the positional match of every later snarl with that key (\S\ref{sec:algo}). We measure this directly (Fig.~\ref{fig:pairing}): planted pairs with 1- or 2-bp boundary nodes, so that keys collide as on real vg~construct graphs, 10\% of snarl slots private to one graph, and a shared 24-bp linker node (an anchor) after every fourth snarl. The cascade is real and grows with size: with 1-bp boundaries the delta $F_1$ of the boundary rule falls from $1.00$ at 5 snarls to $0.82$ at 50, $0.63$ at $10^3$ and $0.55$ at $10^5$ (precision $0.38$ at recall $0.998$: every mispaired snarl dumps its alleles into both deltas), and with 2-bp boundaries from $0.99$ at 50 to $0.57$ at $10^5$, whereas with unique 8-bp keys it stays at $F_1\ge0.9997$. The anchor-interval rule holds $F_1\ge0.999$ (precision $1.000$) in every configuration up to $10^5$ snarls, including 1-bp boundaries, and costs no measurable time ($3.2$-$3.8$\,s vs.\ $4.0$-$5.4$\,s single-threaded wall at $10^5$ snarls on a laptop, pairing included). Accuracy is thus validated at $10^5$ snarls, one to two orders below deployment ($10^6$-$10^7$); the scaling runs reach $10^9$ nodes but verify only parallel-vs-sequential consistency (property i), which both paths pass. Untested remain FNV-1a minimizer collisions beyond $10^8$ $k$-mers and interleaved variant runs with more than $2^{16}$ alleles per snarl.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{figs/fig_throughput.pdf}
-  \caption{PanG2G's whole graph-to-graph diff vs.\ the extract+align cost of
-  linearize-and-map, on real chromosome-22 pangenomes as the per-population panel
-  $h$ grows. PanG2G (single-threaded) is sublinear in $h$ ($18.3{\to}54.1$\,s
-  over $h{=}2{\to}200$); the baseline is linear ($7.9{\to}684$\,s). They cross near
-  $h{\approx}10$; by $h{=}200$ PanG2G is $12.6\times$ faster, the gap still
-  widening.}
-  \label{fig:throughput}
+  \includegraphics[width=0.65\linewidth]{figs/fig_pairing_error.pdf}
+  \caption{Snarl-pairing error ($1-F_1$ of the recovered delta, mean of both
+  graphs and three seeds) versus graph size on planted graphs with 10\% of
+  snarls private to one graph. With repeated boundary keys (1-2\,bp boundary
+  nodes) the boundary-key rule's positional cascade grows with size; the
+  anchor-interval dynamic program contains every error to one anchor interval.}
+  \label{fig:pairing}
 \end{figure}
 
+\textbf{Real vg construct graphs.} To test both modes on real graphs with a known answer we built two HLA-DRB1 pangenomes from six public haplotypes (three per graph; minimap2, paftools, vg~construct against GRCh38): $1552$ and $1279$ atomic variants, $1275$ shared, $277$ $A$-only and $4$ $B$-only. The reference-anchored diff recovers $273$ of the $277$ $A$-only variants (recall $0.99$) at precision $0.78$; every false positive lies in a cluster of adjacent indels and SNPs where the diff's edit-distance alignment places variants differently from the caller, the normalization limit of \S\ref{sec:refdiff}, and two of the four $B$-only deletions sit in a tandem repeat where they are placed differently. The built-in superbubble finder and the \texttt{vg snarls} backend give byte-identical results. The first-common-successor finder of the submitted version closed a bubble one node early wherever vg~construct links the alternate node of one SNP directly to the reference node of the next, and reached only recall $0.74$ on the same graphs; the real-data runs below were therefore repeated. In the snarl-pairing mode, boundary keys pair $694$ snarls and leave $470$ and $330$ unpaired (10-13\% of keys repeat on these graphs), whereas the anchor-interval rule pairs $972$, leaves $192$ and $52$ unpaired and raises the alignment score by $53\%$.
+
+\textbf{Reference-anchored mode.} Where snarls match by absolute coordinate, the mode satisfies property (ii) without approximation whenever both graphs embed the same reference with consistent representations: it achieves 100\% precision/recall on every planted workload and self-diffs to empty.
+
+\subsection{Q2: Throughput and scaling}
+We measure parallel scaling, single-core scaling past whole-genome size, and throughput against a linearize-and-map baseline that extracts haplotypes and maps them to the reference with minimap2 \cite{li2018minimap2}. Three ceilings bound the speedup. (1) End-to-end speedup saturates at $2.65\times$: the ${\sim}7.8$\,s serial set-up (parsing, index build, decomposition) dominates the $20.6$\,s single-thread run, so Amdahl's law caps the return. (2) A critical-path bound: each snarl pair is one indivisible LAPJV call, so DP-phase speedup $\le W_{\text{total}}/W_{\max}$ with work $\propto k^3$ and $k$ up to 40, a ${\sim}8{,}000\times$ spread between the largest task and a $k{=}2$ bubble; the heavy tail that motivates dynamic scheduling (Finding 2) simultaneously caps it. (3) The DP phase hits a cliff above 64 cores ($50.1\times{\to}52.6\times$ for doubled threads). The scheduler holds the load-imbalance factor at $1.00$-$1.01$ yet 128-thread efficiency is only $41\%$: the signature of a centralized queue, whose single mutex serializes dispatch so that threads receive equal work but wait for it. The cause is the light end of the distribution: half of the $25{,}608$ tasks on this workload are $k{=}2$ bubbles, over which one lock acquisition per task is poorly amortized. The ablations (Q3) show that ordering by work (FIFO costs $1.20\times$) and dynamic dispatch (a static partition costs $1.91\times$) both matter, but not that they must share one lock; a hybrid that keeps the LPT queue for the heavy tail and hands small bubbles out in contiguous chunks through per-thread work-stealing deques would preserve largest-first ordering while removing most lock acquisitions, and is left to future work. Up to 64 cores (78\% DP-phase efficiency) the single queue is not the limiter, and DP-phase scaling is near-ideal: $2.0,4.0,7.9,15.4,29.4,50.1\times$ at $2$-$64$ cores (Fig. \ref{fig:perf}a), byte-identical to the sequential result at every count (property i).
+
+PanG2G and linearize-and-map compute different objects, a graph-to-graph delta versus per-haplotype alignments that still need calling and merging; no graph-to-graph tool exists to compare against, and timing only the baseline's alignment step and letting it multi-thread both favor it. PanG2G's cost is graph-size-dominated: even at $h{=}2$ the graph carries the full ${\sim}51$\,Mb chr-22 backbone, so adding haplotypes only saturates shared variation and time grows sublinearly ($18.3{\to}54.1$\,s over $h{=}2{\to}200$) while the baseline is linear ($7.9{\to}684$\,s). The curves cross near $h{\approx}10$; by $h{=}200$ PanG2G is $12.7\times$ faster and widening (Fig. \ref{fig:perf}b), because it aligns the compressed graph directly instead of expanding it back to $h$ sequences. A semi-linear baseline, mapping each haplotype of one population to the other population's graph with a sequence-to-graph mapper such as Giraffe \cite{siren2021giraffe}, removes reference bias on the mapping side but still expands one graph into $h$ sequences, so its cost should also grow linearly in $h$; we have not benchmarked it.
+
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{figs/fig_scaling.pdf}
-  \caption{Parallel scaling to 128 threads. We report both
-  end-to-end and DP-phase speedup: when snarls carry structural-variant-scale
-  alleles the DP dominates and its speedup reaches $52.6\times$, while the
-  end-to-end curve is Amdahl-capped by the sequential set-up. The harness flags
-  the run invalid if the parallel and sequential results ever diverge.}
-  \label{fig:scaling}
+  \includegraphics[width=\linewidth]{figs/fig_perf.pdf}
+  \caption{(a)~Parallel scaling to 64 cores on the 8-Mbp SV-like pair (the
+  128-thread point, $52.6\times$, is discussed in the text): DP-phase and
+  end-to-end speedup, the latter Amdahl-capped by the sequential set-up; the
+  harness flags the run invalid if parallel and sequential results ever diverge.
+  (b)~PanG2G's whole graph-to-graph diff vs.\ the extract+align cost of
+  linearize-and-map on real chromosome-22 pangenomes as the per-population panel
+  $h$ grows: PanG2G (single-threaded) is sublinear in $h$ ($18.3{\to}54.1$\,s over
+  $h{=}2{\to}200$), the baseline linear ($7.9{\to}684$\,s); they cross near
+  $h{\approx}10$.}
+  \label{fig:perf}
 \end{figure}
 
 \subsection{Reference-anchored diffing and single-node scaling}
 \label{sec:refdiff}
-When both graphs embed a common reference, which is the usual case for vg~construct or Minigraph-Cactus, PanG2G offers a second correspondence mode that replaces greedy pairing with matching by absolute reference coordinate. Each bubble is decomposed into atomic SNPs/indels keyed by reference position ($\textit{bubble\_open}+\textit{offset}$). Since the key depends only on the coordinate, a merged bubble in one graph yields the same atomic variants as separate bubbles in the other, and corresponding variants match exactly. This is invariant to node boundaries but not to variant representation: if two graphs place the same indel at different positions (left- vs.\ right-aligned in a homopolymer) the keys differ and a false delta results. PanG2G does not normalize variants, so same-tool graphs are consistent but mixed-provenance graphs need a normalization pass. Left-alignment is only the simplest part of that pass. Builders such as Minigraph-Cactus and PGGB can also cut the same complex region into different snarls, nest variation differently, merge adjacent SNPs into one multi-nucleotide allele or split it, and place variants within repeats differently. Alignment alone does not reconcile these: the snarl-pairing mode is insensitive to node cuts within a snarl but not to how a region is divided into snarls, and the reference-anchored mode assumes a shared representation. All comparisons in this paper are therefore between graphs from the same builder; cross-builder comparison requires decomposing each allele into a canonical set of primitive variants before diffing, which we leave to future work.
+When both graphs embed a common reference, the usual case for vg~construct or Minigraph-Cactus, PanG2G offers a second correspondence mode that replaces snarl pairing with matching by absolute reference coordinate. Each bubble is decomposed into atomic SNPs/indels keyed by reference position ($\textit{bubble\_open}+\textit{offset}$); since the key depends only on the coordinate, a merged bubble in one graph yields the same atomic variants as separate bubbles in the other. This is invariant to node boundaries but not to variant representation: if two graphs place the same indel at different positions (left- vs.\ right-aligned in a homopolymer) the keys differ and a false delta results, as the HLA false positives show. PanG2G does not normalize variants, so same-tool graphs are consistent but mixed-provenance graphs need a normalization pass, and left-alignment is only its simplest part: builders such as Minigraph-Cactus and PGGB also cut a region into different snarls, nest variation differently, or merge and split adjacent SNPs. All comparisons in this paper are therefore between graphs from the same builder; cross-builder comparison requires decomposing each allele into a canonical set of primitive variants before diffing, which we leave to future work.
 
-The mode scales near-linearly past whole-genome size on one core. We sweep synthetic pairs from $8{\times}10^6$ to $8.2{\times}10^9$\,bp in which the two graphs cut the shared backbone differently (25 vs.\ 17\,bp) and plant a known variant set with identical coordinate representations. Under that precondition PanG2G recovers the planted alleles exactly (100\% precision/recall) and self-diffs to empty. Wall time and peak memory scale as $N^{1.04}$ and $N^{0.99}$, decomposition as $N^{1.00}$ (Fig. \ref{fig:refdiffscaling}), linear to measurement noise. The sweep reaches an $8.2{\times}10^9$\,bp ($9.7{\times}10^{8}$ nodes, $4.1{\times}10^{7}$ variants) diffed exactly in $72$ min using $242$\,GiB peak RSS at $2.26{\times}10^{5}$ nodes/s. At the stopping point ($\sim\!2.6\times$ the human genome) $270$\,GiB remained free and throughput was constant, so neither capacity nor bandwidth is yet binding.
-
-\begin{table}[t]
-  \centering
-  \caption{Single-core scaling of the reference-anchored diff (single core, 512\,GB node). The diff is exact at every size; time and memory are
-  near-linear in node count $N$.}
-  \label{tab:refdiff}
-  \footnotesize
-  \begin{tabular}{rrrcrr}
-    \toprule
-    ref & nodes ($A{+}B$) & variants & exact? & wall & peak \\
-    \midrule
-    $8$\,Mb   & $0.95$M & $40$k   & \checkmark & $2.9$\,s     & $0.25$\,GiB \\
-    $64$\,Mb  & $7.6$M  & $320$k  & \checkmark & $25$\,s      & $1.9$\,GiB  \\
-    $256$\,Mb & $30.3$M & $1.28$M & \checkmark & $104$\,s     & $7.7$\,GiB  \\
-    $1$\,Gb   & $121$M  & $5.12$M & \checkmark & $415$\,s     & $31$\,GiB   \\
-    $2$\,Gb   & $243$M  & $10.2$M & \checkmark & $817$\,s     & $60$\,GiB   \\
-    $4$\,Gb   & $485$M  & $20.5$M & \checkmark & $1{,}880$\,s & $121$\,GiB  \\
-    $8$\,Gb   & $971$M  & $41.0$M & \checkmark & $4{,}292$\,s & $242$\,GiB  \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+The mode scales near-linearly past whole-genome size on one core. We sweep synthetic pairs from $8{\times}10^6$ to $8.2{\times}10^9$\,bp in which the two graphs cut the shared backbone differently (25 vs.\ 17\,bp) and plant a known variant set with identical coordinate representations. PanG2G recovers the planted alleles exactly (100\% precision/recall) and self-diffs to empty at every size; wall time and peak memory scale as $N^{1.04}$ and $N^{0.99}$, decomposition as $N^{1.00}$ (Fig. \ref{fig:refdiffscaling}). The sweep reaches $8.2{\times}10^9$\,bp ($9.7{\times}10^{8}$ nodes, $4.1{\times}10^{7}$ variants, $\sim\!2.6\times$ the human genome) diffed exactly in $72$ min at $242$\,GiB peak RSS and a constant $2.26{\times}10^{5}$ nodes/s, with $270$\,GiB still free. The sweep was timed with the windowed finder of the submitted version; the superbubble finder reports the same snarls on these graphs and is faster (0.07 vs.\ 1.49\,s of decomposition at 8\,Mbp), so the wall times are conservative.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{figs/fig_refdiffscaling.pdf}
+  \includegraphics[width=0.72\linewidth]{figs/fig_refdiffscaling.pdf}
   \caption{Single-core scaling of the reference-anchored diff over
-  $8{\times}10^6$-$8.2{\times}10^9$\,bp ($\sim$$10^6$-$9.7{\times}10^8$ nodes,
-  ${\sim}2.6\times$ the human genome at the top end). Wall time
-  $\propto N^{1.04}$, peak memory $\propto N^{0.99}$, and snarl decomposition
-  $\propto N^{1.00}$ (dashed guide: ideal linear); the diff is exact at every
-  size.}
+  $8{\times}10^6$-$8.2{\times}10^9$\,bp ($\sim$$10^6$-$9.7{\times}10^8$ nodes):
+  wall time $\propto N^{1.04}$ and snarl decomposition $\propto N^{1.00}$ (left
+  axis), peak memory $\propto N^{0.99}$ (right axis); dotted: ideal linear.
+  Exact at every size.}
   \label{fig:refdiffscaling}
 \end{figure}
 
 \subsection{Q3: Ablations}
-We disable each design choice in isolation and time the phase it affects at two matched workloads: a control where the choice should be inert (a balanced or L3-resident graph) and a treatment where it should bite (a skewed, heavy-tailed, or large-$k$ graph). Each binary differs from the optimized baseline by a single compile-time flag; we report the slowdown of the affected phase (Fig. \ref{fig:ablation}). 
-
-Exact LAPJV matching and the minimizer anchor index are the load-bearing choices: removing them inflates their phase by $70\times$ and $1728\times$ at treatment scale. Brute-force matching becomes infeasible as $k$ grows (Finding 1) and the naive $O(|V_A||V_B|)$ anchor scan dominates on large graphs. 
-
-The scheduler ablations separate parallelism from policy: a static cyclic partition costs $1.91\times$ on skewed work (one thread holds the heavy snarls) yet $1.00\times$ on a balanced one, hereby confirming finding 2. Downgrading LPT to FIFO costs a further $1.20\times$ once per-snarl work exceeds scheduling overhead. 
-
-The van Emde Boas layout reads ${\approx}1.0\times$ throughout: it is a genuine null on the current depth-1 snarls, whose subtrees fit a cache line either way, and used only on the nested snarls a vg backend supplies. Every ablated binary returns a delta byte-identical to the baseline (property i).
-
-% \begin{table}[t]
-%   \centering
-%   \caption{Ablation: slowdown of the affected phase when each design choice is
-%   disabled, at a matched control vs.\ treatment workload (min.\ of three runs).
-%   Control ${\approx}1$ confirms the choice is inert where it should be; every
-%   variant's output is byte-identical to the baseline.}
-%   \label{tab:ablation}
-%   \footnotesize
-%   \begin{tabular}{llrr}
-%     \toprule
-%     disabled choice & phase & control & treatment \\
-%     \midrule
-%     LAPJV matching $\to$ brute force    & match  & $1.03\times$ & $70\times$   \\
-%     minimizer index $\to$ naive scan    & anchor & $1.00\times$ & $1728\times$ \\
-%     priority-dispatch $\to$ static partition & DP     & $1.00\times$ & $1.91\times$ \\
-%     LPT $\to$ FIFO            & DP     & $0.90\times$ & $1.20\times$ \\
-%     vEB layout $\to$ BFS                & DP     & $0.95\times$ & $1.01\times$ \\
-%     \bottomrule
-%   \end{tabular}
-% \end{table}
+We disable each design choice in isolation (one compile-time flag each) and time the phase it affects at a control workload where the choice should be inert (balanced or L3-resident) and a treatment where it should bite (skewed, heavy-tailed or large-$k$; Fig. \ref{fig:ablation}). Exact LAPJV matching and the minimizer index are the load-bearing choices: removing them inflates their phase by $70\times$ and $1728\times$ at treatment scale, since brute-force matching becomes infeasible as $k$ grows (Finding 1) and the naive anchor scan dominates on large graphs. The scheduler ablations separate parallelism from policy: a static cyclic partition costs $1.91\times$ on skewed work yet $1.00\times$ on balanced work, confirming Finding 2, and downgrading LPT to FIFO costs a further $1.20\times$ once per-snarl work exceeds scheduling overhead. The van Emde Boas layout reads ${\approx}1.0\times$ throughout: a genuine null on depth-1 snarls, whose subtrees fit a cache line either way. Every ablated binary returns a delta byte-identical to the baseline (property i).
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{figs/fig_ablation.pdf}
+  \includegraphics[width=0.65\linewidth]{figs/fig_ablation.pdf}
   \caption{Ablation of the five design choices, each disabled in isolation, at a
   matched control and treatment workload (log scale). LAPJV matching and the
-  minimizer index are load-bearing ($70\times$, $1728\times$); the two scheduler
+  minimizer index are load-bearing ($70\times$, $1728\times$); the scheduler
   ablations separate parallelism (static partition, $1.9\times$) from policy
-  (FIFO steal, $1.2\times$); the vEB layout is a measured null on depth-1 snarls.
-  Controls sit at ${\approx}1\times$ throughout.}
+  (FIFO, $1.2\times$); the vEB layout is a measured null on depth-1 snarls.}
   \label{fig:ablation}
 \end{figure}
 
 \subsection{Q4: Co-localization with structural and clinical variation}
-The decisive test of utility is whether the delta graph lands on biologically meaningful variation. We build two population pangenomes from the 1000 Genomes Project phase-3 panel: African (AFR, $n{=}661$) and East Asian (EAS, $n{=}504$), with vg construct. We diff them with PanG2G's reference-coordinate mode along chromosome 22, and test whether the $587{,}010$ delta alleles, $406$k present only in the AFR graph and $181$k only in EAS, fall closer than a uniform genome background to gnomAD-SV \cite{collins2017svfst} structural variants and to ClinVar \cite{landrum2018clinvar} pathogenic sites: they do. The delta alleles are enriched $1.46\times$ near gnomAD-SVs ($919$ observed vs.\ $628$ expected; $p<10^{-3}$, exceeding all $1000$ permutations) and $1.61\times$ near pathogenic sites ($p<10^{-3}$; Fig. \ref{fig:biology}). PanG2G's graph-to-graph delta is therefore far from random; it concentrates in structural-variation and clinically relevant regions.
+The decisive test of utility is whether the delta graph lands on biologically meaningful variation. We build two population pangenomes from the 1000 Genomes Project phase-3 panel (release 20130502): African (AFR, $n{=}661$) and East Asian (EAS, $n{=}504$), with vg construct on GRCh37 chromosome 22. We diff them with PanG2G's reference-coordinate mode and test whether the $608{,}718$ delta alleles, $428$k present only in the AFR graph and $181$k only in EAS, fall closer (within 400\,bp) than a uniform chromosome background to gnomAD-SV v2.1 \cite{collins2017svfst} structural variants with AFR-EAS $F_{ST}{\ge}0.2$ and to ClinVar \cite{landrum2018clinvar} pathogenic sites: they do. The delta alleles are enriched $1.46\times$ near gnomAD-SVs ($946$ observed vs.\ $650$ expected; $p<10^{-3}$, exceeding all $1000$ permutations) and $1.61\times$ near pathogenic sites ($p<10^{-3}$; Fig. \ref{fig:biology}). The delta is therefore far from random; it concentrates in structural-variation and clinically relevant regions.
 
-We then asked whether this enrichment is specific to population-differentiated SVs, by sweeping the gnomAD-SV $F_{ST}$ threshold
-(Fig. \ref{fig:fstsweep}). It is not: the fold is essentially flat, $1.46\times$ at $F_{ST}{\geq}0.05$ and $1.45\times$ at $F_{ST}{\geq}0.5$. The chromosome-22 delta co-localizes with structural variation in general rather than preferentially with the most differentiated SVs. The cause is that the 2 input graphs contain almost only SNVs/small indels, and vg construct embeds only what the VCF provides, so the pangenomes are SV-depleted by construction. Only $14$ of $587{,}010$ delta alleles are $\ge 50$\,bp. The delta is ${\sim}99.998\%$ small variants. Restricting the delta to SV-sized alleles ($\geq 50$\,bp) is in turn too sparse on this SNV/indel panel to be conclusive. A frequency-aware delta, an SV-containing panel, and a region-matched null are the natural ways to isolate differentiation, all supported, unchanged, by the same pipeline. What this experiment establishes is that the delta is biologically meaningful, not just a correct set difference: the graph-to-graph delta surfaces real structural and clinical variation directly, without the reference-projection step a sequence-to-reference pipeline would require.
+The enrichment is not specific to population-differentiated SVs: sweeping the gnomAD-SV $F_{ST}$ threshold from $0.05$ to $0.5$ leaves the fold essentially flat ($1.42$-$1.54\times$, every point $p<10^{-3}$), so the chromosome-22 delta co-localizes with structural variation in general rather than preferentially with the most differentiated SVs. The cause is that the input graphs contain almost only SNVs/small indels: vg construct embeds only what the VCF provides, so the pangenomes are SV-depleted by construction; only $25$ of the delta alleles insert or delete $\ge 50$\,bp, too few to test, and an SV-containing panel or a frequency-aware delta would be needed to isolate differentiation. What this experiment establishes is that the delta is biologically meaningful, not just a correct set difference: the graph-to-graph delta surfaces real structural and clinical variation directly, without the reference-projection step a sequence-to-reference pipeline would require.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{figs/fig_biology.pdf}
+  \includegraphics[width=0.65\linewidth]{figs/fig_biology.pdf}
   \caption{PanG2G delta alleles on real AFR vs.\ EAS pangenomes (1000
   Genomes phase-3, chromosome~22) are significantly enriched near gnomAD-SV
-  structural variants ($1.46\times$) and ClinVar pathogenic sites ($1.61\times$),
-  both $p<10^{-3}$ against a permutation null (fold and $p$ annotated; dashed
-  line: no enrichment). Synthetic positive/negative controls validate the
-  statistic.}
+  structural variants and ClinVar pathogenic sites, both $p<10^{-3}$ against a
+  permutation null (fold and $p$ annotated; dashed line: no enrichment).}
   \label{fig:biology}
-\end{figure}
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.7\linewidth]{figs/fig_fst_sweep.pdf}
-  \caption{Specificity check: delta-SV enrichment as a function of the gnomAD-SV
-  $F_{ST}$ threshold. The fold is flat ($1.45$-$1.53\times$, every point
-  $p<10^{-3}$), so the enrichment reflects co-localization with structural
-  variation in general rather than preference for the most
-  population-differentiated SVs.}
-  \label{fig:fstsweep}
 \end{figure}
