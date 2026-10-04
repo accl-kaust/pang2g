@@ -17,10 +17,12 @@ experiments/ write the same formats).
   fig_refdiffscaling   results/refdiff_scaling.tsv                     demo/06_scaling_limit.sh
   fig_throughput       demo/sample_outputs/throughput_chr22.tsv        demo/10_throughput_baseline.sh
   fig_scaling          results/parallel_scaling.tsv                    demo/07_parallel_scaling.sh
-  fig_ablation         results/ablation_ratios.tsv                     demo/08_ablation.sh
+  fig_ablation         results/accl/ablation_results.tsv               demo/08_ablation.sh (EPYC 7763 node; the
+                       (results/ablation_ratios.tsv = submitted run)    submitted version's ratios kept alongside)
   fig_biology          demo/sample_outputs/biology_results.tsv         demo/09_hprc_biology.sh
   fig_fst_sweep        demo/sample_outputs/fst_sweep_chr22.tsv         demo/hprc_enrich.py --fst-sweep
-  fig_pairing_error    results/exp1b_pairing_error.csv                 experiments/exp1_correctness/pairing_error_sweep.py
+  fig_pairing_error    results/accl/exp1b_pairing_error.csv            experiments/exp1_correctness/pairing_error_sweep.py
+                       (results/exp1b_pairing_error.csv = laptop run)   (EPYC 7763 node)
   fig_pipeline, fig_delta, fig_veb, fig_paradigm, fig_snarltree        schematics (no data)
 
 Needs matplotlib + numpy.
@@ -534,10 +536,10 @@ def main():
     ap.add_argument("--refdiff-tsv",    default=R("results", "refdiff_scaling.tsv"))
     ap.add_argument("--throughput-csv", default=R("demo", "sample_outputs", "throughput_chr22.tsv"))
     ap.add_argument("--scaling-csv",    default=R("results", "parallel_scaling.tsv"))
-    ap.add_argument("--ablation-csv",   default=R("results", "ablation_ratios.tsv"))
+    ap.add_argument("--ablation-csv",   default=R("results", "accl", "ablation_results.tsv"))
     ap.add_argument("--biology-csv",    default=R("demo", "sample_outputs", "biology_results.tsv"))
     ap.add_argument("--fst-sweep-csv",  default=R("demo", "sample_outputs", "fst_sweep_chr22.tsv"))
-    ap.add_argument("--pairing-csv",    default=R("results", "exp1b_pairing_error.csv"))
+    ap.add_argument("--pairing-csv",    default=R("results", "accl", "exp1b_pairing_error.csv"))
     ap.add_argument("--only", default=None, help="comma-separated figure names")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)

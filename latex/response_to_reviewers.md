@@ -191,3 +191,11 @@ anchor-interval pairing removes it.
 - **Reproducibility.** Every figure is generated from committed measurement
   tables by one script; the result tables of the repeated runs are in the
   repository.
+- **Re-measurements on the original node class** (`results/accl/`): with the
+  corrected decomposer the throughput comparison against linearize-and-map
+  improves from 12.7× to 51× at h=200 (PanG2G 7.6–12.3 s over h=2–200), the
+  serial set-up of the parallel aligner drops from 7.8 s to 3.5 s (end-to-end
+  speedup at 32 threads 2.59× → 3.59×), and the ablation, pairing sweep and Q4
+  numbers reproduce. The 64/128-thread and 8-Gbp points could not be repeated
+  within the cluster's current 48-CPU / 192 GB job limit and are reported from
+  the submitted run, as stated in the text.

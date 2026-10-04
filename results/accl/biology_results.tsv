@@ -1,0 +1,3 @@
+category	observed	expected	fold	p
+delta vs high-F_ST gnomAD-SV (≥0.2)	946	650.0	1.455	0.000999000999000999
+delta vs ClinVar pathogenic	16341	10142.88	1.611	0.000999000999000999

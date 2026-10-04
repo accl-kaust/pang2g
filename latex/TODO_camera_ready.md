@@ -104,10 +104,26 @@ including references** (BIBM 2026 CFP). The compiled draft is `latex/PanG2G_came
 - [x] `latex/response_to_reviewers.md` (point-by-point; reviewer comments are paraphrased — paste the
       originals before sending).
 
-## Running on IBEX
+## Cluster re-measurements (ACCL Slurm cluster, EPYC 7763 nodes; `experiments/accl/`, `results/accl/`)
 
-Nothing in this pass ran on IBEX: `ssh shaklea@ilogin.ibex.kaust.edu.sa` accepts only password
-authentication for the local key. Run `ssh-copy-id shaklea@ilogin.ibex.kaust.edu.sa` once and future
-sessions can submit the 128-thread scheduler experiment with `experiments/exp4_parallel_scaling/slurm.sh`
-(set `--partition=batch`, `--constraint=rome` for a 128-core node). All experiments above ran in WSL on the
-laptop (8 cores, 7 GB) or are taken from the committed logs of the original 64-core EPYC runs.
+IBEX accepts only password SSH for the local key and the ROCS head node `mcmgt01` needs the lab VPN
+profile, so the re-measurements ran on the ACCL cluster (`acclhead1`, key auth works), which is the node
+class of the submitted paper. Its per-job limit is 48 CPUs / 192 GB, so the 64/128-thread and 8-Gbp points
+could not be repeated; everything else was:
+
+- [x] Build + 161 tests with GCC 9.4 (needed a span-shim fix for temporaries).
+- [x] Pairing-error sweep: identical to the laptop run; both rules 1.8–2.0 s at 10^5 snarls (Q1 updated).
+- [x] Parallel scaling 1–48 threads with the new decomposer: serial set-up 7.8 → 3.5 s, single-thread
+      20.6 → 15.1 s, end-to-end speedup at 32 threads 2.59 → 3.59× (Q2 sentence added; the figure keeps the
+      original dedicated-node 1–64-core curve because the 48-CPU allocation is hardware threads on a
+      shared node: DP-phase 21.9× at 32, 26.3× at 48).
+- [x] Ablation: 71×, 1773×, 1.82×, 1.15×, 1.00× (Q3 and Fig. 7 updated; submitted values kept in the text).
+- [x] Throughput vs linearize-and-map, h = 2…200: PanG2G 7.6 → 12.3 s, baseline 7.0 → 624 s, **51× at
+      h = 200** (was 12.7×; the old decomposer dominated PanG2G's time). Q2, Fig. 5b, Conclusion updated;
+      the submitted table is kept as `demo/sample_outputs/throughput_chr22_submitted.tsv`.
+- [x] Q4 chr22 on the cluster reproduces the laptop numbers (608,718 deltas; 1.46× / 1.61×; flat F_ST sweep).
+- [ ] Single-core scaling sweep to 4 Gbp with the new decomposer: the first run shared its node with the
+      throughput job (4 Gbp in 1481 s vs 1880 s; decomposition 54 s vs 745 s; memory unchanged); a clean
+      single-tenant re-run is queued (`cr_scaling_limit.slurm -w acclnode04`) and will replace that sentence
+      in §IV-C if the numbers move.
+- [ ] Not possible under the 48-CPU limit: the 128-thread hybrid-scheduler experiment (still future work).

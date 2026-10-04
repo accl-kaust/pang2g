@@ -1,0 +1,6 @@
+[timing] io=0.885123 decompose=0.076327 index=2.516667 dp=11.518408 wall=15.095925
+[runstats] tasks=25608 steals=0 imbalance=1.0000 ready_peak=25608 threads=1
+[timing] io=0.881603 decompose=0.077556 index=2.518207 dp=11.509641 wall=15.087418
+[runstats] tasks=25608 steals=0 imbalance=1.0000 ready_peak=25608 threads=1
+[timing] io=0.920964 decompose=0.078447 index=2.566382 dp=11.503834 wall=15.172437
+[runstats] tasks=25608 steals=0 imbalance=1.0000 ready_peak=25608 threads=1

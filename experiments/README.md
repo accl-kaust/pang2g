@@ -62,6 +62,11 @@ bash experiments/download/install_tools.sh
 
 ## 1. Submitting experiments
 
+> The three scripts under `experiments/accl/` are the exact jobs used for the BIBM 2026
+> camera-ready re-measurements on the authors' cluster (48-CPU / 192 GB job limit); they
+> chain the demo harnesses (`demo/0[5-9]*.sh`, `demo/10_*.sh`) and the exp1b sweep.
+
+
 **Always submit from the repo root** — the SLURM scripts set
 `G2G_ROOT=${SLURM_SUBMIT_DIR:-$PWD}`, i.e. the directory you call `sbatch`
 from.
