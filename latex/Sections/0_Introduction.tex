@@ -1,7 +1,7 @@
 \section{Introduction}
 Genome analysis has long relied on a single linear reference, which introduces a systematic bias: alleles absent from the reference are hard to detect \cite{Cui2025, Secomandi2025}. Pangenome variation graphs remove this bias by encoding many haplotypes as paths through a graph whose bubbles make polymorphism explicit \cite{Garrison2024}: the Human Pangenome Reference Consortium (HPRC) draft, built from 47 diploid samples, demonstrates this approach at scale \cite{Liao2023-short}.
 
-The availability of multiple population-specific pangenomes raises a natural question: how do two such graphs differ, and which alleles are private to one? Answering this requires aligning one graph to another. Sequence-to-sequence \cite{NEEDLEMAN1970443,SMITH1981195} and sequence-to-graph alignment \cite{Cui2025,santa_paper,segram_damla_onur} are well established, but no tool performs graph-to-graph alignment at base-pair resolution. In practice, comparing two pangenomes still means projecting both onto a common linear reference, reintroducing the very bias pangenomes were built to remove \cite{eizenga2020pangenome, Liao2023-short}.
+The availability of multiple population-specific pangenomes raises a natural question: how do two such graphs differ, and which alleles are private to one? Answering this requires aligning one graph to another. Global sequence-to-sequence \cite{NEEDLEMAN1970443} and sequence-to-graph alignment \cite{Cui2025,santa_paper,segram_damla_onur} are well established, but no tool performs graph-to-graph alignment at base-pair resolution. In practice, comparing two pangenomes still means projecting both onto a common linear reference, reintroducing the very bias pangenomes were built to remove \cite{eizenga2020pangenome, Liao2023-short}.
 
 In general, graph-to-graph alignment contains subgraph isomorphism and is therefore NP-hard \cite{GUPTA1996287}. The key observation is that variation graphs are not arbitrary graphs. They decompose into a hierarchy of snarls, the generalized bubbles of Paten et al. \cite{paten2018superbubbles}, and this snarl tree has bounded tree-width in practice \cite{bounded-tree-width}.
 
@@ -11,7 +11,7 @@ PanG2G factors the alignment into independent per-snarl bipartite-matching subpr
 
 The contributions made in this paper include:
 \begin{itemize}
-    \item \textbf{A problem definition and working system.} We define base-pair-resolution graph-to-graph alignment for variation graphs and present PanG2G, the first system to solve it. The delta graph it outputs is the graph-level analogue of a VCF: every allele present in one population graph but absent from the other.
+    \item \textbf{A problem definition and working system.} We formally define base-pair-resolution graph-to-graph alignment for variation graphs (\S\ref{sec:problem}) and present PanG2G, the first system to solve it. The delta graph it outputs is the graph-level analogue of a VCF: every allele present in one population graph but absent from the other.
     
     \item \textbf{A workload characterization that drives the design.} Using the reference prototype we measure where time and memory go and show per-snarl work is heavy-tailed (Gini $>0.55$) and scale-invariant.
     

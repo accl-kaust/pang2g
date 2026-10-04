@@ -1,12 +1,14 @@
 \section{Methodology}
 
-\subsection{The Algorithm}
-\label{sec:algo}
-PanG2G consists of five stages (Fig. \ref{fig:pipeline}): (1) detect anchors, backbone nodes shared by both graphs, to pin the two coordinate systems together; (2) decompose each graph into its snarl tree; (3) pair snarls across the graphs; (4) run a per-snarl-pair dynamic program whose leaf operation is allele matching; (5) emit the delta graphs $\Delta_{A\to B},\Delta_{B\to A}$, a shared graph, and a global score (Fig. \ref{fig:delta}).
+\subsection{Problem Definition}
+\label{sec:problem}
 
-The formulation and system support the general nested recurrence \eqref{eq:dp}, but the graphs we evaluate (vg construct and synthetic generators) contain only depth-1 snarls: simple SNP/indel bubbles with no nested children. So the nested recurrence, the van~Emde~Boas layout, and the directed acyclic graph (DAG) dependencies are exercised only at depth~1, where they reduce to independent per-snarl-pair assignments. They are retained because a full Minigraph-Cactus backend's nested snarls require them, but the ablations and scaling numbers in \S\ref{sec:eval} should be read with this depth-1 scope in mind.
+\begin{definition}[Variation graph]
+A variation graph $G=(V,E,\sigma,\mathcal{P})$ is a directed acyclic graph whose nodes carry sequence labels $\sigma:V\to\Sigma^{+}$, $\Sigma=\{\mathrm{A,C,G,T}\}$, and whose haplotypes are the source-to-sink paths in $\mathcal{P}$. A snarl $S=(s,t)$ is a minimal pair of boundary nodes that separates the subgraph between them from the rest of $G$ \cite{paten2018superbubbles}; snarls nest into a snarl tree $T(G)$. An allele of $S$ is an $s\!\to\!t$ path, read as the concatenated labels of its interior nodes; $\mathcal{A}(S)$ is the set of alleles of $S$ and $k=|\mathcal{A}(S)|$.
+\end{definition}
 
-Given graphs $G_A,G_B$ and a matching $\mathcal{M}=(M_v,M_e,M_s)$ of their nodes, edges, and snarls, with $\sigma_A,\sigma_B$ the node sequence labels in $G_A,G_B$, the alignment score is
+\begin{definition}[Graph-to-graph alignment]
+Given variation graphs $G_A,G_B$ with labels $\sigma_A,\sigma_B$, an alignment $\mathcal{M}=(M_v,M_e,M_s)$ consists of partial one-to-one maps between their nodes, edges and snarls such that (i)~$M_s$ preserves ancestry between $T(G_A)$ and $T(G_B)$ and the order of snarls along the matched backbone $M_v$, and (ii)~each snarl pair $(S,S')\in M_s$ carries a partial one-to-one allele matching $\mu_{S,S'}\subseteq\mathcal{A}(S)\times\mathcal{A}(S')$. The problem is to find $\mathcal{M}^{\ast}=\arg\max_{\mathcal{M}}W(G_A,G_B,\mathcal{M})$, where
 \begin{align}
 W(G_A,G_B,\mathcal{M}) =\;
 &\alpha\!\!\sum_{(u,v)\in M_v}\!\!\mathrm{sim}(\sigma_A(u),\sigma_B(v))
@@ -14,7 +16,18 @@ W(G_A,G_B,\mathcal{M}) =\;
 &+\gamma\!\!\sum_{(S,S')\in M_s}\!\!\mathrm{SimBubble}(S,S'),
 \label{eq:score}
 \end{align}
-where $\mathrm{sim}(s_1,s_2)=1-\mathrm{edit}(s_1,s_2)/\max(|s_1|,|s_2|)$ and $(\alpha,\beta,\gamma)$ weight the terms (defaults $1,0.5,2$; the structural term is up-weighted because allele identity is the primary delta signal). We do not sweep $(\alpha,\beta,\gamma)$: the delta depends only on the within-snarl matching $\mu$, set by $\gamma$, and the ranking of allele pairs is invariant to $\gamma$'s global scale. Since sibling snarls are separated by their boundary nodes, their subproblems are independent. At depth-1 each snarl pair is a leaf, reducing to one $O(k^3)$ bipartite matching per pair.
+$\mathrm{sim}(s_1,s_2)=1-\mathrm{edit}(s_1,s_2)/\max(|s_1|,|s_2|)$, $\mathbf{1}[\text{cons.}]$ indicates that a matched edge joins matched endpoints, and $\mathrm{SimBubble}(S,S')$ is the summed similarity of the allele pairs in $\mu_{S,S'}$ minus a gap penalty per unmatched allele. The output is the delta graph $\Delta_{A\to B}$ (resp.\ $\Delta_{B\to A}$), the alleles of $G_A$ (resp.\ $G_B$) left unmatched by $\mathcal{M}^{\ast}$, and the shared graph induced by the matched elements.
+\end{definition}
+
+Condition~(i) is what separates this problem from general graph matching: without it the problem contains subgraph isomorphism and is NP-hard \cite{GUPTA1996287}; with it the optimum decomposes over the snarl tree \eqref{eq:dp} and every leaf is an assignment problem. PanG2G solves each allele matching $\mu$ exactly and the snarl map $M_s$ greedily (\S\ref{sec:algo}), so it returns a feasible alignment whose within-snarl part is optimal but which need not equal $\mathcal{M}^{\ast}$. In the reference-anchored mode (\S\ref{sec:refdiff}), $M_s$ is instead fixed by shared reference coordinates and alleles match only when identical.
+
+\subsection{The Algorithm}
+\label{sec:algo}
+PanG2G consists of five stages (Fig. \ref{fig:pipeline}): (1) detect anchors, backbone nodes shared by both graphs, to pin the two coordinate systems together; (2) decompose each graph into its snarl tree; (3) pair snarls across the graphs; (4) run a per-snarl-pair dynamic program whose leaf operation is allele matching; (5) emit the delta graphs $\Delta_{A\to B},\Delta_{B\to A}$, a shared graph, and a global score (Fig. \ref{fig:delta}).
+
+The formulation and system support the general nested recurrence \eqref{eq:dp}, but the graphs we evaluate (vg construct and synthetic generators) contain only depth-1 snarls: simple SNP/indel bubbles with no nested children. So the nested recurrence, the van~Emde~Boas layout, and the directed acyclic graph (DAG) dependencies are exercised only at depth~1, where they reduce to independent per-snarl-pair assignments. They are retained because a full Minigraph-Cactus backend's nested snarls require them, but the ablations and scaling numbers in \S\ref{sec:eval} should be read with this depth-1 scope in mind.
+
+In \eqref{eq:score}, $(\alpha,\beta,\gamma)$ weight the terms (defaults $1,0.5,2$; the structural term is up-weighted because allele identity is the primary delta signal). We do not sweep $(\alpha,\beta,\gamma)$: the delta depends only on the within-snarl matching $\mu$, set by $\gamma$, and the ranking of allele pairs is invariant to $\gamma$'s global scale. Since sibling snarls are separated by their boundary nodes, their subproblems are independent. At depth-1 each snarl pair is a leaf, reducing to one $O(k^3)$ bipartite matching per pair.
 
 \begin{figure}[t]
   \centering
