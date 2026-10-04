@@ -107,7 +107,11 @@ The Slurm scripts in `experiments/` and `demo/` use generic directives
 (`--partition`, `--mem`, `--time`); set `--partition` (e.g. `batch` on KAUST
 Ibex, where CPU jobs are submitted from `ilogin`) and `--account` for your
 site, and run anything that downloads on a login node, since compute nodes
-usually have no outbound network.
+usually have no outbound network. `experiments/accl/` holds the three job
+scripts used for the camera-ready re-measurements on the authors' Slurm
+cluster (AMD EPYC 7763 nodes, 48-CPU / 192 GB job limit): build + tests +
+pairing sweep + parallel scaling + ablation, the single-core scaling sweep,
+and the real chr22 throughput and Q4 runs.
 
 ## Citation and license
 

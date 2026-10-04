@@ -64,8 +64,8 @@ public:
         : data_(ptr), size_(count) {}
 
     // Construct from a contiguous container (vector, array, ...) whose element
-    // pointer is qualification-convertible to T*.  Lvalue-only, matching
-    // std::span's behaviour for owning ranges.
+    // pointer is qualification-convertible to T*.  Lvalues bind here, as for
+    // std::span's owning ranges.
     template <class Container,
               class = std::enable_if_t<
                   !std::is_same_v<std::remove_cv_t<Container>, span> &&
@@ -74,6 +74,21 @@ public:
                           decltype(std::data(std::declval<Container&>()))> (*)[],
                       T (*)[]>>>
     constexpr span(Container& c) noexcept
+        : data_(std::data(c)),
+          size_(static_cast<size_type>(std::size(c))) {}
+
+    // Temporaries are accepted only for a const element type, mirroring
+    // std::span's range constructor (borrowed_range || is_const<element_type>):
+    // `hungarian_match(sv(a), sv(b))` passes rvalue vectors to span<const T>.
+    template <class Container,
+              class = std::enable_if_t<
+                  std::is_const_v<T> &&
+                  !std::is_same_v<std::remove_cv_t<Container>, span> &&
+                  std::is_convertible_v<
+                      std::remove_pointer_t<
+                          decltype(std::data(std::declval<const Container&>()))> (*)[],
+                      T (*)[]>>>
+    constexpr span(const Container&& c) noexcept
         : data_(std::data(c)),
           size_(static_cast<size_type>(std::size(c))) {}
 
