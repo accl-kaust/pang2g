@@ -122,8 +122,9 @@ could not be repeated; everything else was:
       h = 200** (was 12.7×; the old decomposer dominated PanG2G's time). Q2, Fig. 5b, Conclusion updated;
       the submitted table is kept as `demo/sample_outputs/throughput_chr22_submitted.tsv`.
 - [x] Q4 chr22 on the cluster reproduces the laptop numbers (608,718 deltas; 1.46× / 1.61×; flat F_ST sweep).
-- [ ] Single-core scaling sweep to 4 Gbp with the new decomposer: the first run shared its node with the
-      throughput job (4 Gbp in 1481 s vs 1880 s; decomposition 54 s vs 745 s; memory unchanged); a clean
-      single-tenant re-run is queued (`cr_scaling_limit.slurm -w acclnode04`) and will replace that sentence
-      in §IV-C if the numbers move.
+- [x] Single-core scaling sweep to 4 Gbp with the new decomposer (`results/accl/scale_limit_results_4gb.tsv`,
+      re-run alone on the build node): 4 Gbp in 1475 s vs 1880 s, decomposition 51 s vs 745 s, peak memory
+      unchanged (121 GiB), exact at every size; §IV-C sentence updated. The 8-Gbp figure/table stay from
+      the submitted run (needs >192 GB). A first attempt that shared the node with the throughput job is
+      kept as `*_shared_node.*` for provenance.
 - [ ] Not possible under the 48-CPU limit: the 128-thread hybrid-scheduler experiment (still future work).
