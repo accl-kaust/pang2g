@@ -285,6 +285,16 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     }
     ready_peak = ready_queue.size();
 
+    // Hybrid dispatch: with G2G_CHUNK=C>1 a worker takes up to C of the largest
+    // ready tasks per lock acquisition (fewer lock round-trips on the light end
+    // of the workload); the chunk shrinks to 1 as the queue drains so the tail
+    // stays balanced. C=1 (default) is the plain priority-dispatch queue.
+    uint32_t chunk_max = 1;
+    if (const char* env = std::getenv("G2G_CHUNK")) {
+        const long v = std::strtol(env, nullptr, 10);
+        if (v > 1) chunk_max = static_cast<uint32_t>(v);
+    }
+
     // Worker function: pull tasks from the ready queue until all done
     auto worker = [&]() {
         const uint32_t tid =
@@ -294,8 +304,7 @@ ParallelAligner::Result ParallelAligner::align_snarls(
             0u;
 #endif
         while (true) {
-            ReadyEntry entry{};
-            bool got_task = false;
+            std::vector<ReadyEntry> batch;
 
             {
                 std::unique_lock<std::mutex> lk(queue_mtx);
@@ -309,19 +318,23 @@ ParallelAligner::Result ParallelAligner::align_snarls(
                     return;
 
                 if (!ready_queue.empty()) {
+                    const uint32_t take = std::max<uint32_t>(1u, std::min<uint32_t>(
+                        chunk_max,
+                        static_cast<uint32_t>(ready_queue.size() / (2u * num_threads_))));
+                    for (uint32_t c = 0; c < take && !ready_queue.empty(); ++c) {
 #ifdef G2G_STEAL_RANDOM
-                    entry = ready_queue.front();
-                    ready_queue.pop();
+                        batch.push_back(ready_queue.front());
 #else
-                    entry = ready_queue.top();
-                    ready_queue.pop();
+                        batch.push_back(ready_queue.top());
 #endif
-                    got_task = true;
+                        ready_queue.pop();
+                    }
                 }
             }
 
-            if (!got_task) continue;
+            if (batch.empty()) continue;
 
+            for (const ReadyEntry& entry : batch) {
             uint32_t ti = entry.task_idx;
             const SnarlPairTask& task = tasks[ti];
 
@@ -371,6 +384,7 @@ ParallelAligner::Result ParallelAligner::align_snarls(
                 std::lock_guard<std::mutex> lk(queue_mtx);
                 queue_cv.notify_all();
             }
+            }   // for batch
         }
     };
 #endif // G2G_STATIC_PARTITION scheduler select
