@@ -1,0 +1,15 @@
+
+=== Parallel scaling — 8 Mb pair, SV-like snarls (max_k=40, alt_len=200); baseline = 1 thread ===
+    GA/GB segments: 438406 / 438406
+   threads      wall        dp      tasks    steals      imbal   pairs      e2e      dp
+         1 22.338126 17.583884      25608         0     1.0000   25608     1.00    1.00
+         2 13.480242  8.791038      25608     12854     1.0000   25608     1.66    2.00
+         4  9.133323  4.444704      25608     19161     1.0000   25608     2.45    3.96
+         8  6.942505  2.222188      25608     22310     1.0001   25608     3.22    7.91
+        16  5.867521  1.132679      25608     23993     1.0004   25608     3.81   15.52
+        32  5.304465  0.590796      25608     24782     1.0015   25608     4.21   29.76
+        64  5.028286  0.335626      25608     25191     1.0052   25608     4.44   52.39
+
+    results: /ibex/user/shaklea/run_53588225/demo/work/parallel/parallel_scaling.tsv   (baseline = 1 thread; speedup is pure parallelism)
+    plot:    python3 make_figures.py --scaling-csv /ibex/user/shaklea/run_53588225/demo/work/parallel/parallel_scaling.tsv
+OK — parallel scaling sweep complete (deterministic across thread counts)
