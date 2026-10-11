@@ -4,7 +4,8 @@
 #SBATCH --job-name=g2g_ibex_8gbp
 #SBATCH --partition=batch
 #SBATCH --constraint=turin
-#SBATCH --exclusive
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=700G
 #SBATCH --nodes=1
 #SBATCH --time=12:00:00
 #SBATCH --output=logs/ibex_8gbp_%j.out

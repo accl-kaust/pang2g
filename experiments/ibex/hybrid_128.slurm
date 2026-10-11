@@ -4,7 +4,8 @@
 #SBATCH --job-name=g2g_ibex_hybrid
 #SBATCH --partition=batch
 #SBATCH --constraint=rome
-#SBATCH --exclusive
+#SBATCH --cpus-per-task=128
+#SBATCH --mem=420G
 #SBATCH --nodes=1
 #SBATCH --time=04:00:00
 #SBATCH --output=logs/ibex_hybrid_%j.out
