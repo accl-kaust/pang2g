@@ -175,7 +175,7 @@ def fig_workload_matching(path, gini_csv, matching_csv):
     fig.tight_layout(w_pad=0.6); fig.savefig(path); plt.close(fig)
 
 
-def fig_perf(path, scaling_tsv, throughput_tsv, max_cores=64):
+def fig_perf(path, scaling_tsv, throughput_tsv, max_cores=128, submitted_tsv=None):
     """(a) parallel speedup vs. cores; (b) PanG2G vs. linearize-and-map vs. h."""
     rows = [r for r in _rows(_need(scaling_tsv)) if r["threads"].strip() != "seq"]
     thr = _col(rows, "threads"); e2e = _col(rows, "speedup_e2e"); dp = _col(rows, "speedup_dp")
@@ -185,6 +185,10 @@ def fig_perf(path, scaling_tsv, throughput_tsv, max_cores=64):
     o = np.argsort(h); h, g2g, mm2 = h[o], g2g[o], mm2[o]
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(3.5, 1.9))
     a1.plot(thr, thr, ":", color="0.6", label="linear")
+    if submitted_tsv and os.path.exists(submitted_tsv):
+        sr = [r for r in _rows(submitted_tsv) if r["threads"].strip() != "seq"]
+        a1.plot(_col(sr, "threads"), _col(sr, "speedup_dp"), "^--", color="0.45", ms=3, lw=0.9,
+                label="DP, submitted run")
     a1.plot(thr, dp, "o-", color=BLUE, ms=3.5, label="DP phase")
     a1.plot(thr, e2e, "s-", color=RED, ms=3.5, label="end-to-end")
     a1.set_xlabel("cores", fontsize=7.5); a1.set_ylabel("speedup vs. 1 thread", fontsize=7.5)
@@ -193,7 +197,7 @@ def fig_perf(path, scaling_tsv, throughput_tsv, max_cores=64):
     a1.grid(True, which="both", ls=":", alpha=0.4)
     a2.semilogy(h, g2g, "o-", color=BLUE, lw=1.5, ms=3.5, label="PanG2G (1 thread)")
     a2.semilogy(h, mm2, "s--", color=RED, lw=1.2, ms=3.5, label="linearize + map")
-    a2.set_xlabel("haplotypes per population, $h$", fontsize=7.5); a2.set_ylabel("wall time (s)", fontsize=7.5)
+    a2.set_xlabel("haplotypes $h$ per population", fontsize=6.5); a2.set_ylabel("wall time (s)", fontsize=7.5)
     a2.set_title("(b) vs. linearize-and-map", fontsize=7.5)
     a2.annotate(f"{mm2[-1]/g2g[-1]:.1f}$\\times$", (h[-1], mm2[-1]), ha="right", va="top",
                 fontsize=6.5, color=RED, xytext=(-2, -4), textcoords="offset points")
@@ -535,7 +539,8 @@ def main():
     ap.add_argument("--alleles-csv",    default=R("results", "allele_count_hist.csv"))
     ap.add_argument("--refdiff-tsv",    default=R("results", "refdiff_scaling.tsv"))
     ap.add_argument("--throughput-csv", default=R("demo", "sample_outputs", "throughput_chr22.tsv"))
-    ap.add_argument("--scaling-csv",    default=R("results", "parallel_scaling.tsv"))
+    ap.add_argument("--scaling-csv",    default=R("results", "ibex", "parallel_scaling_128.tsv"))
+    ap.add_argument("--submitted-scaling-csv", default=R("results", "parallel_scaling.tsv"))
     ap.add_argument("--ablation-csv",   default=R("results", "accl", "ablation_results.tsv"))
     ap.add_argument("--biology-csv",    default=R("demo", "sample_outputs", "biology_results.tsv"))
     ap.add_argument("--fst-sweep-csv",  default=R("demo", "sample_outputs", "fst_sweep_chr22.tsv"))
@@ -561,7 +566,7 @@ def main():
         "fig_pairing_error":  lambda p: fig_pairing_error(p, a.pairing_csv),
         # combined figures used in the camera-ready layout
         "fig_workload_matching": lambda p: fig_workload_matching(p, a.gini_csv, a.matching_csv),
-        "fig_perf":           lambda p: fig_perf(p, a.scaling_csv, a.throughput_csv),
+        "fig_perf":           lambda p: fig_perf(p, a.scaling_csv, a.throughput_csv, submitted_tsv=a.submitted_scaling_csv),
     }
     only = set(a.only.split(",")) if a.only else None
     n = 0

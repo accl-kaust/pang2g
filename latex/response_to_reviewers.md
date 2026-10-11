@@ -90,17 +90,20 @@ principled end point.
 **R2.3 — Why a single centralized queue rather than work stealing? Explain
 the 128-thread efficiency loss.**
 §III-D ("Centralized priority-dispatch runtime") now gives the reason: a single
-LPT queue preserves largest-first ordering, which randomized stealing loses,
-at the price of lock contention. Q2 diagnoses the 64→128-thread cliff: the load
-imbalance factor stays at 1.00–1.01 while efficiency drops to 41%, the
-signature of serialized dispatch, and the cause is the light end of the
-workload (half of the 25,608 tasks are k=2 bubbles over which one lock
-acquisition per task is not amortized; the submission said two thirds, which
-was the figure of the prototype workload, now corrected). The ablations show
-that ordering (FIFO 1.20×) and dynamic dispatch (static 1.91×) both matter but
-not that they must share one lock, and we describe the hybrid LPT-queue plus
-chunked work-stealing design as future work. We did not have access to a
-128-core node for the revision, so the hybrid is not measured.
+LPT queue preserves largest-first ordering, which randomized stealing loses.
+For the 128-thread loss we first expected lock contention, but the revision
+re-measured it on IBEX nodes with 128 *physical* cores (AMD EPYC 7702): the same
+workload reaches 85.9x DP-phase speedup at 128 cores (67% efficiency, imbalance
+1.03) and 51.9x at 64 (Fig. 5a), against 52.6x in the submitted run, whose 128
+threads were hyperthreads of a 64-core EPYC 7763. The cliff is therefore most
+likely hyperthreading rather than the queue (the hardware differs, so we say
+"most likely"). We also implemented the hybrid we proposed (a worker takes a
+chunk of the largest ready tasks per lock acquisition, `G2G_CHUNK`) and measured
+it at 16-128 threads: chunks of 4, 8 and 32 give 81.7x, 50.1x and 15.1x at 128
+cores because a chunk hands one thread several of the largest tasks (imbalance
+1.24, 2.2, 8.0), so the single largest-first queue stays the default (Q2). The
+ablations show that ordering (FIFO 1.20x) and dynamic dispatch (static 1.92x)
+both matter. Tables: `results/ibex/`.
 
 ## Reviewer 3
 

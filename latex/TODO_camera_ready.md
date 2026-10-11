@@ -60,8 +60,10 @@ including references** (BIBM 2026 CFP). The compiled draft is `latex/PanG2G_came
       both pairing rules): `results/exp1b_pairing_error.csv`, Fig. 4 (`fig_pairing_error`).
 - [x] Interval-restricted, order-preserving pairing implemented and evaluated (F1 ≥ 0.999 everywhere).
 - [ ] Semi-linear baseline (Giraffe): not run; paper still says "not benchmarked".
-- [ ] Hybrid LPT + chunked work-stealing scheduler at 128 threads: not run (no 128-core node reachable;
-      IBEX needs key-based SSH, see below); still future work in the paper.
+- [x] Hybrid chunked-dispatch scheduler (`G2G_CHUNK`) implemented and run at 16-128 threads on IBEX
+      (`results/ibex/hybrid_chunk*.tsv`): no gain (81.7x/50.1x/15.1x vs 85.7x at 128 cores). Negative
+      result reported in Q2; the 128-core plain queue reaches 85.9x (67%), so the submitted cliff is
+      most likely hyperthreading.
 - [x] Real-data check of both modes on HLA-DRB1 vg construct graphs (new Q1 paragraph;
       `experiments/plot/hla_truth_check.py`).
 - [x] Q4 chr22 re-run with the fixed decomposer (local WSL, vg 1.76/bcftools 1.24): delta 608,718 alleles
@@ -127,4 +129,5 @@ could not be repeated; everything else was:
       unchanged (121 GiB), exact at every size; §IV-C sentence updated. The 8-Gbp figure/table stay from
       the submitted run (needs >192 GB). A first attempt that shared the node with the throughput job is
       kept as `*_shared_node.*` for provenance.
-- [ ] Not possible under the 48-CPU limit: the 128-thread hybrid-scheduler experiment (still future work).
+- [x] IBEX (2026-10-11, key auth via ssh-copy-id; `experiments/ibex/`, `results/ibex/`): scaling to 128
+      physical cores, ablation, hybrid sweep done. 8-Gbp point: job queued (see results/ibex when done).
