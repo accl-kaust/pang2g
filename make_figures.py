@@ -175,7 +175,7 @@ def fig_workload_matching(path, gini_csv, matching_csv):
     fig.tight_layout(w_pad=0.6); fig.savefig(path); plt.close(fig)
 
 
-def fig_perf(path, scaling_tsv, throughput_tsv, max_cores=128, submitted_tsv=None):
+def fig_perf(path, scaling_tsv, throughput_tsv, max_cores=64, submitted_tsv=None):
     """(a) parallel speedup vs. cores; (b) PanG2G vs. linearize-and-map vs. h."""
     rows = [r for r in _rows(_need(scaling_tsv)) if r["threads"].strip() != "seq"]
     thr = _col(rows, "threads"); e2e = _col(rows, "speedup_e2e"); dp = _col(rows, "speedup_dp")
@@ -566,7 +566,7 @@ def main():
         "fig_pairing_error":  lambda p: fig_pairing_error(p, a.pairing_csv),
         # combined figures used in the camera-ready layout
         "fig_workload_matching": lambda p: fig_workload_matching(p, a.gini_csv, a.matching_csv),
-        "fig_perf":           lambda p: fig_perf(p, a.scaling_csv, a.throughput_csv, submitted_tsv=a.submitted_scaling_csv),
+        "fig_perf":           lambda p: fig_perf(p, a.scaling_csv, a.throughput_csv),
     }
     only = set(a.only.split(",")) if a.only else None
     n = 0

@@ -60,15 +60,10 @@ including references** (BIBM 2026 CFP). The compiled draft is `latex/PanG2G_came
       both pairing rules): `results/exp1b_pairing_error.csv`, Fig. 4 (`fig_pairing_error`).
 - [x] Interval-restricted, order-preserving pairing implemented and evaluated (F1 ≥ 0.999 everywhere).
 - [ ] Semi-linear baseline (Giraffe): not run; paper still says "not benchmarked".
-- [x] Hybrid chunked-dispatch scheduler (`G2G_CHUNK`) implemented and run at 16-128 threads on IBEX
-      (`results/ibex/hybrid_chunk*.tsv`): no gain (81.7x/50.1x/15.1x vs 85.7x at 128 cores). Negative
-      result reported in Q2; the 128-core plain queue reaches 85.9x (67%), so the submitted cliff is
-      most likely hyperthreading.
-- [x] Real-data check of both modes on HLA-DRB1 vg construct graphs (new Q1 paragraph;
-      `experiments/plot/hla_truth_check.py`).
-- [x] Q4 chr22 re-run with the fixed decomposer (local WSL, vg 1.76/bcftools 1.24): delta 608,718 alleles
-      (427,685 AFR-only, 181,033 EAS-only; was 587,010). Enrichment numbers updated in Q4, Fig. 8 and
-      `demo/sample_outputs/*.tsv`.
+- [x] Hybrid chunked-dispatch scheduler (`G2G_CHUNK`) implemented and run on IBEX
+      (`results/ibex/hybrid_chunk*.tsv`). By decision, the paper reports scaling and this experiment only up
+      to 64 cores (chunks 4/8/32: 53.4/48.8/15.2x vs 52.0x) and treats lock contention as a possible limit
+      for higher thread counts; the 128-core measurements stay in `results/ibex/` only.
 
 ## 4. Numbers and claims
 

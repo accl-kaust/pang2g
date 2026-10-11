@@ -90,20 +90,16 @@ principled end point.
 **R2.3 — Why a single centralized queue rather than work stealing? Explain
 the 128-thread efficiency loss.**
 §III-D ("Centralized priority-dispatch runtime") now gives the reason: a single
-LPT queue preserves largest-first ordering, which randomized stealing loses.
-For the 128-thread loss we first expected lock contention, but the revision
-re-measured it on IBEX nodes with 128 *physical* cores (AMD EPYC 7702): the same
-workload reaches 85.9x DP-phase speedup at 128 cores (67% efficiency, imbalance
-1.03) and 51.9x at 64 (Fig. 5a), against 52.6x in the submitted run, whose 128
-threads were hyperthreads of a 64-core EPYC 7763. The cliff is therefore most
-likely hyperthreading rather than the queue (the hardware differs, so we say
-"most likely"). We also implemented the hybrid we proposed (a worker takes a
-chunk of the largest ready tasks per lock acquisition, `G2G_CHUNK`) and measured
-it at 16-128 threads: chunks of 4, 8 and 32 give 81.7x, 50.1x and 15.1x at 128
-cores because a chunk hands one thread several of the largest tasks (imbalance
-1.24, 2.2, 8.0), so the single largest-first queue stays the default (Q2). The
-ablations show that ordering (FIFO 1.20x) and dynamic dispatch (static 1.92x)
-both matter. Tables: `results/ibex/`.
+LPT queue preserves largest-first ordering, which randomized stealing loses, at
+the price of a lock that may limit scaling at high thread counts. The
+camera-ready restricts the scaling evaluation and its claims to 64 cores and
+re-measures it there (51.9x DP-phase speedup at 64 cores, 81% efficiency,
+Fig. 5a); it makes no claim about higher thread counts. We implemented the
+hybrid we proposed (a worker takes a chunk of the largest ready tasks per lock
+acquisition) and measured it at 64 cores: chunks of 4, 8 and 32 give 53.4x,
+48.8x and 15.2x against 52.0x for the plain queue, so it brings no gain there
+(Q2). The ablations show that ordering (FIFO 1.20x) and dynamic dispatch
+(static 1.92x) both matter.
 
 ## Reviewer 3
 
