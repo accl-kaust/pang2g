@@ -43,7 +43,7 @@ R = lambda *p: os.path.join(ROOT, *p)   # noqa: E731
 plt.rcParams.update({
     "font.family": "serif", "font.size": 9, "axes.titlesize": 9,
     "axes.labelsize": 9, "legend.fontsize": 7.5, "figure.dpi": 150,
-    "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
+    "savefig.bbox": "tight", "savefig.pad_inches": 0.02, "mathtext.fontset": "stix",
 })
 BLUE, RED, GREY, GREEN = "#1f77b4", "#d62728", "#7f7f7f", "#2ca02c"
 
@@ -55,8 +55,8 @@ def _box(ax, x, y, w, h, text, fc="#eef3fb", ec=BLUE, fs=8, lw=1.2):
     ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fs)
 
 
-def _arrow(ax, x0, y0, x1, y1, ec="#333", lw=1.3, style="-|>"):
-    ax.add_patch(FancyArrowPatch((x0, y0), (x1, y1), arrowstyle=style,
+def _arrow(ax, x0, y0, x1, y1, ec="#333", lw=1.3, style="-|>", shrink=2):
+    ax.add_patch(FancyArrowPatch((x0, y0), (x1, y1), arrowstyle=style, shrinkA=shrink, shrinkB=shrink,
                                  mutation_scale=11, lw=lw, color=ec))
 
 
@@ -144,8 +144,10 @@ def fig_refdiffscaling(path, tsv):
     a2 = a1.twinx()
     l3 = a2.loglog(nodes, mem / 1024, "^-", color=RED, ms=4, label=f"peak RSS ($\\propto N^{{{fit(mem):.2f}}}$)")
     a2.set_ylabel("peak memory (GiB)", color=RED); a2.tick_params(axis="y", colors=RED)
+    # shift the memory curve below the wall curve so the twin-axis markers do not overlap
+    a2.set_ylim(mem.min() / 1024 / 1.5, mem.max() / 1024 * 40)
     lines = l1 + l2 + l3 + l0
-    a1.legend(lines, [l.get_label() for l in lines], loc="upper left", fontsize=6.2)
+    a1.legend(lines, [l.get_label() for l in lines], loc="upper left", fontsize=7.2)
     fig.tight_layout(); fig.savefig(path); plt.close(fig)
 
 
@@ -163,14 +165,17 @@ def fig_workload_matching(path, gini_csv, matching_csv):
     a1.set_title("(a) imbalance is scale-invariant", fontsize=7.5)
     a1.tick_params(labelsize=6.5); a1.grid(True, which="both", ls=":", alpha=0.4)
     ml, mb = ~np.isnan(t_l), ~np.isnan(t_b)
-    a2.semilogy(k[ml], t_l[ml], "-", color=BLUE, lw=1.6, label=r"LAPJV $O(k^3)$")
-    a2.semilogy(k[mb], t_b[mb], "s--", color=RED, lw=1.2, ms=3.5, label=r"brute force $O(k!)$")
+    a2.semilogy(k[ml], t_l[ml], "-", color=BLUE, lw=1.6, label="LAPJV")
+    a2.semilogy(k[mb], t_b[mb], "s--", color=RED, lw=1.2, ms=3.5, label="brute force")
     kmax_b = int(np.nanmax(k[mb]))
     a2.axvspan(kmax_b, np.nanmax(k), color=GREY, alpha=0.12)
-    a2.set_xlim(2, np.nanmax(k))
+    a2.text((kmax_b + np.nanmax(k)) / 2, np.nanmax(t_b[mb]), "brute force\ninfeasible",
+            ha="center", va="top", fontsize=5.8, color="0.35")
+    a2.set_xlim(1.5, np.nanmax(k))
     a2.set_xlabel("alleles per snarl, $k$", fontsize=7.5); a2.set_ylabel("ms per snarl pair", fontsize=7.5)
     a2.set_title("(b) matching cost", fontsize=7.5)
-    a2.tick_params(labelsize=6.5); a2.legend(fontsize=5.8, loc="upper left")
+    a2.tick_params(labelsize=6.5)
+    a2.legend(fontsize=5.8, loc="lower right", handlelength=1.2, borderpad=0.3, framealpha=0.9)
     a2.grid(True, which="both", ls=":", alpha=0.4)
     fig.tight_layout(w_pad=0.6); fig.savefig(path); plt.close(fig)
 
@@ -197,10 +202,11 @@ def fig_perf(path, scaling_tsv, throughput_tsv, max_cores=64, submitted_tsv=None
     a1.grid(True, which="both", ls=":", alpha=0.4)
     a2.semilogy(h, g2g, "o-", color=BLUE, lw=1.5, ms=3.5, label="PanG2G (1 thread)")
     a2.semilogy(h, mm2, "s--", color=RED, lw=1.2, ms=3.5, label="linearize + map")
-    a2.set_xlabel("haplotypes $h$ per population", fontsize=6.5); a2.set_ylabel("wall time (s)", fontsize=7.5)
+    a2.set_xlabel("samples $h$ per population", fontsize=6.5); a2.set_ylabel("wall time (s)", fontsize=7.5)
     a2.set_title("(b) vs. linearize-and-map", fontsize=7.5)
-    a2.annotate(f"{mm2[-1]/g2g[-1]:.1f}$\\times$", (h[-1], mm2[-1]), ha="right", va="top",
-                fontsize=6.5, color=RED, xytext=(-2, -4), textcoords="offset points")
+    a2.annotate(f"{mm2[-1]/g2g[-1]:.0f}$\\times$", (h[-1], (mm2[-1] * g2g[-1]) ** 0.5), ha="right",
+                va="center", fontsize=6.5, color=RED, xytext=(-3, 0), textcoords="offset points")
+    a2.set_ylim(top=mm2.max() * 9)
     a2.tick_params(labelsize=6.5); a2.legend(fontsize=5.8, loc="upper left")
     a2.grid(True, which="both", ls=":", alpha=0.4)
     fig.tight_layout(w_pad=0.6); fig.savefig(path); plt.close(fig)
@@ -251,14 +257,22 @@ def fig_ablation(path, tsv):
     else:
         ctrl = _col(rows, "ctrl_disabled") / _col(rows, "ctrl_base")
         treat = _col(rows, "trt_disabled") / _col(rows, "trt_base")
-    labels = ["LAPJV\n$\\to$ brute", "minimizer\n$\\to$ naive",
-              "priority-\ndispatch\n$\\to$ static", "LPT\n$\\to$ FIFO", "vEB\n$\\to$ BFS"][:len(rows)]
+    names = {"G2G_BRUTE_MATCHING": "LAPJV\n$\\to$ brute", "G2G_NAIVE_ANCHOR": "minimizer\n$\\to$ naive",
+             "G2G_STATIC_PARTITION": "priority-\ndispatch\n$\\to$ static",
+             "G2G_STEAL_RANDOM": "LPT\n$\\to$ FIFO", "G2G_BFS_LAYOUT": "vEB\n$\\to$ BFS"}
+    if all(r.get("flag", "").strip() in names for r in rows):
+        # label by flag, not by row position: the re-measured tables list FIFO before static
+        order = sorted(range(len(rows)), key=lambda i: list(names).index(rows[i]["flag"].strip()))
+        ctrl, treat = ctrl[order], treat[order]
+        labels = [names[rows[i]["flag"].strip()] for i in order]
+    else:
+        labels = list(names.values())[:len(rows)]
     fig, ax = plt.subplots(figsize=(3.4, 2.9))
     x = np.arange(len(labels))
     ax.bar(x - 0.2, ctrl, 0.38, label="control", color="#b9c9e0")
     ax.bar(x + 0.2, treat, 0.38, label="treatment", color=BLUE)
     ax.axhline(1, ls="--", color=GREY, lw=0.8)
-    ax.set_yscale("log")
+    ax.set_yscale("log"); ax.set_ylim(top=treat.max() * 4)
     ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=6.5)
     ax.set_ylabel("slowdown when disabled ($\\times$)")
     ax.legend(fontsize=7, loc="upper right")
@@ -274,21 +288,21 @@ def fig_biology(path, tsv):
     rows = _rows(_need(tsv))
     def short(cat):
         c = cat.lower()
-        if "f_st" in c or "fst" in c or "gnomad" in c: return "gnomAD-SV\nstructural"
+        if "f_st" in c or "fst" in c: return "gnomAD-SV\n$F_{ST}\\geq0.2$"
+        if "gnomad" in c: return "gnomAD-SV\nstructural"
         if "clinvar" in c: return "ClinVar\npathogenic"
         return cat
     cats = [short(r["category"]) for r in rows]
     folds, ps = _col(rows, "fold"), _col(rows, "p")
-    fig, ax = plt.subplots(figsize=(3.4, 2.5))
+    fig, ax = plt.subplots(figsize=(3.4, 2.2))
     x = np.arange(len(cats))
     ax.bar(x, folds, 0.6, color=[RED if p < 0.05 else GREY for p in ps], alpha=0.85)
     ax.axhline(1, ls="--", color=GREY, lw=0.9, label="null (no enrichment)")
     ax.set_xticks(x); ax.set_xticklabels(cats, fontsize=7.5)
-    ax.set_ylabel("fold enrichment (obs / permuted)")
-    ax.set_title("Enrichment near SV & clinical sites")
+    ax.set_ylabel("fold enrichment")
     ax.set_ylim(0, max(folds.max(), 1.0) * 1.42)
     for xi, fo, p in zip(x, folds, ps):
-        tag = f"{fo:.2f}×\n$p$={p:.1e}" if p < 1e-3 else f"{fo:.2f}×\n$p$={p:.3f}"
+        tag = f"{fo:.2f}×\n$p<10^{{-3}}$" if p < 1e-3 else f"{fo:.2f}×\n$p$={p:.3f}"
         ax.annotate(tag, (xi, fo), ha="center", va="bottom", fontsize=6.8)
     ax.legend(fontsize=7, loc="upper right"); ax.grid(True, axis="y", ls=":", alpha=0.4)
     fig.savefig(path); plt.close(fig)
@@ -318,11 +332,11 @@ def fig_pairing_error(path, csv_path):
     graphs with short boundary nodes and 10% of snarls private to one graph.
     Lines: mean over seeds; markers at each measured size."""
     rows = _rows(_need(csv_path))
-    fig, ax = plt.subplots(figsize=(3.4, 2.5))
-    styles = {("boundary", 1): ("s--", RED, "boundary-key, 1-bp boundaries"),
-              ("boundary", 2): ("^--", "#e8a0a0", "boundary-key, 2-bp boundaries"),
-              ("boundary", 8): ("v--", GREY, "boundary-key, 8-bp boundaries"),
-              ("interval", 1): ("o-", BLUE, "anchor-interval DP, 1-bp boundaries")}
+    fig, ax = plt.subplots(figsize=(3.4, 2.3))
+    styles = {("boundary", 1): ("s--", RED, "boundary key, 1 bp"),
+              ("boundary", 2): ("^--", "#e8a0a0", "boundary key, 2 bp"),
+              ("boundary", 8): ("v--", GREY, "boundary key, 8 bp"),
+              ("interval", 1): ("o-", BLUE, "anchor interval, 1 bp")}
     drew = False
     for (mode, L), (st, col, lab) in styles.items():
         sel = [r for r in rows if r["pairing"] == mode and int(r["anchor_len"]) == L
@@ -337,10 +351,10 @@ def fig_pairing_error(path, csv_path):
         ax.plot(n, 100 * err, st, color=col, ms=4, lw=1.4, label=lab); drew = True
     if not drew:
         raise SystemExit("pairing-error CSV has no private-snarl rows")
-    ax.set_xscale("log")
+    ax.set_xscale("log"); ax.set_ylim(-2, 66)
     ax.set_xlabel("snarls per graph"); ax.set_ylabel("delta error, $1-F_1$ (%)")
-    ax.set_title("Pairing error vs. size (10% private snarls)", fontsize=8)
-    ax.grid(True, which="both", ls=":", alpha=0.4); ax.legend(fontsize=6, loc="center left")
+    ax.grid(True, which="both", ls=":", alpha=0.4)
+    ax.legend(fontsize=7, loc="upper left", ncol=2, columnspacing=0.8, handlelength=1.6, framealpha=0.95)
     fig.savefig(path); plt.close(fig)
 
 
@@ -415,10 +429,10 @@ def fig_pipeline(path):
     for i in range(n - 1):
         _arrow(ax, 0.5, ys[i], 0.5, ys[i + 1] + h)
     ax.text(0.5, y_top + 0.06, "GFA $G_A$, $G_B$", ha="center", fontsize=7.5, color=BLUE)
-    _arrow(ax, 0.5, y_top + 0.03, 0.5, y_top)
-    ax.text(0.5, ys[-1] - 0.06, r"$\Delta_{A\to B},\ \Delta_{B\to A}$, alignment (GAF), score",
+    _arrow(ax, 0.5, y_top + 0.045, 0.5, y_top, shrink=0)
+    ax.text(0.5, ys[-1] - 0.075, r"$\Delta_{A\to B},\ \Delta_{B\to A}$, alignment (GAF), score",
             ha="center", fontsize=7.5, color=GREEN)
-    _arrow(ax, 0.5, ys[-1], 0.5, ys[-1] - 0.03)
+    _arrow(ax, 0.5, ys[-1], 0.5, ys[-1] - 0.045, shrink=0)
     ax.text(0.88, ys[3] + h / 2, "parallel", ha="center", va="center", fontsize=6.5, color=GREY, rotation=90)
     ax.annotate("", xy=(0.82, ys[3]), xytext=(0.82, ys[3] + h),
                 arrowprops=dict(arrowstyle="<->", color=GREY, lw=0.8))
@@ -430,55 +444,63 @@ def fig_delta(path):
     y0, up, dn = 0.50, 0.82, 0.18
     bx = list(np.linspace(0.10, 0.90, 6))
     spine_seq = ["GA", "TT", "CG", "GC", "TA", "CC"]
-    fig, axes = plt.subplots(3, 1, figsize=(3.4, 3.6))
-    for ax in axes:
-        _clean(ax); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+    # (a) has no lower alleles and (b) no upper ones, so their empty bands are cropped
+    fig, axes = plt.subplots(3, 1, figsize=(2.55, 2.3), gridspec_kw={"height_ratios": [0.90, 0.80, 1.16]})
+    for ax, yl in zip(axes, [(0.26, 1.16), (-0.04, 0.76), (0.0, 1.16)]):
+        _clean(ax); ax.set_xlim(0, 1); ax.set_ylim(*yl)
 
     def node(ax, x, y, color):
-        ax.plot(x, y, "o", color=color, ms=8.5, mec="none", zorder=3)
+        ax.plot(x, y, "o", color=color, ms=7.5, mec="none", zorder=3)
 
-    def backbone(ax, label=False):
+    def backbone(ax, label=False, alpha=1.0):
         for i in (0, 2, 4):
-            ax.plot([bx[i], bx[i + 1]], [y0, y0], color=DARK, lw=1.3, zorder=1)
+            ax.plot([bx[i], bx[i + 1]], [y0, y0], color=DARK, lw=1.3, zorder=1, alpha=alpha)
         for x, s in zip(bx, spine_seq):
-            node(ax, x, y0, DARK)
+            ax.plot(x, y0, "o", color=DARK, ms=7.5, mec="none", zorder=3, alpha=alpha)
             if label:
-                ax.text(x, y0 - 0.19, s, ha="center", fontsize=5, color=DARK)
+                ax.text(x, y0 - 0.19, s, ha="center", fontsize=6.3, color=DARK)
 
-    def shared(ax, xl, xr, seq):
+    def shared(ax, xl, xr, seq, alpha=1.0):
         xm = (xl + xr) / 2
-        ax.plot([xl, xm, xr], [y0, y0, y0], color=GREEN, lw=1.7, zorder=2)
-        node(ax, xm, y0, GREEN)
-        ax.text(xm, y0 + 0.15, seq, ha="center", fontsize=5.5, color=GREEN, style="italic")
+        ax.plot([xl, xm, xr], [y0, y0, y0], color=GREEN, lw=1.7, zorder=2, alpha=alpha)
+        ax.plot(xm, y0, "o", color=GREEN, ms=7.5, mec="none", zorder=3, alpha=alpha)
+        if alpha == 1.0:
+            ax.text(xm, y0 + 0.13, seq, ha="center", fontsize=6.8, color=GREEN, style="italic")
 
     def allele(ax, xl, xr, yapex, seq, color, above):
         xm = (xl + xr) / 2
         ax.plot([xl, xm, xr], [y0, yapex, y0], color=color, lw=1.4, zorder=1)
         node(ax, xm, yapex, color)
-        ax.text(xm, yapex + (0.16 if above else -0.16), seq, ha="center", fontsize=5.5, color=color, style="italic")
+        ax.text(xm, yapex + (0.06 if above else -0.06), seq, ha="center", va="bottom" if above else "top",
+                fontsize=6.8, color=color, style="italic")
 
     a = axes[0]; backbone(a, label=True)
     shared(a, bx[1], bx[2], "AC");  allele(a, bx[1], bx[2], up, "ATC",  BLUE, True)
     shared(a, bx[3], bx[4], "T");   allele(a, bx[3], bx[4], up, "TAGG", BLUE, True)
-    a.text(0.0, 0.98, r"(a) input graph $A$", fontsize=6.5, va="top", color="#222")
+    a.text(0.0, 0.98, r"(a) $A$", fontsize=7.5, va="top", color="#222", transform=a.transAxes)
     b = axes[1]; backbone(b)
     shared(b, bx[1], bx[2], "AC");  allele(b, bx[1], bx[2], dn, "A", RED, False)
-    shared(b, bx[3], bx[4], "T")
-    b.text(0.0, 0.98, r"(b) input graph $B$", fontsize=6.5, va="top", color="#222")
-    c = axes[2]; backbone(c)
-    shared(c, bx[1], bx[2], "AC")
+    # B needs its own bubble here too: a snarl without partner would send all its alleles (T too) to the delta
+    shared(b, bx[3], bx[4], "T");   allele(b, bx[3], bx[4], dn, "C", RED, False)
+    b.text(0.0, 0.98, r"(b) $B$", fontsize=7.5, va="top", color="#222", transform=b.transAxes)
+    # the delta holds only the blue and red alleles; backbone and shared alleles are faded context
+    c = axes[2]; backbone(c, alpha=0.25)
+    shared(c, bx[1], bx[2], "AC", alpha=0.25)
     allele(c, bx[1], bx[2], up, "ATC", BLUE, True)
     allele(c, bx[1], bx[2], dn, "A",   RED,  False)
-    shared(c, bx[3], bx[4], "T")
+    shared(c, bx[3], bx[4], "T", alpha=0.25)
     allele(c, bx[3], bx[4], up, "TAGG", BLUE, True)
-    c.text(0.0, 0.98, r"(c) delta $\Delta_{A\to B}$, $\Delta_{B\to A}$", fontsize=6.5, va="top", color="#222")
-    fig.text(0.5, 0.375, r"$\Downarrow$ diff", ha="center", va="center", fontsize=8)
+    allele(c, bx[3], bx[4], dn, "C",    RED,  False)
+    c.text(0.0, 0.98, r"(c) delta", fontsize=7.5, va="top", color="#222",
+           transform=c.transAxes)
     for col, lab in [(DARK, "backbone"), (GREEN, "shared allele (in both)"),
                      (BLUE, r"$\Delta_{A\to B}$ ($A$-only)"), (RED, r"$\Delta_{B\to A}$ ($B$-only)")]:
         c.plot([], [], color=col, lw=1.6, label=lab)
-    c.legend(loc="upper center", fontsize=5.6, ncol=2, frameon=False,
-             bbox_to_anchor=(0.5, -0.02), handlelength=1.4, columnspacing=1.2)
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.99, bottom=0.09, hspace=0.22)
+    c.legend(loc="upper center", fontsize=6.5, ncol=2, frameon=False,
+             bbox_to_anchor=(0.5, 0.02), handlelength=1.4, columnspacing=1.2)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.99, bottom=0.10, hspace=0.12)
+    gap = (axes[1].get_position().y0 + axes[2].get_position().y1) / 2
+    fig.text(0.5, gap, r"$\Downarrow$ diff", ha="center", va="center", fontsize=8.5)
     fig.savefig(path); plt.close(fig)
 
 
