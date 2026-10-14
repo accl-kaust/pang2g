@@ -41,8 +41,7 @@ The formulation supports the nested recurrence \eqref{eq:dp}, but the implementa
 \Require graphs $G_A,G_B$; weights $\alpha,\beta,\gamma$; gap $g$; floor $\tau$
 \Ensure deltas $\Delta_{A\to B},\Delta_{B\to A}$, shared alignment $H$, score $W$
 \State $\mathcal{N}\gets \Call{FindAnchors}{G_A,G_B}$ \Comment{minimizer index}
-\State $T_A\gets\Call{Decompose}{G_A}$;\ $T_B\gets\Call{Decompose}{G_B}$ \Comment{superbubbles}
-\State $P\gets\Call{PairSnarls}{T_A,T_B,\mathcal{N}}$ \Comment{boundary key or anchor-interval DP}
+\State $T_A\gets\Call{Decompose}{G_A}$;\ $T_B\gets\Call{Decompose}{G_B}$\State $P\gets\Call{PairSnarls}{T_A,T_B,\mathcal{N}}$ \Comment{key or interval DP}
 \State $\mathcal{T}\gets\Call{BuildTaskDAG}{P}$ \Comment{priority $=\sum k_i^3$}
 \ParFor{$(S_A,S_B)\in\mathcal{T}$ \textbf{by priority dispatch}}
    \State $a\gets\Call{Alleles}{S_A}$;\ $b\gets\Call{Alleles}{S_B}$
@@ -51,7 +50,7 @@ The formulation supports the nested recurrence \eqref{eq:dp}, but the implementa
    \State $w[S_A,S_B]\gets W_{\text{seq}}+W_{\text{topo}}+\gamma\,s$; record $\mu$
 \EndParFor
 \State $W\gets\!\sum w[S_A,S_B]+\alpha\!\!\sum_{(u,v)\in\mathcal N}\!\!\mathrm{sim}(u,v)$
-\State $U_A,U_B\gets$ alleles unmatched by the $\mu$'s $\cup$ alleles of unpaired snarls
+\State $U_A,U_B\gets$ unmatched alleles $\cup$ alleles of unpaired snarls
 \State $\Delta_{A\to B},\Delta_{B\to A}\gets\Call{BuildDeltas}{U_A,U_B}$
 \State $H\gets\mathcal{N}\cup P\cup\{\mu\}$ \Comment{shared alignment}
 \State \Return $\Delta_{A\to B},\Delta_{B\to A}$, $H$, $W$
