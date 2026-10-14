@@ -6,7 +6,7 @@ In general, graph-to-graph alignment contains subgraph isomorphism and is theref
 The contributions made in this paper include:
 \begin{itemize}
     \item \textbf{A problem definition and working system.} We formally define base-pair-resolution graph-to-graph alignment for variation graphs (\S\ref{sec:problem}) and present PanG2G, the first system to address it. The delta graph it outputs is the graph-level analogue of a VCF: every allele present in one population graph but absent from the other.
-    \item \textbf{A workload characterization that drives the design:} per-snarl work is heavy-tailed (Gini $>0.55$) and scale-invariant.
+    \item \textbf{A workload characterization that drives the design:} estimated per-snarl work is heavy-tailed (Gini $>0.55$) and scale-invariant.
     \item \textbf{A parallel, cache-oblivious implementation:} a C++20 engine with a van~Emde~Boas snarl-tree layout, minimizer anchor index, exact LAPJV matching and an OpenMP priority-dispatch runtime.
     \item \textbf{Evaluation on synthetic and real pangenomes:} a reference-anchored diff that scales near-linearly past whole-genome size, snarl-pairing error measured up to $10^5$ snarls with an anchor-guided pairing that removes it, and real African vs.\ East Asian (1000 Genomes) population graphs whose delta is enriched near gnomAD-SV and ClinVar pathogenic sites ($p<10^{-3}$).
 \end{itemize}

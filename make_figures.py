@@ -161,7 +161,7 @@ def fig_workload_matching(path, gini_csv, matching_csv):
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(3.5, 1.9))
     a1.plot(sizes, gini, "o-", color=BLUE, ms=4); a1.axhspan(0.55, 0.58, color=BLUE, alpha=0.10)
     a1.set_xscale("log"); a1.set_ylim(0.45, 0.65)
-    a1.set_xlabel("snarls in graph pair", fontsize=7.5); a1.set_ylabel("Gini of per-snarl work", fontsize=7.5)
+    a1.set_xlabel("snarls in graph pair", fontsize=7.5); a1.set_ylabel("Gini of est. work ($k^3$)", fontsize=7.5)
     a1.set_title("(a) imbalance is scale-invariant", fontsize=7.5)
     a1.tick_params(labelsize=6.5); a1.grid(True, which="both", ls=":", alpha=0.4)
     ml, mb = ~np.isnan(t_l), ~np.isnan(t_b)
