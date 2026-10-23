@@ -367,9 +367,13 @@ void write_delta_vcf(std::ostream& out,
                       const AlignmentResult& result) {
     out << "##fileformat=G2GdeltaVCF-0.2\n";
     out << "##source=G2G graph-to-graph diff\n";
-    out << "##note=ALT holds the sequence unique to one graph; REF is undefined "
-           "(no designated reference allele) and POS is 0 (graph space, no "
-           "reference coordinate is assigned).\n";
+    out << "##note=One record per allele present in only one of the two graphs. "
+           "With --ref: CHROM is the reference path, POS is the 0-BASED reference "
+           "offset of the site (standard VCF is 1-based: add 1 to compare), REF/ALT "
+           "are the atomic reference/alternate sequences (REF '.' = insertion, "
+           "ALT '.' = deletion). Without --ref: CHROM is the snarl id, POS is 0 "
+           "(graph space, no reference coordinate), REF is '.' and ALT is the "
+           "sequence unique to one graph.\n";
     out << "##INFO=<ID=GRAPH,Number=1,Type=String,Description=\"Graph the allele "
            "is unique to (A=first input, B=second input)\">\n";
     out << "##INFO=<ID=SNARL,Number=1,Type=String,Description=\"Snarl region, "

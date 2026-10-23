@@ -1,90 +1,330 @@
 # PanG2G — graph-to-graph alignment of pangenome variation graphs
 
-PanG2G aligns two pangenome variation graphs to each other at base-pair
-resolution and reports the **delta graph**: every allele present in one graph
-but absent from the other, with its exact sequence. It is the code behind
+PanG2G compares two pangenome variation graphs **directly**, graph against
+graph, and reports the **delta graph**: every allele (SNP, indel, structural
+variant) that is present in one graph but absent from the other, as a
+VCF-style table with its sequence and, when both graphs embed a common
+reference, its reference coordinate.  It does for two graphs what
+`bcftools isec` does for two VCFs, without first flattening either graph to
+a linear reference.
+
+```bash
+g2g popA.gfa popB.gfa --ref GRCh38 --vcf delta.vcf
+```
+
+It is the code behind
 
 > A. Shakleya and S. A. Fahmy, *PanG2G: Scalable Base-Pair-Resolution
 > Graph-to-Graph Alignment of Pangenome Graphs*, IEEE BIBM 2026.
 
-Two modes:
+Contents: [What it does](#1-what-it-does) ·
+[Quick start](#2-quick-start-any-linux-machine) ·
+[Running on KAUST IBEX](#3-running-on-kaust-ibex) ·
+[The test case](#4-the-test-case) ·
+[Your own graphs](#5-using-pang2g-on-your-own-graphs) ·
+[Reproducing the paper](#6-reproducing-the-paper) ·
+[Repository layout](#7-repository-layout) ·
+[Troubleshooting](#8-troubleshooting) ·
+[Citation](#9-citation-and-license)
 
-| mode | command | pairs snarls by | best for |
+---
+
+## 1. What it does
+
+A pangenome variation graph (from `vg construct`, Minigraph-Cactus, ...)
+stores a set of haplotypes as a graph: shared sequence is a chain of nodes,
+and every variant site is a **bubble** (a *snarl*) with one branch per
+**allele**.  Given two such graphs, say one built from African and one from
+East Asian haplotypes, PanG2G
+
+1. decomposes each graph into its bubbles,
+2. pairs up the bubbles that describe the same site in both graphs,
+3. matches the alleles inside each paired bubble by sequence (an exact
+   bipartite assignment, LAPJV), and
+4. emits every allele that found no partner, with its sequence: the
+   **delta graph**, i.e. the variation private to one population.
+
+Two ways of pairing bubbles are available:
+
+| mode | command | how bubbles are paired | when to use |
 |---|---|---|---|
-| reference-anchored diff | `g2g A.gfa B.gfa --ref <path> --vcf diff.vcf` | absolute reference coordinate (exact under identical variant representation) | graphs that embed a common reference (vg construct, Minigraph-Cactus) |
-| graph-to-graph aligner | `g2g A.gfa B.gfa [--pairing boundary\|interval] --vcf diff.vcf` | boundary-sequence key (default, linear) or anchor-interval dynamic program | graphs without a shared reference; parallel (OpenMP) |
+| **reference-anchored diff** | `g2g A.gfa B.gfa --ref GRCh38 --vcf delta.vcf` | by the absolute coordinate of the site on a reference path embedded in both graphs; each allele is first decomposed into atomic SNPs/indels, so it is robust to the two graphs cutting the reference into different nodes | the normal case: graphs built on the same reference (vg construct, Minigraph-Cactus, PGGB graphs that carry the reference as a path) |
+| **graph-to-graph aligner** | `g2g A.gfa B.gfa --threads 16 --vcf delta.vcf` | by bubble boundary sequences (default) or by an anchor-guided order-preserving dynamic program (`--pairing interval`); work-stealing parallel runtime (OpenMP) | graphs with no shared reference path |
 
-Everything reported in the paper (numbers, tables, figures) can be regenerated
-from this repository; see [Reproducing the paper](#reproducing-the-paper).
+The output is a VCF-style file with one record per private allele; see
+[Output format](#output-format) for the columns.  Section
+[4](#4-the-test-case) shows a complete example.
 
-## Layout
+## 2. Quick start (any Linux machine)
 
-```
-include/g2g/, src/     C++20 engine (library + `g2g` CLI)
-tests/                 GoogleTest suite (fetched by CMake; -DG2G_BUILD_TESTS=OFF to skip)
-tools/                 bench_matching: matching cost vs. allele count (fig_matching)
-python/g2g/            Python reference prototype (correctness oracle; quadratic greedy pairing)
-python/                profile_workload.py, synth_generator.py (workload characterization)
-demo/                  end-to-end demos + harnesses: synthetic truth, real HLA-DRB1 graphs,
-                       scaling sweeps, parallel scaling, ablations, Q4 biology, throughput
-experiments/           Slurm-ready experiment suite (exp1-exp6), generators and plot scripts
-results/               measured result tables behind the figures
-demo/sample_outputs/   result tables/figures of the real-data runs
-make_figures.py        regenerates every figure in latex/figs/ from results/ + demo/sample_outputs/
-latex/                 the paper
-```
-
-## Build
-
-Requirements: a C++20 compiler (GCC >= 9 or Clang >= 10), CMake >= 3.18,
-OpenMP (ships with GCC), Python 3 with numpy/matplotlib for figures.
+Requirements: GCC ≥ 9 (or Clang ≥ 10), CMake ≥ 3.18, `python3` (≥ 3.6),
+`bash`.  Nothing else is needed for the build or the test case; the Python
+scripts use only the standard library (numpy, if present, speeds one of them
+up).
 
 ```bash
-cmake -B build/release -DCMAKE_BUILD_TYPE=Release
-cmake --build build/release -j"$(nproc)"
-cd build/release && ctest            # 161 tests; vg/minimap2 tests skip if the tools are absent
+git clone https://github.com/ahmadshakleya/G2G.git     # or unpack the archive you received
+cd G2G
+bash run_test_case.sh            # build + three checks with known answers, ~2 minutes
 ```
 
-`demo/02_build_g2g.sh` does the same without the test fetch.
+The run ends with
 
-## Run
+```
+==== summary ====
+  PASS  build g2g (build/release)                                     62s
+  PASS  1. planted ground truth (demo/03_synthetic_demo.sh)            0s
+  PASS  2. enrichment self-test (demo/hprc_enrich.py --self-test)      1s
+  PASS  3. Q4 pipeline on synthetic data (demo/09_hprc_biology.sh --synthetic)     4s
+
+ALL CHECKS PASSED
+```
+
+and leaves the binary at `build/release/g2g`.  Add `--unit` to also run the
+161 GoogleTest unit tests (CMake downloads googletest, so this needs network
+access), and `--real` to download `vg` + `minimap2` and diff two pangenomes
+built from real HLA-DRB1 haplotypes.  `bash run_test_case.sh --help` lists
+every option.
+
+## 3. Running on KAUST IBEX
+
+IBEX is a Slurm cluster.  The toolchain comes from modules; the versions
+below are the ones used for the paper's IBEX measurements (October 2026).
+Compiling this project takes about a minute, which is fine on the login
+node; everything heavier goes through `sbatch`.
+
+**On the login node** (`ilogin.ibex.kaust.edu.sa`):
 
 ```bash
-# reference-anchored diff (both graphs must embed the path; P- or W-lines)
-build/release/g2g A.gfa B.gfa --ref GRCh38 --vcf diff.vcf --gaf aln.gaf
-
-# graph-to-graph aligner, 16 threads, anchor-interval pairing
-build/release/g2g A.gfa B.gfa --threads 16 --pairing interval --vcf diff.vcf --gaf aln.gaf
-
-build/release/g2g --help     # all options: --snarls vg, --verbose-timing, --dump-snarls, weights
+git clone https://github.com/ahmadshakleya/G2G.git && cd G2G     # or unpack the archive
+module load gcc/12.2.0 cmake/3.28.4/gnu-11.3.1 python/3.11.0
+bash run_test_case.sh --unit                                     # ~3 minutes
 ```
 
-Output: a VCF-style delta (`GRAPH=A` / `GRAPH=B` records with the differing
-sequence; real coordinates in `--ref` mode) and a GAF-style alignment file
-(anchors, snarl pairs, allele matches). Input is GFA 1.0/1.1 (S/L/P/W lines).
+**As a batch job** (builds and tests on a compute node; the output file
+lands in `logs/`):
 
-## Reproducing the paper
+```bash
+# once, optional: cache googletest so the job can also run the unit tests
+# (compute nodes have no outbound network)
+mkdir -p /ibex/user/$USER
+curl -fsSL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz | tar xz -C /ibex/user/$USER
+
+sbatch experiments/ibex/test_case.slurm      # 8 CPUs, 16 GB, 30 min limit; ~3 min
+squeue --me
+tail -f logs/test_case_<jobid>.out
+```
+
+The job script is `experiments/ibex/test_case.slurm`: it loads the modules,
+builds into `build/ibex` with `-DG2G_MARCH=x86-64-v3`, and runs
+`run_test_case.sh`.  Things to know on IBEX:
+
+- **Which binary runs where.**  The default build uses `-march=native`, so a
+  binary compiled on the login node may not run on a compute node of another
+  CPU generation (IBEX mixes Intel and several AMD generations).  Build with
+  `G2G_MARCH=x86-64-v3 bash run_test_case.sh` (or
+  `cmake -DG2G_MARCH=x86-64-v3 ...`) for a binary that runs on every node; use
+  the default (native) when you build inside the job that will use it, as the
+  paper's job scripts do.
+- **No network on compute nodes.**  Anything that downloads
+  (`demo/01_setup_tools.sh`, `demo/04_real_hla_demo.sh`,
+  `demo/09_fetch_biology_data.sh`, the googletest fetch) runs on the login
+  node.
+- **Disk.**  Keep large inputs and the generated graphs under
+  `/ibex/user/$USER` rather than in your home quota; the demo harnesses write
+  under `demo/work/`, so either clone the repository on `/ibex/user` or
+  symlink `demo/work` there.
+- **Threads.**  The parallel aligner uses all CPUs Slurm gives the job
+  (`--cpus-per-task`); pass `--threads N` to the binary to use fewer.
+- **Figures** need numpy + matplotlib:
+  `python3 -m venv /ibex/user/$USER/venv && . /ibex/user/$USER/venv/bin/activate && pip install numpy matplotlib`.
+- **Larger runs.**  `experiments/ibex/*.slurm` are the whole-node jobs used
+  for the paper's 64/128-thread scaling, ablation and 8-Gbp results (they
+  copy the tree to `/ibex/user/$USER/run_<jobid>` and build there);
+  `experiments/exp*/slurm.sh` is the broader experiment suite, which expects
+  the conda environment described in `experiments/README.md`.  All of them
+  are submitted from the repository root.
+
+## 4. The test case
+
+`run_test_case.sh` builds the engine and runs three checks whose correct
+answer is known in advance.  None needs network access or third-party
+tools.
+
+**Check 1 — planted ground truth** (`demo/03_synthetic_demo.sh`, < 1 s).
+`demo/make_synthetic_pair.py` writes two GFA graphs that embed the *same*
+400 bp reference path (`GRCh38`) but cut it into different node sizes
+(25 bp in A, 17 bp in B), and plants 5 SNPs in both graphs, 3 only in A
+and 2 only in B.  `g2g --ref GRCh38` must report exactly the 3 A-only and 2
+B-only sites at the planted coordinates, and a graph diffed against itself
+must report nothing:
+
+```
+[g2g] GA: 38 nodes  GB: 38 nodes
+[g2g] reference-coordinate diff along path 'GRCh38'
+[g2g] total_score=5  snarl_pairs=5  a_only=3  b_only=2
+
+#CHROM  POS   ID    REF  ALT  QUAL  FILTER  INFO
+GRCh38  27    A_0   A    T    .     PASS    GRAPH=A;SNARL=GRCh38:27;LEN=1
+GRCh38  265   A_1   C    A    .     PASS    GRAPH=A;SNARL=GRCh38:265;LEN=1
+GRCh38  333   A_2   G    C    .     PASS    GRAPH=A;SNARL=GRCh38:333;LEN=1
+GRCh38  129   B_0   G    T    .     PASS    GRAPH=B;SNARL=GRCh38:129;LEN=1
+GRCh38  163   B_1   G    T    .     PASS    GRAPH=B;SNARL=GRCh38:163;LEN=1
+
+  planted : shared=5 A_only=3 B_only=2
+  reported: A_only=3 B_only=2
+  RESULT  : PASS — diff matches ground truth exactly
+
+=== 5. Self-diff (graph vs itself) — must be zero differences ===
+  a_only=0  b_only=0
+```
+
+**Check 2 — enrichment statistic self-test** (`demo/hprc_enrich.py
+--self-test`, ~1 s).  The paper's biological validation asks whether the
+delta alleles lie closer than chance to population-differentiated structural
+variants (high F_ST in gnomAD-SV) and to ClinVar pathogenic sites, using a
+permutation null.  The self-test plants an enrichment and must recover it
+(fold ≫ 1, p < 0.01), and must report none for a random control (fold ≈ 1).
+
+**Check 3 — the Q4 pipeline end to end on synthetic data**
+(`demo/09_hprc_biology.sh --synthetic`, ~5 s).  A 10 Mb pair with 300
+planted population-specific sites is diffed with the real binary, a gnomAD-SV
+and ClinVar fixture is synthesised around the recovered deltas, and the
+pipeline must find the signal and must *not* find one for shuffled deltas:
+
+```
+  [PASS] delta vs high-F_ST (signal)        fold=20.84x  p=0.000999
+  [PASS] delta vs ClinVar pathogenic        fold=41.14x  p=0.000999
+  [PASS] shuffled control (null)            fold=1.30x   p=0.23
+```
+
+**Unit tests** (`--unit`): 161 GoogleTests over the GFA reader, snarl
+decomposition (checked against `vg snarls` when `vg` is on `PATH`), allele
+matching (LAPJV against brute force), both pairing modes, the parallel
+runtime (results identical to the sequential aligner at every thread
+count), the reference-anchored diff (merged bubble = split bubbles), and
+planted-graph recall/precision.  The 9 tests that need `vg` or `minimap2`
+are skipped when those tools are absent.
+
+**Real data** (`--real`, needs network): `demo/04_real_hla_demo.sh`
+downloads 12 real HLA-DRB1 haplotypes (PGGB test data), builds two
+population graphs with `minimap2` + `vg construct` the way real pangenomes
+are built, diffs them and self-diffs one of them (expect `a_only=349
+b_only=12` and a self-diff of 0; see `demo/logs/04_real_hla_demo.log`).
+
+Every step's full output is kept in `logs/test_case/`.  `demo/README.md`
+walks through all the demos (scaling to 8 Gbp, parallel speed-up, ablation,
+throughput against linearize-and-map) with their expected numbers.
+
+## 5. Using PanG2G on your own graphs
+
+### Input
+
+Two GFA 1.0/1.1 files (`S`, `L`, `P` and `W` lines are read).  For the
+reference-anchored diff both graphs must embed the reference as a path with
+the same name: a `P` line named e.g. `GRCh38` or `chr22`, or a `W` line whose
+PanSN name has that sample or contig (`--ref GRCh38` matches
+`GRCh38#0#chr22`).  A reference that spans several contigs is diffed contig
+by contig.  Graphs must be acyclic (true of reference-anchored graphs from
+`vg construct` and Minigraph-Cactus; `vg msga` and some PGGB graphs contain
+cycles).
+
+Building two population graphs from a phased panel VCF, for one chromosome:
+
+```bash
+bcftools view -S afr_samples.txt -r 22 --force-samples -c1 -Oz panel.vcf.gz > afr.vcf.gz && tabix afr.vcf.gz
+vg construct -r ref.fa -v afr.vcf.gz -R 22 | vg convert -f - > afr.gfa      # likewise eas.gfa
+g2g afr.gfa eas.gfa --ref 22 --vcf delta.vcf --gaf delta.gaf
+```
+
+(`demo/09_hprc_biology.sh` and `demo/10_throughput_baseline.sh` do exactly
+this for the paper's chromosome-22 runs; `demo/09_fetch_biology_data.sh`
+downloads the public inputs.)
+
+### Command line
+
+```
+g2g <graph_a.gfa> <graph_b.gfa> [options]
+```
+
+| option | meaning |
+|---|---|
+| `--ref <name>` | reference-anchored diff along the path `<name>` (recommended whenever both graphs embed a reference) |
+| `--vcf <file>` | write the delta (private alleles) as a VCF-style file |
+| `--gaf <file>` | write the alignment (snarl pairs and allele matches) in a GAF-like text format; default stdout |
+| `--threads <n>` | worker threads for the graph-to-graph aligner (default: all available; also `G2G_NUM_THREADS`) |
+| `--pairing boundary\|interval` | bubble pairing for the graph-to-graph aligner (no effect with `--ref`): boundary-sequence key (default) or anchor-interval dynamic program |
+| `--snarls builtin\|vg` | bubble finder: the built-in superbubble scan (default) or `vg snarls` (`vg` on `PATH` or `$G2G_VG`) |
+| `--sequential` | single-threaded greedy aligner (no effect with `--ref`) |
+| `--verbose-timing` | per-phase timings, peak memory and scheduler statistics on stderr |
+| `--dump-snarls <file>` | write every bubble of both graphs (for debugging) |
+| `--alpha --beta --gamma --gap` | scoring weights of the graph-to-graph aligner |
+
+Exit status: 0 success; 1 bad arguments, unreadable input, cyclic graph or
+reference path missing from a graph; 2 no bubble could be paired (usually
+wrong `--ref` name or unrelated inputs).  Progress and counts
+(`snarl_pairs`, `a_only`, `b_only`) go to stderr.
+
+### Output format
+
+`--vcf` writes one record per private allele.  The header line
+`##fileformat=G2GdeltaVCF-0.2` marks it as VCF-*style*: it has the standard
+eight columns but, in `--ref` mode, **POS is 0-based** (the reference offset
+of the site, as in BED), so add 1 before comparing with a 1-based VCF.
+
+| column | `--ref` mode | graph-to-graph mode |
+|---|---|---|
+| CHROM | reference path (contig) name | snarl id (`source>sink` node ids) |
+| POS | 0-based reference offset of the site | 0 |
+| ID | `A_<i>` / `B_<i>` | same |
+| REF | reference sequence of the atomic variant; `.` for an insertion | `.` |
+| ALT | alternate sequence; `.` for a deletion | the sequence private to one graph |
+| INFO | `GRAPH=A` or `GRAPH=B` (which input the allele is private to); `SNARL=<contig>:<pos>`; `LEN=` ALT length | `GRAPH=`, `SNARL=`, `LEN=` |
+
+Alleles are decomposed into atomic SNPs and indels before comparison, so a
+bubble that spans two adjacent SNPs in one graph matches two separate bubbles
+in the other.  Indels are not left-normalised; in repeats a call may differ
+by a base from `bcftools norm`.
+
+### Limits
+
+- Acyclic graphs only (a cyclic input stops with `Graph contains cycles —
+  DAG required`).
+- Memory is linear in graph size: about 30 GB per 1 Gbp of reference in
+  `--ref` mode with one variant per 200 bp (measured: 8 Gbp / 971 M nodes
+  in 242 GB).  Human chromosome 22 takes seconds.
+- The `--ref` diff is single-threaded; the parallel runtime accelerates the
+  graph-to-graph aligner.
+
+## 6. Reproducing the paper
+
+Everything reported in the paper (numbers, tables, figures) can be
+regenerated from this repository.  The committed tables in `results/` and
+`demo/sample_outputs/` are the measurements used in the paper, and
+`python3 make_figures.py` redraws every figure in `latex/figs/` from them
+(see the header of `make_figures.py` for the figure-to-table mapping).
 
 | paper item | script | needs |
 |---|---|---|
-| Q1 planted-graph correctness, test suite | `ctest` in `build/release`; `experiments/exp1_correctness/run.sh` | nothing |
+| Q1 planted-graph correctness, test suite | `bash run_test_case.sh --unit`; `experiments/exp1_correctness/run.sh` | nothing |
 | Q1 pairing error vs. size (fig_pairing_error) | `python3 experiments/exp1_correctness/pairing_error_sweep.py --pairing both --anchor-lens 8,2,1 --private-fracs 0,0.1 --linker-every 4` | nothing (~15 min) |
-| Q1 real HLA-DRB1 graphs | `demo/01_setup_tools.sh` then `demo/04_real_hla_demo.sh`; score with `experiments/plot/hla_truth_check.py demo/work/hla/popA.vcf demo/work/hla/popB.vcf demo/work/hla/hla_diff.vcf` | vg, minimap2, paftools (downloaded by 01) |
+| Q1 real HLA-DRB1 graphs | `bash run_test_case.sh --real`; score with `experiments/plot/hla_truth_check.py demo/work/hla/popA.vcf demo/work/hla/popB.vcf demo/work/hla/hla_diff.vcf` | vg, minimap2, paftools (downloaded by `demo/01_setup_tools.sh`) |
 | Finding 1 (fig_matching) | `build/release/bench_matching > results/matching_cost_vs_k_cpp.csv` | nothing |
 | Finding 2 (fig_workload) | `cd python && python3 profile_workload.py` (Gini); allele histogram as in `results/allele_count_hist.csv` | networkx |
-| Q2 parallel scaling (fig_scaling) | `demo/07_parallel_scaling.sh` | a many-core node |
+| Q2 parallel scaling (fig_scaling) | `demo/07_parallel_scaling.sh`; on IBEX `sbatch experiments/ibex/scaling_64.slurm` | a many-core node |
 | Q2 throughput vs. linearize-and-map (fig_throughput) | `demo/10_throughput_baseline.sh` | vg, bcftools, minimap2 + chr22 inputs (below) |
-| reference-anchored scaling (fig_refdiffscaling) | `demo/05_scaling_demo.sh`, `demo/06_scaling_limit.sh` | a large-memory node for the 8-Gbp point |
+| reference-anchored scaling (fig_refdiffscaling) | `demo/05_scaling_demo.sh`, `demo/06_scaling_limit.sh`; on IBEX `sbatch experiments/ibex/scaling_8gbp.slurm` | a large-memory node for the 8-Gbp point |
 | Q3 ablations (fig_ablation) | `demo/08_ablation.sh` | nothing |
 | Q4 biology (fig_biology, F_ST sweep) | `demo/09_fetch_biology_data.sh` then `demo/09_hprc_biology.sh`; sweep: `demo/hprc_enrich.py --fst-sweep 0.05,0.1,0.2,0.3,0.5` | vg, bcftools, tabix + ~1.5 GB of downloads |
-| all figures | `python3 make_figures.py` (reads `results/` and `demo/sample_outputs/`) | numpy, matplotlib |
+| all figures | `python3 make_figures.py` | numpy, matplotlib |
 
 Every harness writes the TSV/CSV that `make_figures.py` reads; pass the
-matching `--*-csv` flag to plot a fresh run. The committed tables in
-`results/` and `demo/sample_outputs/` are the measurements used in the paper
-(see the header of `make_figures.py` for the mapping). `demo/README.md`
-describes each demo and its expected output; `experiments/README.md` describes
-the Slurm suite.
+matching `--*-csv` flag to plot a fresh run.  `demo/README.md` describes
+each demo and its expected output; `experiments/README.md` describes the
+Slurm experiment suite.  `experiments/accl/` holds the three job scripts
+used for the camera-ready re-measurements on the authors' cluster (AMD EPYC
+7763 nodes, 48-CPU / 192 GB job limit); `experiments/ibex/` the IBEX jobs
+behind the 64/128-thread scaling, ablation and 8-Gbp results.
 
 ### Public inputs used
 
@@ -101,20 +341,46 @@ The HPRC assembly pipeline under `experiments/exp6_hprc/` (Minigraph-Cactus
 population graphs) is provided as scripts only; the paper reports no results
 on Minigraph-Cactus graphs.
 
-## Clusters
+## 7. Repository layout
 
-The Slurm scripts in `experiments/` and `demo/` use generic directives
-(`--partition`, `--mem`, `--time`); set `--partition` (e.g. `batch` on KAUST
-Ibex, where CPU jobs are submitted from `ilogin`) and `--account` for your
-site, and run anything that downloads on a login node, since compute nodes
-usually have no outbound network. `experiments/accl/` holds the three job
-scripts used for the camera-ready re-measurements on the authors' Slurm
-cluster (AMD EPYC 7763 nodes, 48-CPU / 192 GB job limit): build + tests +
-pairing sweep + parallel scaling + ablation, the single-core scaling sweep,
-and the real chr22 throughput and Q4 runs.
+```
+run_test_case.sh       build + the test case of section 4 (--unit, --real, --quick)
+CMakeLists.txt         build (options: G2G_MARCH, G2G_BUILD_TESTS, the five ablation flags)
+include/g2g/, src/     C++20 engine (static library + the `g2g` command)
+tests/                 GoogleTest suite (fetched by CMake; -DG2G_BUILD_TESTS=OFF to skip)
+tools/                 bench_matching: matching cost vs. allele count (fig_matching)
+demo/                  end-to-end demos and harnesses: synthetic truth, real HLA-DRB1
+                       graphs, scaling sweeps, parallel scaling, ablation, Q4 biology,
+                       throughput; demo/README.md documents each with expected output
+demo/sample_outputs/   result tables and figures of the real-data runs
+experiments/           Slurm experiment suite (exp1-exp6), IBEX and ACCL job scripts,
+                       generators and plot scripts; experiments/README.md
+results/               measured result tables behind the paper's figures
+make_figures.py        regenerates every figure in latex/figs/ from results/ + demo/sample_outputs/
+python/g2g/            Python reference prototype (correctness oracle; slow)
+python/                workload characterisation scripts (profile_workload.py, synth_generator.py)
+latex/                 the paper
+docs/dev-notes/        historical implementation notes
+logs/                  Slurm output and test-case logs (git-ignored)
+```
 
-## Citation and license
+## 8. Troubleshooting
 
-MIT license (see `LICENSE`). Cite the BIBM 2026 paper (`CITATION.cff`); the
-camera-ready release is archived on Zenodo (DOI in the paper's Availability
-paragraph once minted).
+| symptom | cause / fix |
+|---|---|
+| `module: command not found` or `cmake: command not found` on IBEX | run `module load gcc/12.2.0 cmake/3.28.4/gnu-11.3.1 python/3.11.0` first (`module avail gcc` lists alternatives if a version has been retired) |
+| `/usr/bin/env: 'bash\r': No such file or directory` | the files were copied with Windows line endings; run `find . -name '*.sh' -o -name '*.py' -o -name '*.slurm' \| xargs sed -i 's/\r$//'` (a fresh `git clone` is already correct: `.gitattributes` forces LF) |
+| `Illegal instruction` when running a binary built elsewhere | it was built with `-march=native` on a different CPU; rebuild with `G2G_MARCH=x86-64-v3` (or in the job that uses it) |
+| CMake fails fetching googletest (no network) | build without tests: `-DG2G_BUILD_TESTS=OFF` (what `run_test_case.sh` does without `--unit`), or point `G2G_GTEST_DIR` / `-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST` at an unpacked googletest-1.14.0 |
+| `fatal error: span: No such file or directory` | should not happen: GCC 9's libstdc++ lacks `<span>` and `include/g2g/span.hpp` substitutes a shim; report it if it does |
+| `ERROR: reference path 'X' not found in both graphs` | the graphs' path names differ; `grep '^[PW]' A.gfa \| cut -f2 \| head` shows them; `--ref` accepts a P-line name, or the sample or contig of a PanSN W-line |
+| `Graph contains cycles — DAG required` | the graph has a cycle (e.g. from `vg msga` or a PGGB build); PanG2G needs an acyclic, reference-anchored graph such as `vg construct` or Minigraph-Cactus output |
+| exit status 2, `snarl_pairs=0` | nothing could be paired: wrong `--ref` name, or in graph-to-graph mode the inputs share no boundary sequences; try `--ref`, `--pairing interval`, or `--dump-snarls` to inspect |
+| positions look off by one against a VCF | `--vcf` output uses 0-based POS (section 5); add 1 |
+| `sbatch: error: Unable to open output file` | submit from the repository root so `logs/` exists |
+
+## 9. Citation and license
+
+MIT license (see `LICENSE`).  Please cite the BIBM 2026 paper
+(`CITATION.cff`); the camera-ready release is archived on Zenodo (DOI in the
+paper's Availability paragraph once minted).

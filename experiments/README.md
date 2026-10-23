@@ -9,6 +9,12 @@ developed on a 64-core AMD EPYC 7763 node; set `--partition`/`--account` in the
 `slurm.sh` files for your site, e.g. `batch` on KAUST Ibex, where CPU jobs are
 submitted from `ilogin`). All jobs record wall time and peak memory.
 
+For a first run on IBEX use the top-level test case instead of this suite:
+`sbatch experiments/ibex/test_case.slurm` (see the root `README.md`); the
+other scripts in `experiments/ibex/` are the whole-node jobs behind the
+paper's IBEX measurements and need no conda environment, only the modules
+named in `experiments/ibex/common.sh`.
+
 ---
 
 ## 0. One-time setup

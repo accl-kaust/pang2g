@@ -9,7 +9,8 @@ g2g  graph_A.gfa  graph_B.gfa  --ref GRCh38  --vcf diff.vcf
 ```
 
 It outputs a VCF-style diff — one record per allele present in only one of the
-two graphs:
+two graphs (POS is the 0-based reference offset of the site; add 1 to compare
+with a standard 1-based VCF):
 
 ```
 #CHROM  POS   ID    REF  ALT    ...  INFO
@@ -28,6 +29,9 @@ breaks naive bubble-boundary matching on real graphs.
 ## Quick start
 
 ```bash
+# the test case (build + planted ground truth + Q4 synthetic pipeline), from the repo root:
+bash run_test_case.sh            # add --unit for the GoogleTests, --real for the HLA demo
+
 # 1. everything (build + synthetic + scaling sweep + fetch tools + real HLA demo)
 bash demo/run_all.sh
 

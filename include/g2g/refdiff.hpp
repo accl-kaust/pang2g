@@ -19,9 +19,11 @@
  * shared, alleles in only one go to that graph's delta — with real reference
  * coordinates (chrom/pos) attached.
  *
- * Requires both graphs to embed a path named `ref_path` (a GFA P-line; W-line
- * references are not parsed yet).  Returns std::nullopt if either graph lacks
- * that path.
+ * Requires both graphs to embed the reference as a path: a GFA P-line named
+ * `ref_path`, or a W-line whose PanSN name (sample#hap#contig[:range]) has
+ * `ref_path` as its sample or contig, e.g. --ref GRCh38 or --ref chr22.  A
+ * reference spanning several contigs is diffed contig by contig.  Returns
+ * std::nullopt if either graph lacks such a path.
  */
 
 #include <g2g/types.hpp>

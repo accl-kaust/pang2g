@@ -13,8 +13,21 @@ endif()
 # ── Compiler flags ────────────────────────────────────────────
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+# G2G_MARCH: the -march target of a Release build.  "native" (default) tunes the
+# binary to the CPU it is compiled on and is what every reported measurement
+# used.  On a cluster whose login and compute nodes differ (KAUST IBEX mixes
+# Intel and several AMD generations), build with -DG2G_MARCH=x86-64-v3 (any
+# AVX2 CPU) so a binary compiled on one node runs on all of them; "none" adds
+# no -march flag at all.
+set(G2G_MARCH "native" CACHE STRING
+    "-march value for Release builds: native (default), x86-64-v3, ..., or none")
+
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  add_compile_options(-O3 -march=native -DNDEBUG)
+  add_compile_options(-O3 -DNDEBUG)
+  if(G2G_MARCH AND NOT G2G_MARCH STREQUAL "none")
+    add_compile_options(-march=${G2G_MARCH})
+    message(STATUS "Release build: -march=${G2G_MARCH}")
+  endif()
 elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_options(-g -O0 -fsanitize=address,undefined)
   add_link_options(-fsanitize=address,undefined)

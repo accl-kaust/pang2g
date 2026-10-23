@@ -6,7 +6,7 @@ DEMO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$DEMO_DIR/.." && pwd)"
 TOOLS="$DEMO_DIR/tools"     # downloaded third-party binaries (git-ignored)
 WORK="$DEMO_DIR/work"       # all generated data and outputs (git-ignored)
-G2G="$REPO_DIR/build/g2g"
+G2G="${G2G:-$REPO_DIR/build/g2g}"   # override with G2G=/path/to/g2g
 
 mkdir -p "$TOOLS" "$WORK"
 export PATH="$TOOLS:$PATH"
