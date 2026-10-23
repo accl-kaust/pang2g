@@ -1,5 +1,5 @@
 """
-profile_workload.py — Phase 2: Workload Characterization
+profile_workload.py - Phase 2: Workload Characterization
 =========================================================
 Measures the four quantities called for in the project outline:
 
@@ -9,7 +9,7 @@ Measures the four quantities called for in the project outline:
   2. Memory usage peak at each graph size (tracemalloc).
 
   3. Work distribution: record k (allele count) for every snarl pair.
-     Compute the Gini coefficient — high Gini = high imbalance =
+     Compute the Gini coefficient - high Gini = high imbalance =
      strong motivation for work-stealing over static partitioning.
 
   4. Brute-force matching cost vs k: measure time for
@@ -33,7 +33,7 @@ import synth_generator as _sg
 _orig_zipf = _sg._zipf_k
 _sg._zipf_k = lambda rng, k_min=2, k_max=6, alpha=2.2: _orig_zipf(rng, k_min=2, k_max=6, alpha=2.2)
 
-# ── Config ────────────────────────────────────────────────────
+# -- Config ----------------------------------------------------
 N_SIZES   = [10, 50, 100, 200, 500]
 K_VALUES  = [2, 3, 4, 5, 6, 7, 8]
 SEQ_LEN   = 12      # representative inner-node sequence length for k-sweep
@@ -42,9 +42,9 @@ OUTPUT_DIR = "results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Helpers
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 
 def gini(values: list[float]) -> float:
     """Gini coefficient of a list of non-negative values."""
@@ -65,9 +65,9 @@ def time_phase(fn, *args, **kwargs):
     return time.perf_counter() - t0, result
 
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Experiment 1 & 2: Timing + Memory by graph size
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 
 def run_timing_and_memory() -> list[dict]:
     print("\n" + "=" * 64)
@@ -121,9 +121,9 @@ def run_timing_and_memory() -> list[dict]:
     return rows
 
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Experiment 3: Work distribution & Gini coefficient
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 
 def run_work_distribution() -> list[dict]:
     print("\n" + "=" * 64)
@@ -172,9 +172,9 @@ def run_work_distribution() -> list[dict]:
     return rows
 
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Experiment 4: Brute-force matching cost vs k
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 
 def _make_seqs(k: int, length: int, seed: int = 0) -> list[str]:
     import random
@@ -219,9 +219,9 @@ def run_matching_cost_vs_k() -> list[dict]:
     return rows
 
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # cProfile hotspot dump for n=500
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 
 def run_cprofile_hotspots():
     print("\n" + "=" * 64)
@@ -251,9 +251,9 @@ def run_cprofile_hotspots():
             print("  " + line)
 
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Save CSV results
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 
 def save_csv(filename: str, rows: list[dict], exclude_keys: list[str] = None):
     exclude_keys = exclude_keys or []
@@ -267,9 +267,9 @@ def save_csv(filename: str, rows: list[dict], exclude_keys: list[str] = None):
     print(f"\n  → Saved {path}")
 
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Main
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 
 if __name__ == "__main__":
     timing_rows  = run_timing_and_memory()

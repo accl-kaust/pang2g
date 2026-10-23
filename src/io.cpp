@@ -3,17 +3,17 @@
  * ==========
  * GFA v1.1 reader and GAF/VCF-inspired output writers.
  *
- * Phase 3 Task P3-8: GFA reader — COMPLETE.
- * Phase 3 Task P3-9: Output writer — COMPLETE.
+ * Phase 3 Task P3-8: GFA reader - COMPLETE.
+ * Phase 3 Task P3-9: Output writer - COMPLETE.
  *
  * GFA line types handled:
- *   H  — header; ignored (version tag checked for info only).
- *   S  — segment: S <name> <sequence> [optional tags]
- *   L  — link:    L <u> <+/-> <v> <+/-> <overlap CIGAR>
- *   P  — path:    P <name> <seg1+,seg2+,...> <overlaps>
- *   W  — walk (GFA 1.1): W <sample> <hap_idx> <seq_id> <start> <end> <walk>
+ *   H  - header; ignored (version tag checked for info only).
+ *   S  - segment: S <name> <sequence> [optional tags]
+ *   L  - link:    L <u> <+/-> <v> <+/-> <overlap CIGAR>
+ *   P  - path:    P <name> <seg1+,seg2+,...> <overlaps>
+ *   W  - walk (GFA 1.1): W <sample> <hap_idx> <seq_id> <start> <end> <walk>
  *        Walk lines are parsed and stored as paths named "<sample>#<hap_idx>".
- *   #  — comment; ignored.
+ *   #  - comment; ignored.
  *   Everything else: silently skipped.
  *
  * Orientation:
@@ -42,7 +42,7 @@
 
 namespace g2g {
 
-// ── Internal helpers ──────────────────────────────────────────
+// -- Internal helpers ------------------------------------------
 
 /** Reverse-complement of a DNA sequence. */
 static std::string rev_comp(std::string_view seq) {
@@ -80,7 +80,7 @@ static std::string_view strip_cr(std::string_view s) {
     return s;
 }
 
-// ── GFA parser ────────────────────────────────────────────────
+// -- GFA parser ------------------------------------------------
 
 /**
  * Core parsing logic shared by both read_gfa() overloads.
@@ -106,7 +106,7 @@ static void parse_gfa(std::istream& in,
         while (std::getline(in, line)) lines.push_back(std::move(line));
     }
 
-    // ── Pass 1: S lines → nodes ───────────────────────────────
+    // -- Pass 1: S lines → nodes -------------------------------
     int lineno = 0;
     for (const auto& raw_line : lines) {
         ++lineno;
@@ -131,7 +131,7 @@ static void parse_gfa(std::istream& in,
         vg.add_node(name, seq);
     }
 
-    // ── Pass 2: L and P/W lines ───────────────────────────────
+    // -- Pass 2: L and P/W lines -------------------------------
     lineno = 0;
     for (const auto& raw_line : lines) {
         ++lineno;
@@ -141,7 +141,7 @@ static void parse_gfa(std::istream& in,
 
         char type = line[0];
 
-        // ── L line: L <u_name> <u_orient> <v_name> <v_orient> <overlap> ──
+        // -- L line: L <u_name> <u_orient> <v_name> <v_orient> <overlap> --
         if (type == 'L') {
             auto parts = split(line, '\t');
             if (parts.size() < 5) {
@@ -185,7 +185,7 @@ static void parse_gfa(std::istream& in,
             continue;
         }
 
-        // ── P line: P <path_name> <seg1+,seg2-,...> <overlaps> ───────────
+        // -- P line: P <path_name> <seg1+,seg2-,...> <overlaps> -----------
         if (type == 'P') {
             auto parts = split(line, '\t');
             if (parts.size() < 3) {
@@ -232,7 +232,7 @@ static void parse_gfa(std::istream& in,
             continue;
         }
 
-        // ── W line (GFA 1.1 walk): W <sample> <hap_idx> <seq_id> <start> <end> <walk> ──
+        // -- W line (GFA 1.1 walk): W <sample> <hap_idx> <seq_id> <start> <end> <walk> --
         if (type == 'W') {
             auto parts = split(line, '\t');
             if (parts.size() < 7) {
@@ -295,7 +295,7 @@ static void parse_gfa(std::istream& in,
     vg.finalise();
 }
 
-// ── Public API ────────────────────────────────────────────────
+// -- Public API ------------------------------------------------
 
 VariationGraph read_gfa(const std::filesystem::path& path) {
     std::ifstream f(path);
@@ -312,7 +312,7 @@ VariationGraph read_gfa(std::istream& in, const std::string& name) {
     return vg;
 }
 
-// ── Output writers ────────────────────────────────────────────
+// -- Output writers --------------------------------------------
 
 void write_alignment_gaf(std::ostream& out,
                           const AlignmentResult& result,
@@ -384,7 +384,7 @@ void write_delta_vcf(std::ostream& out,
 
     // Emit every allele present in only one of the two graphs.  The sequences
     // come straight from AlignmentResult's delta lists (DeltaAllele::sequence),
-    // which build_deltas() already populated — so the actual differing bases
+    // which build_deltas() already populated - so the actual differing bases
     // are written out, not a placeholder.
     auto emit = [&](const std::vector<DeltaAllele>& deltas, const char* graph) {
         std::size_t i = 0;

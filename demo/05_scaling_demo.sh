@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Demo 3 — SCALING: drive the g2g --ref diff across increasing graph sizes,
+# Demo 3 - SCALING: drive the g2g --ref diff across increasing graph sizes,
 # measuring wall time, peak memory and per-phase timing while CHECKING that the
 # diff stays EXACT at every size (the strong claim: correct *and* near-linear at
 # scale, not just fast on toy inputs).
 #
-# Pure synthetic with known ground truth at every point — no network, no
+# Pure synthetic with known ground truth at every point - no network, no
 # third-party tools. Each point builds two graphs that embed the same reference
 # but chop it into DIFFERENT nodes (A=25 bp, B=17 bp) and plant N variants
 # (80% shared, 10% A-only, 10% B-only); g2g must recover exactly N/10 A-only and
@@ -32,7 +32,7 @@ fi
 TSV="$OUT/scale_results.tsv"
 printf 'ref_bp\tvariants\tnodes_A\tnodes_B\tsnarl_pairs\ta_only\tb_only\tcorrect\tdecompose_s\twall_s\tpeak_MB\n' > "$TSV"
 
-log "Scaling sweep — g2g --ref diff, increasing size (A=25bp / B=17bp chopping)"
+log "Scaling sweep - g2g --ref diff, increasing size (A=25bp / B=17bp chopping)"
 printf '  %10s %9s %9s %9s %8s %7s %7s %5s %10s %8s %8s\n' \
        ref_bp variants nodesA nodesB snarls a_only b_only OK decomp_s wall_s peak_MB
 
@@ -78,4 +78,4 @@ awk -v bp="$1" -v var="$2" -v nA="$3" -v nB="$4" -v w="$5" -v m="$6" 'BEGIN{
     printf "    largest point: %.1f Mb ref, %d+%d nodes, %d variants -> %ss, %s MB peak\n", bp/1e6, nA, nB, var, w, m;
     if (w+0>0) printf "    throughput: %.0f variants/s, %.0f total nodes/s\n", var/w, (nA+nB)/w;
 }'
-echo "OK — scaling sweep complete: diff stayed EXACT at every size, near-linear time"
+echo "OK - scaling sweep complete: diff stayed EXACT at every size, near-linear time"

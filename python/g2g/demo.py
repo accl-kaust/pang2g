@@ -1,5 +1,5 @@
 """
-demo.py — Entry point
+demo.py - Entry point
 =====================
 Builds two toy population pangenomes and runs the full alignment pipeline.
 Run with:  python demo.py
@@ -26,7 +26,7 @@ from g2g.report   import print_result
 
 def build_demo_graphs() -> tuple[VariationGraph, VariationGraph]:
 
-    # ── Graph A ───────────────────────────────────────────────
+    # -- Graph A -----------------------------------------------
     ga = VariationGraph("Population-A pangenome")
 
     ga.add_node("s0",    "TTAGC")    # start anchor
@@ -44,7 +44,7 @@ def build_demo_graphs() -> tuple[VariationGraph, VariationGraph]:
     ga.add_path("hap_A2", ["s0", "b1b", "m1", "b2b", "s_end"])
     ga.add_path("hap_A3", ["s0", "b1a", "m1", "b2c", "s_end"])
 
-    # ── Graph B ───────────────────────────────────────────────
+    # -- Graph B -----------------------------------------------
     gb = VariationGraph("Population-B pangenome")
 
     gb.add_node("s0",    "TTAGC")
@@ -84,7 +84,7 @@ def main() -> None:
 
     print_result(result)
 
-    # ── Sanity checks ─────────────────────────────────────────
+    # -- Sanity checks -----------------------------------------
     print("\nSanity checks:")
     assert len(result.anchor_matches) >= 2, \
         "Should find at least 2 anchor pairs"
@@ -100,7 +100,7 @@ def main() -> None:
     ), "GATTAC deletion should be B-only"
     assert result.total_score > 0, \
         "Total score should be positive"
-    print("  All assertions passed ✓")
+    print("  All assertions passed")
 
 
 if __name__ == "__main__":

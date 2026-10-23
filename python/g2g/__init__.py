@@ -1,5 +1,5 @@
 """
-g2g — graph-to-graph pangenome alignment
+g2g - graph-to-graph pangenome alignment
 =========================================
 Public API re-exports for convenient importing:
 

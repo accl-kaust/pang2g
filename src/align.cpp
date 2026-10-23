@@ -6,12 +6,12 @@
  *
  * Snarl pairing
  * -------------
- *  * correspond_snarls()          — boundary-key rule (default).  Two snarls
+ *  * correspond_snarls()          - boundary-key rule (default).  Two snarls
  *    correspond when the byte sequences of their source and sink nodes are
  *    identical; repeated keys are consumed positionally (FIFO).  O(|TA|+|TB|).
  *    Its failure mode: a snarl present in only one graph whose boundary key
  *    repeats shifts every later snarl with that key by one position.
- *  * correspond_snarls_interval() — anchor-interval rule (--pairing interval).
+ *  * correspond_snarls_interval() - anchor-interval rule (--pairing interval).
  *    The anchors (backbone nodes shared by both graphs) are chained in
  *    topological order; between two consecutive anchors the snarls of A and B
  *    are paired by an order-preserving dynamic program (a Needleman-Wunsch over
@@ -46,7 +46,7 @@
 
 namespace g2g {
 
-// ── Boundary-key pairing (default) ────────────────────────────────────────────
+// -- Boundary-key pairing (default) --------------------------------------------
 
 namespace {
 
@@ -98,7 +98,7 @@ std::vector<std::pair<uint32_t, uint32_t>> correspond_snarls(
     return pairs;
 }
 
-// ── Anchor-interval, order-preserving pairing ─────────────────────────────────
+// -- Anchor-interval, order-preserving pairing ---------------------------------
 
 namespace {
 
@@ -277,7 +277,7 @@ std::vector<std::pair<uint32_t, uint32_t>> pair_snarls(
     return correspond_snarls(ga, gb, ta, tb);
 }
 
-// ── Delta construction (shared by both aligners) ──────────────────────────────
+// -- Delta construction (shared by both aligners) ------------------------------
 
 void build_deltas(const VariationGraph& ga,
                   const VariationGraph& gb,
@@ -346,7 +346,7 @@ void build_deltas(const VariationGraph& ga,
     }
 }
 
-// ── Sequential aligner ────────────────────────────────────────────────────────
+// -- Sequential aligner --------------------------------------------------------
 
 AlignmentResult GraphAligner::align(const VariationGraph& ga,
                                      const VariationGraph& gb) const {
@@ -357,17 +357,17 @@ AlignmentResult GraphAligner::align(const VariationGraph& ga,
         return std::chrono::duration<double>(b - a).count();
     };
 
-    // Step 1 — anchor detection
+    // Step 1 - anchor detection
     auto t_idx0 = Clock::now();
     result.anchors = find_anchors(ga, gb, params_.anchor);
     auto t_idx1 = Clock::now();
 
-    // Step 2 — snarl decomposition (allele paths stored in the SnarlTree)
+    // Step 2 - snarl decomposition (allele paths stored in the SnarlTree)
     SnarlTree ta = SnarlDecomposer(ga).decompose();
     SnarlTree tb = SnarlDecomposer(gb).decompose();
     auto t_dec1 = Clock::now();
 
-    // Step 3 — snarl pairing + per-pair matching
+    // Step 3 - snarl pairing + per-pair matching
     result.snarl_alignments = align_snarls(ga, gb, ta, tb, result.anchors);
     auto t_dp1 = Clock::now();
 
@@ -375,13 +375,13 @@ AlignmentResult GraphAligner::align(const VariationGraph& ga,
     phase_times_.decompose_seconds = secs(t_idx1, t_dec1);
     phase_times_.dp_seconds        = secs(t_dec1, t_dp1);
 
-    // Step 4 — total score: anchor contributions + snarl scores
+    // Step 4 - total score: anchor contributions + snarl scores
     for (const auto& a : result.anchors)
         result.total_score += params_.alpha * a.sim;
     for (const auto& sa : result.snarl_alignments)
         result.total_score += sa.score;
 
-    // Step 5 — delta graphs
+    // Step 5 - delta graphs
     build_deltas(ga, gb, ta, tb, result);
 
     return result;

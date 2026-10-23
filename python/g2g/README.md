@@ -1,8 +1,8 @@
-# g2g — Graph-to-Graph Pangenome Alignment
+# g2g - Graph-to-Graph Pangenome Alignment
 
 A prototype implementation of graph-to-graph alignment for pangenome variation graphs.
 Where current tools map a *sequence* (read or assembly) to a *graph* (pangenome reference),
-`g2g` maps a *graph to another graph* — comparing two population pangenomes directly,
+`g2g` maps a *graph to another graph* - comparing two population pangenomes directly,
 without routing everything through a single linear reference.
 
 ---
@@ -18,7 +18,7 @@ Genome reference models have evolved in three steps:
 | 3 | **Graph → Graph** | **Two pangenome graphs aligned to each other** ← this project |
 
 The motivation: once you have population-specific pangenomes (e.g. one built from African
-cohorts, one from East Asian cohorts), you need a way to ask — which structural variants
+cohorts, one from East Asian cohorts), you need a way to ask - which structural variants
 are shared? Which are population-specific? Where do the graphs diverge? A single linear
 reference cannot answer these questions without reintroducing the very reference bias that
 pangenomes were built to eliminate.
@@ -49,9 +49,9 @@ Graph B ──┘     │                    └── ΔB→A  (B-only alleles)
 
 **Scoring:** `W(A) = W_seq + W_topo + W_struct`
 
-- `W_seq` — sequence similarity of matched boundary (anchor) nodes
-- `W_topo` — structural class consistency (both simple bubbles, nested snarls, etc.)
-- `W_struct` — bipartite matching score across allele sets within each snarl pair
+- `W_seq` - sequence similarity of matched boundary (anchor) nodes
+- `W_topo` - structural class consistency (both simple bubbles, nested snarls, etc.)
+- `W_struct` - bipartite matching score across allele sets within each snarl pair
 
 **Complexity:** `O(|T| · |T'| · k³)` where `T`, `T'` are snarl trees and `k` is the
 maximum number of alleles per snarl (typically 2–5 in real pangenomes).
@@ -106,34 +106,34 @@ print_result(result)
 g2g/
 ├── __init__.py      re-exports all public symbols
 │
-├── types.py         MEMORY — pure data structures
+├── types.py         MEMORY - pure data structures
 │   │                  No computation; only holds state.
 │   ├── Snarl            (source, sink, allele_paths, children)
 │   ├── SnarlAlignment   (matched snarl pair + per-component scores)
 │   └── AlignmentResult  (anchors, snarl alignments, delta graphs)
 │
-├── graph.py         MEMORY — variation graph storage
+├── graph.py         MEMORY - variation graph storage
 │   │                  Wraps networkx DiGraph; builders + accessors only.
 │   └── VariationGraph   add_node / add_edge / add_path / seq / describe
 │
-├── sequence.py      COMPUTE — string-level operations
+├── sequence.py      COMPUTE - string-level operations
 │   │                  Stateless functions; no imports from rest of package.
 │   ├── edit_distance(a, b)          Wagner-Fischer DP
 │   ├── seq_similarity(a, b)         normalised similarity in [0, 1]
 │   └── path_sequence(graph, path)   concatenate node seqs along a path
 │
-├── decompose.py     COMPUTE — snarl / bubble detection
+├── decompose.py     COMPUTE - snarl / bubble detection
 │   │                  Reads graph topology, writes Snarl objects.
 │   └── SnarlDecomposer(vg)
 │           .decompose() -> list[Snarl]
 │
-├── align.py         COMPUTE — alignment DP
+├── align.py         COMPUTE - alignment DP
 │   │                  Imports from all compute modules; writes nothing to disk.
 │   ├── bipartite_allele_match(seqs_a, seqs_b, ...)
 │   └── GraphAligner(alpha, beta, gamma, gap, min_anchor_sim)
 │           .align(ga, gb) -> AlignmentResult
 │
-├── report.py        I/O — result formatting
+├── report.py        I/O - result formatting
 │   └── print_result(result)
 │
 └── demo.py          ENTRY POINT
@@ -145,7 +145,7 @@ The memory / compute split is intentional:
 - **Memory files** (`types.py`, `graph.py`) can be read to understand the data model with
   no knowledge of algorithms.
 - **Compute files** (`sequence.py`, `decompose.py`, `align.py`) contain all algorithmic
-  logic and can be swapped independently — e.g. replace `sequence.py` with a C extension
+  logic and can be swapped independently - e.g. replace `sequence.py` with a C extension
   for large graphs without touching anything else.
 
 ---
@@ -157,7 +157,7 @@ ANCHOR NODES  (shared backbone)
   b1a ['ACGT']  ↔  b1a ['ACGT']   sim=1.00
 ```
 Nodes whose sequences are identical (or near-identical) in both graphs.
-They act as alignment anchors — everything else is interpreted relative to them.
+They act as alignment anchors - everything else is interpreted relative to them.
 
 ```
 SNARL ALIGNMENTS
@@ -176,7 +176,7 @@ DELTA GRAPH  ΔB→A  (B-only alleles)
   snarl (m1,s_end)  seq='CCCGGATTACTTAAG'
 ```
 The delta graphs are the main output. They list every allele present in one
-population graph but absent from the other — the population-specific structural
+population graph but absent from the other - the population-specific structural
 variants. This is the graph-level analogue of a VCF file.
 
 ```

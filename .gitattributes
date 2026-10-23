@@ -1,6 +1,6 @@
 # Line endings.  Everything git detects as text is stored and checked out with
 # LF, whatever core.autocrlf says on the machine, so that shell scripts, Slurm
-# jobs and Python files run unmodified on Linux (IBEX) even when the repository
+# jobs and Python files run unmodified on Linux even when the repository
 # was checked out or zipped on Windows.
 * text=auto eol=lf
 *.sh     text eol=lf

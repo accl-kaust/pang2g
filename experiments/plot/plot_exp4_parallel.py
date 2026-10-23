@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-plot_exp4_parallel.py — Parallel speedup figure (Figure 4 in paper).
+plot_exp4_parallel.py - Parallel speedup figure (Figure 4 in paper).
 
 Generates:
   - Speedup vs. thread count (with ideal linear line)
@@ -67,7 +67,7 @@ def plot_parallel(df: pd.DataFrame, out_dir: str) -> None:
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
-    # ── Panel A: Speedup ──────────────────────────────────────
+    # -- Panel A: Speedup --------------------------------------
     ax = axes[0]
     # Ideal linear speedup
     ax.plot(threads, threads, "k--", alpha=0.5, linewidth=1.5, label="Ideal (linear)")
@@ -104,7 +104,7 @@ def plot_parallel(df: pd.DataFrame, out_dir: str) -> None:
 
     import matplotlib.ticker as ticker
 
-    # ── Panel B: Parallel efficiency ─────────────────────────
+    # -- Panel B: Parallel efficiency -------------------------
     ax = axes[1]
     ax.plot(threads, efficiency, color="#d73027", marker="s",
             linewidth=2.5, markersize=8, label="G2G efficiency")
@@ -119,7 +119,7 @@ def plot_parallel(df: pd.DataFrame, out_dir: str) -> None:
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
     ax.set_ylim(0, 1.1)
 
-    # ── Panel C: Wall time ────────────────────────────────────
+    # -- Panel C: Wall time ------------------------------------
     ax = axes[2]
     ax.errorbar(threads, agg["wall_ms_mean"].values / 1000,
                 yerr=np.nan_to_num(agg["wall_ms_std"].values) / 1000,
@@ -134,7 +134,7 @@ def plot_parallel(df: pd.DataFrame, out_dir: str) -> None:
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
     ax.set_yscale("log")
 
-    plt.suptitle("G2G Parallel Scaling — Experiment 4", fontsize=13, fontweight="bold")
+    plt.suptitle("G2G Parallel Scaling - Experiment 4", fontsize=13, fontweight="bold")
     plt.tight_layout()
 
     for ext in ["pdf", "png"]:

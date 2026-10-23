@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-graph_degree_stats.py — how many nodes of a GFA graph satisfy PanG2G's anchor
+graph_degree_stats.py - how many nodes of a GFA graph satisfy PanG2G's anchor
 degree rule (in-degree <= 1 AND out-degree <= 1), and how long are the snarl
 boundary nodes?
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================
-# Phase 5 — Environment Setup
+# Phase 5 - Environment Setup
 # Creates the g2g_eval conda environment with all tools needed
 # for all six experiments.
 #
 # Run once before any experiment:
 #   bash experiments/00_setup_env.sh
 #
-# No sudo required — uses miniconda.
+# No sudo required - uses miniconda.
 # ============================================================
 set -euo pipefail
 
@@ -17,10 +17,10 @@ G2G_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "[setup] G2G root: $G2G_ROOT"
 echo "[setup] Creating conda env: $ENV_NAME"
 
-# ── Create base env ───────────────────────────────────────────
+# -- Create base env -------------------------------------------
 conda create -y -n "$ENV_NAME" python=3.11
 
-# ── Core build tools ──────────────────────────────────────────
+# -- Core build tools ------------------------------------------
 conda run -n "$ENV_NAME" conda install -y -c conda-forge \
     cmake=3.27 \
     make \
@@ -31,7 +31,7 @@ conda run -n "$ENV_NAME" conda install -y -c conda-forge \
     gdb \
     valgrind
 
-# ── Bioinformatics tools ──────────────────────────────────────
+# -- Bioinformatics tools --------------------------------------
 conda run -n "$ENV_NAME" conda install -y -c bioconda -c conda-forge \
     minimap2 \
     bedtools \
@@ -43,7 +43,7 @@ conda run -n "$ENV_NAME" conda install -y -c bioconda -c conda-forge \
 # install); the k8 JS engine above is what actually runs it. There is no
 # separate `paftools` conda package.
 
-# ── Python analysis packages ──────────────────────────────────
+# -- Python analysis packages ----------------------------------
 conda run -n "$ENV_NAME" pip install \
     numpy \
     pandas \
@@ -55,9 +55,9 @@ conda run -n "$ENV_NAME" pip install \
     psutil \
     tqdm \
     pysam \
-    requests   # needed by the cluster's `jobstats` tool when run under this env
+    requests
 
-# ── perf stat wrapper (user-space; no sudo needed for basic events) ───
+# -- perf stat wrapper (user-space; no sudo needed for basic events) ---
 # perf is in the kernel tools, should be available on HPC nodes
 # We alias it to use --per-thread for user-space profiling
 cat >> ~/.bashrc <<'EOF'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-plot_exp6_biology.py — Biological validation figure (Figure 6 in paper).
+plot_exp6_biology.py - Biological validation figure (Figure 6 in paper).
 
 Generates:
   - gnomAD-SV enrichment: observed vs expected overlap, enrichment ratio
@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 
 
-# ── BED field names from bedtools intersect output ──────────────────
+# -- BED field names from bedtools intersect output ------------------
 BED_COLS_A = ["chrom_a", "start_a", "end_a", "name_a"]
 BED_COLS_B = ["chrom_b", "start_b", "end_b", "name_b"]
 INTERSECT_COLS = BED_COLS_A + BED_COLS_B
@@ -71,23 +71,23 @@ def plot_biology(args, out_dir: str) -> None:
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 11))
 
-    # ── Panel A: gnomAD-SV enrichment ──────────────────────────
+    # -- Panel A: gnomAD-SV enrichment --------------------------
     ax = axes[0, 0]
     _plot_gnomad_enrichment(ax, df_gnomad_all, df_gnomad_fst, args)
 
-    # ── Panel B: ClinVar conservation ──────────────────────────
+    # -- Panel B: ClinVar conservation --------------------------
     ax = axes[0, 1]
     _plot_clinvar_overlap(ax, df_clinvar, args)
 
-    # ── Panel C: Population-specific delta alleles breakdown ───
+    # -- Panel C: Population-specific delta alleles breakdown ---
     ax = axes[1, 0]
     _plot_delta_breakdown(ax, df_gnomad_all, df_gnomad_fst)
 
-    # ── Panel D: Summary enrichment bar chart ──────────────────
+    # -- Panel D: Summary enrichment bar chart ------------------
     ax = axes[1, 1]
     _plot_summary_bars(ax, df_gnomad_all, df_gnomad_fst, df_clinvar, args)
 
-    fig.suptitle("G2G Biological Validation — Experiment 6\n(AFR n=20 vs EAS n=20 HPRC pangenomes)",
+    fig.suptitle("G2G Biological Validation - Experiment 6\n(AFR n=20 vs EAS n=20 HPRC pangenomes)",
                  fontsize=13, fontweight="bold")
     plt.tight_layout()
 

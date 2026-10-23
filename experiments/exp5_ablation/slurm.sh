@@ -1,6 +1,6 @@
 #!/bin/bash --login
 # ============================================================
-# SLURM — Experiment 5 (Ablation Study)
+# SLURM - Experiment 5 (Ablation Study)
 # Needs ~64 CPUs so parallel variants are stressed properly.
 #
 # Submit: sbatch experiments/exp5_ablation/slurm.sh
@@ -8,7 +8,7 @@
 #SBATCH --job-name=g2g_exp5_ablation
 #SBATCH --output=logs/exp5_%j.out
 #SBATCH --error=logs/exp5_%j.err
-#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
+#SBATCH --partition=batch      # adjust to your cluster
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64

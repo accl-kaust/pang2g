@@ -1,5 +1,5 @@
 """
-align.py — Compute layer: graph-to-graph alignment
+align.py - Compute layer: graph-to-graph alignment
 ===================================================
 Implements the alignment DP over paired snarl trees.
 
@@ -19,11 +19,11 @@ GraphAligner(alpha, beta, gamma, gap, min_anchor_sim)
     .align(ga, gb) -> AlignmentResult
 
     Steps:
-      1. _find_anchors       — backbone nodes with near-identical sequences
-      2. SnarlDecomposer     — bubble detection on both graphs
-      3. _align_snarls       — pair snarls and run per-pair DP
-      4. _score_snarl_pair   — compute W_seq + W_topo + W_struct
-      5. _build_deltas       — fill AlignmentResult delta fields
+      1. _find_anchors       - backbone nodes with near-identical sequences
+      2. SnarlDecomposer     - bubble detection on both graphs
+      3. _align_snarls       - pair snarls and run per-pair DP
+      4. _score_snarl_pair   - compute W_seq + W_topo + W_struct
+      5. _build_deltas       - fill AlignmentResult delta fields
 """
 
 from __future__ import annotations
@@ -36,9 +36,9 @@ from g2g.sequence  import seq_similarity, path_sequence
 from g2g.decompose import SnarlDecomposer
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 # Bipartite allele matching
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 
 def bipartite_allele_match(
     seqs_a: list[str],
@@ -50,7 +50,7 @@ def bipartite_allele_match(
     Optimal weighted partial bipartite matching between two allele sets.
 
     Matching score for (i, j): seq_similarity(seqs_a[i], seqs_b[j])
-        — forbidden if similarity < min_match_sim (prefer gap over bad match)
+        - forbidden if similarity < min_match_sim (prefer gap over bad match)
 
     Unmatched alleles in either set incur gap_cost each.
 
@@ -83,7 +83,7 @@ def bipartite_allele_match(
 
         for small_chosen in combinations(small_range, m):
             for large_perm in permutations(large_range, m):
-                # Build (i, j) pairs — always (graph_a_idx, graph_b_idx)
+                # Build (i, j) pairs - always (graph_a_idx, graph_b_idx)
                 if not swap:
                     pairs = list(zip(small_chosen, large_perm))
                 else:
@@ -101,16 +101,16 @@ def bipartite_allele_match(
                     best_match = list(pairs)
 
     if best_score == -1e9:
-        # Nothing valid found — full gap penalty
+        # Nothing valid found - full gap penalty
         best_score = -gap_cost * (na + nb)
         best_match = []
 
     return best_score, best_match
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 # GraphAligner
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 
 class GraphAligner:
     """
@@ -139,22 +139,22 @@ class GraphAligner:
         self.gap            = gap
         self.min_anchor_sim = min_anchor_sim
 
-    # ── public entry point ────────────────────────────────────
+    # -- public entry point ------------------------------------
 
     def align(self, ga: VariationGraph, gb: VariationGraph) -> AlignmentResult:
         """Run full graph-to-graph alignment and return AlignmentResult."""
 
-        # Step 1 — anchor detection
+        # Step 1 - anchor detection
         anchors = self._find_anchors(ga, gb)
 
-        # Step 2 — snarl decomposition
+        # Step 2 - snarl decomposition
         snarls_a = SnarlDecomposer(ga).decompose()
         snarls_b = SnarlDecomposer(gb).decompose()
 
-        # Steps 3 & 4 — pair snarls and score each pair
+        # Steps 3 & 4 - pair snarls and score each pair
         snarl_alns = self._align_snarls(ga, gb, snarls_a, snarls_b, anchors)
 
-        # Step 5 — aggregate total score
+        # Step 5 - aggregate total score
         total = sum(sa.score for sa in snarl_alns)
         for na, nb in anchors:
             total += self.alpha * seq_similarity(ga.seq(na), gb.seq(nb))
@@ -169,7 +169,7 @@ class GraphAligner:
         self._build_deltas(result)
         return result
 
-    # ── Step 1: anchor detection ──────────────────────────────
+    # -- Step 1: anchor detection ------------------------------
 
     def _find_anchors(
         self, ga: VariationGraph, gb: VariationGraph
@@ -204,12 +204,12 @@ class GraphAligner:
         return anchors
 
     def _backbone_nodes(self, vg: VariationGraph) -> list[str]:
-        """Nodes with in-degree ≤ 1 and out-degree ≤ 1 — simple chain nodes."""
+        """Nodes with in-degree ≤ 1 and out-degree ≤ 1 - simple chain nodes."""
         g = vg.g
         return [n for n in g.nodes
                 if g.in_degree(n) <= 1 and g.out_degree(n) <= 1]
 
-    # ── Steps 3 & 4: snarl pairing ───────────────────────────
+    # -- Steps 3 & 4: snarl pairing ---------------------------
 
     def _align_snarls(
         self,
@@ -255,9 +255,9 @@ class GraphAligner:
         """
         Score one candidate snarl pair.
 
-        W_seq    — average similarity of (source_a, source_b) and (sink_a, sink_b)
-        W_topo   — 1.0 if both are simple bubbles (prototype assumes all are)
-        W_struct — gamma * bipartite_allele_match score
+        W_seq    - average similarity of (source_a, source_b) and (sink_a, sink_b)
+        W_topo   - 1.0 if both are simple bubbles (prototype assumes all are)
+        W_struct - gamma * bipartite_allele_match score
         """
         # W_seq
         src_sim  = seq_similarity(ga.seq(sa.source), gb.seq(sb.source))
@@ -285,7 +285,7 @@ class GraphAligner:
             w_struct      = w_struct,
         )
 
-    # ── Step 5: delta graph construction ─────────────────────
+    # -- Step 5: delta graph construction ---------------------
 
     def _build_deltas(self, result: AlignmentResult) -> None:
         """

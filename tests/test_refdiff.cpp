@@ -5,7 +5,7 @@
  *
  * These tests are pure G2G (no vg dependency): they build small graphs that
  * share an embedded reference path and verify that variants are matched by
- * reference position — including when the two graphs chop the shared reference
+ * reference position - including when the two graphs chop the shared reference
  * into different nodes, which is exactly what breaks boundary-sequence
  * correspondence on real pangenome graphs.
  */
@@ -19,7 +19,7 @@
 
 using namespace g2g;
 
-// ── Shared variant + one A-only + one B-only ─────────────────
+// -- Shared variant + one A-only + one B-only -----------------
 
 TEST(ReferenceDiff, SharedAndUniqueVariants) {
     // Graph A: a -[C|G]- m -[A|T]- z   (reference path goes C, A)
@@ -66,7 +66,7 @@ TEST(ReferenceDiff, SharedAndUniqueVariants) {
     EXPECT_FLOAT_EQ(rd->total_score, 1.0f);
 }
 
-// ── Robustness: shared variant matches despite different segmentation ─
+// -- Robustness: shared variant matches despite different segmentation -
 
 TEST(ReferenceDiff, RobustToDifferentSegmentation) {
     // A: one 12bp anchor before the bubble.
@@ -95,14 +95,14 @@ TEST(ReferenceDiff, RobustToDifferentSegmentation) {
     ASSERT_TRUE(rd.has_value());
 
     // The bubble opens at reference offset 12 in BOTH (A: 12; B: 5+7) → matched,
-    // shared alt G, nothing unique — even though node boundaries differ.
+    // shared alt G, nothing unique - even though node boundaries differ.
     EXPECT_EQ(rd->a_only_alleles.size(), 0u);
     EXPECT_EQ(rd->b_only_alleles.size(), 0u);
     EXPECT_EQ(rd->snarl_alignments.size(), 1u);
     EXPECT_FLOAT_EQ(rd->total_score, 1.0f);
 }
 
-// ── Missing reference path → nullopt ─────────────────────────
+// -- Missing reference path → nullopt -------------------------
 
 TEST(ReferenceDiff, MissingReferencePathReturnsNullopt) {
     VariationGraph A;
@@ -115,7 +115,7 @@ TEST(ReferenceDiff, MissingReferencePathReturnsNullopt) {
     EXPECT_FALSE(reference_diff(A, A, ta, ta, "no_such_path").has_value());
 }
 
-// ── PanSN / W-line reference resolution ──────────────────────
+// -- PanSN / W-line reference resolution ----------------------
 
 TEST(ReferenceDiff, ResolvesPanSNReferenceBySampleAndContig) {
     // Reference path named PanSN-style, as produced from a GFA W-line.
@@ -155,10 +155,10 @@ TEST(ReferenceDiff, ResolvesPanSNReferenceBySampleAndContig) {
     EXPECT_EQ(rd2->b_only_alleles[0].sequence, "T");
 }
 
-// ── The fix: a merged bubble matches the split bubbles ───────
+// -- The fix: a merged bubble matches the split bubbles -------
 
 TEST(ReferenceDiff, MergedBubbleMatchesSplitBubbles) {
-    // Graph A: ONE bubble spanning two SNPs — ref "CAT", alt "GAG"
+    // Graph A: ONE bubble spanning two SNPs - ref "CAT", alt "GAG"
     //   (C>G at offset 4, T>G at offset 6).
     VariationGraph A;
     NodeId a1 = A.add_node("a1", "AAAA"), cat = A.add_node("cat", "CAT"),
@@ -186,7 +186,7 @@ TEST(ReferenceDiff, MergedBubbleMatchesSplitBubbles) {
     ASSERT_TRUE(rd.has_value());
 
     // Both decompose to the SAME atomic variants (4:C>G, 6:T>G) → all shared,
-    // nothing unique — even though A has one bubble and B has two.
+    // nothing unique - even though A has one bubble and B has two.
     EXPECT_EQ(rd->a_only_alleles.size(), 0u) << "merged vs split should match";
     EXPECT_EQ(rd->b_only_alleles.size(), 0u);
     EXPECT_FLOAT_EQ(rd->total_score, 2.0f);   // two shared SNPs

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-plot_scaling.py — turn scaling-sweep TSVs into a log-log scaling figure.
+plot_scaling.py - turn scaling-sweep TSVs into a log-log scaling figure.
 
 Reads one or more result TSVs written by 05_scaling_demo.sh and/or
 06_scaling_limit.sh and plots wall time and peak memory against graph size
 (total nodes) on log-log axes, each with a fitted power-law exponent and an
-ideal-linear guide line — so the near-linear scaling is obvious at a glance in
+ideal-linear guide line - so the near-linear scaling is obvious at a glance in
 a writeup. A FAIL in any row's `correct` column is flagged in the title.
 
 Usage:
@@ -87,7 +87,7 @@ def main():
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.6))
 
-    # ── Time ────────────────────────────────────────────────────────────────
+    # -- Time ----------------------------------------------------------------
     sw, _ = fit(wall)
     ax1.loglog(x, wall, "o-", color="#1f77b4", label=f"wall  (∝ N^{sw:.2f})")
     if np.isfinite(dec).all() and (dec > 0).all():
@@ -99,7 +99,7 @@ def main():
     ax1.grid(True, which="both", ls=":", alpha=0.4)
     ax1.legend(fontsize=8, loc="upper left")
 
-    # ── Memory ──────────────────────────────────────────────────────────────
+    # -- Memory --------------------------------------------------------------
     sm, _ = fit(mem)
     ax2.loglog(x, mem, "o-", color="#d62728", label=f"peak RSS  (∝ N^{sm:.2f})")
     guide(ax2, mem[0])
@@ -108,7 +108,7 @@ def main():
     ax2.legend(fontsize=8, loc="upper left")
 
     big = rows[-1]
-    status = "exact at every size ✓" if all_ok else "WARNING — a point FAILED correctness"
+    status = "exact at every size" if all_ok else "WARNING - a point FAILED correctness"
     fig.suptitle(f"G2G  --ref  scaling  ·  {len(rows)} points  ·  "
                  f"up to {big['nodes']/1e6:.1f}M nodes / {big['bp']/1e6:.0f} Mb  ·  {status}",
                  fontsize=11)

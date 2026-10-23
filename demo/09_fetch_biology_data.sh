@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 09_fetch_biology_data.sh — stage the public inputs for the REAL Q4 run
+# 09_fetch_biology_data.sh - stage the public inputs for the REAL Q4 run
 # (demo/09_hprc_biology.sh with no --synthetic flag).
 #
 # Everything here is GRCh37/b37 so coordinates line up end to end:
 #   * reference        human_g1k_v37.fasta            (contigs "1".."22", no "chr")
 #   * population panel  1000G phase-3 sample->pop map + per-chromosome genotype VCFs
-#   * F_ST targets      gnomAD-SV v2.1 sites (Collins 2020 — the paper's citation)
+#   * F_ST targets      gnomAD-SV v2.1 sites (Collins 2020 - the paper's citation)
 #   * pathogenic sites  ClinVar GRCh37
 # Do NOT mix in a "chr"-prefixed GRCh38 file: the contig names must match.
 #
@@ -15,20 +15,21 @@
 #     CHROMS="20 21 22" bash demo/09_fetch_biology_data.sh
 #
 # This script downloads only; it does not need vg/bcftools (those are used by
-# 09_hprc_biology.sh). It cannot run in the dev sandbox (no outbound network there)
-# — run it on the cluster. Re-running is safe: existing non-empty files are kept.
+# 09_hprc_biology.sh). Run it on a machine with outbound network access (a
+# cluster login node rather than a compute node). Re-running is safe: existing
+# non-empty files are kept.
 set -euo pipefail
 DATA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/data"; mkdir -p "$DATA"; cd "$DATA"
 CHROMS="${CHROMS:-22}"
 G1K="https://ftp.1000genomes.ebi.ac.uk/vol1/ftp"
 
-get() {  # url [outfile]   — skip if already present and non-empty
+get() {  # url [outfile]   - skip if already present and non-empty
     local url="$1" out="${2:-$(basename "$1")}"
     if [ -s "$out" ]; then echo "  have   $out"; return; fi
     echo "  fetch  $out"
     wget -q --show-progress -O "$out" "$url" || { echo "ERROR: download failed: $url" >&2; rm -f "$out"; exit 1; }
 }
-get_alt() {  # outfile url1 [url2 ...]   — try each mirror until one works
+get_alt() {  # outfile url1 [url2 ...]   - try each mirror until one works
     local out="$1"; shift
     if [ -s "$out" ]; then echo "  have   $out"; return; fi
     local url
@@ -46,7 +47,7 @@ get "$G1K/technical/reference/human_g1k_v37.fasta.gz"
 [ -s human_g1k_v37.fasta ] || { echo "  gunzip human_g1k_v37.fasta.gz"; gunzip -k human_g1k_v37.fasta.gz; }
 if [ ! -s human_g1k_v37.fasta.fai ]; then
     if command -v samtools >/dev/null; then samtools faidx human_g1k_v37.fasta
-    else echo "  WARN: samtools not found — vg construct needs human_g1k_v37.fasta.fai;"
+    else echo "  WARN: samtools not found - vg construct needs human_g1k_v37.fasta.fai;"
          echo "        install it before running 09:  conda install -c bioconda samtools"; fi
 fi
 if [ -s human_g1k_v37.fasta.fai ]; then
@@ -76,7 +77,7 @@ for c in $CHROMS; do
         "ALL.chr${c}.phase3.genotypes.vcf.gz"
 done
 
-echo "[4/5] gnomAD-SV v2.1 sites (GRCh37) — GCS, with AWS S3 mirror as fallback"
+echo "[4/5] gnomAD-SV v2.1 sites (GRCh37) - GCS, with AWS S3 mirror as fallback"
 get_alt gnomad_v2.1_sv.sites.vcf.gz \
     "https://storage.googleapis.com/gcp-public-data--gnomad/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz" \
     "https://gnomad-public-us-east-1.s3.amazonaws.com/papers/2019-sv/gnomad_v2.1_sv.sites.vcf.gz"
@@ -85,10 +86,10 @@ echo "[5/5] ClinVar (GRCh37)"
 get "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz" clinvar_GRCh37.vcf.gz
 
 echo
-echo "gnomAD-SV per-population AF fields — confirm the names for AFR_FIELD/EAS_FIELD:"
+echo "gnomAD-SV per-population AF fields - confirm the names for AFR_FIELD/EAS_FIELD:"
 zcat gnomad_v2.1_sv.sites.vcf.gz 2>/dev/null | grep -m 400 '^##INFO' \
     | grep -iE 'id=[A-Z_]*(afr|eas)[A-Z_]*,' \
-    || echo "  (none matched 'afr/eas' — inspect: zcat gnomad_v2.1_sv.sites.vcf.gz | grep '^##INFO')"
+    || echo "  (none matched 'afr/eas' - inspect: zcat gnomad_v2.1_sv.sites.vcf.gz | grep '^##INFO')"
 
 cat <<EOF
 

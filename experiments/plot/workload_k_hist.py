@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-workload_k_hist.py — allele-count (k) histogram of the snarls in a GFA pair.
+workload_k_hist.py - allele-count (k) histogram of the snarls in a GFA pair.
 
 Reads two GFA files written by the project's generators (simple bubbles:
 source -> {alleles} -> sink), reports the k distribution of

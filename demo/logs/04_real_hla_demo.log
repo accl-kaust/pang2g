@@ -40,7 +40,7 @@ GRCh38	1700	A_4	C	T	.	PASS	GRAPH=A;SNARL=GRCh38:1700;LEN=1
 GRCh38	1707	A_5	C	T	.	PASS	GRAPH=A;SNARL=GRCh38:1707;LEN=1
 GRCh38	1713	A_6	G	T	.	PASS	GRAPH=A;SNARL=GRCh38:1713;LEN=1
 
-=== 8. Self-diff (cg_A vs cg_A) — must be zero differences ===
+=== 8. Self-diff (cg_A vs cg_A) - must be zero differences ===
   a_only=0  b_only=0
 
-OK — real HLA demo complete (outputs in $REPO/demo/work/hla)
+OK - real HLA demo complete (outputs in $REPO/demo/work/hla)

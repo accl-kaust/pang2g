@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-gen_synthetic_gfa.py — Generate synthetic GFA graph pairs for the experiments.
+gen_synthetic_gfa.py - Generate synthetic GFA graph pairs for the experiments.
 
 Generates two variation graphs (GA, GB) as GFA v1.1 files.
 Topology: linear chain of snarls, each snarl a bubble with k alleles.

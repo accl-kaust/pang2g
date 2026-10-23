@@ -14,9 +14,9 @@ mkdir -p "$TOOLS_DIR"
 
 echo "[tools] Installing into $TOOLS_DIR"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. PanGraph (graph-to-graph baseline)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # NOTE: upstream `neherlab/pangraph` was rewritten in Rust, so the old
 # `Pkg.add(url=".../pangraph")` Julia install no longer works (the repo root
 # has no Project.toml) and it is not on bioconda. The Rust rewrite ships static
@@ -74,10 +74,10 @@ else
     echo "[tools]   ONLY_PANGRAPH=1 bash experiments/exp3_throughput/run.sh" >&2
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2. minigraph-cactus (for building HPRC pangenomes)
 #    Cactus via conda-forge (the only no-sudo method)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[tools] Installing Cactus (minigraph-cactus pipeline)..."
 # mash is a runtime dependency of cactus-pangenome's minigraph step
 # (cactus shells out to `mash sketch`); the bioconda cactus package does NOT
@@ -89,15 +89,15 @@ conda install -y -c bioconda -c conda-forge \
     mash
 
 echo "[tools] Verifying cactus installation..."
-cactus --version || echo "[tools] WARNING: cactus not found — may need manual install"
+cactus --version || echo "[tools] WARNING: cactus not found - may need manual install"
 for t in mash minigraph gfatools; do
     command -v "$t" &>/dev/null && echo "[tools] $t: $(command -v $t)" || \
         echo "[tools] WARNING: $t not found on PATH"
 done
 
-# ─────────────────────────────────────────────────────────────
-# 3. gfatools — GFA manipulation (needed for pangenome prep)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
+# 3. gfatools - GFA manipulation (needed for pangenome prep)
+# -------------------------------------------------------------
 if ! command -v gfatools &>/dev/null; then
     echo "[tools] Building gfatools from source..."
     git clone --depth 1 https://github.com/lh3/gfatools.git "$TOOLS_DIR/gfatools_src"
@@ -106,9 +106,9 @@ if ! command -v gfatools &>/dev/null; then
     echo "[tools] gfatools installed at $TOOLS_DIR/gfatools"
 fi
 
-# ─────────────────────────────────────────────────────────────
-# 4. paftools.js (minimap2 utility — convert PAF to BED etc.)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
+# 4. paftools.js (minimap2 utility - convert PAF to BED etc.)
+# -------------------------------------------------------------
 if ! command -v paftools.js &>/dev/null; then
     conda install -y -c bioconda -c conda-forge k8 || true
 fi

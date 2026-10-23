@@ -1,7 +1,7 @@
 /**
  * tests/test_phase5_exp1_synthetic_gt.cpp
  * =========================================
- * Phase 5, Experiment 1 — Synthetic Ground-Truth Correctness
+ * Phase 5, Experiment 1 - Synthetic Ground-Truth Correctness
  *
  * Protocol (roadmap §2.7.1 / §5.1 Option A)
  * ------------------------------------------
@@ -102,7 +102,7 @@ static PlantedGraphs build_planted(
     pg.n_snarls = n_snarls;
     std::mt19937 rng(seed);
 
-    // ── Backbone anchors — identical in both graphs ────────────
+    // ── Backbone anchors - identical in both graphs ────────────
     std::vector<NodeId> anc_a, anc_b;
     for (int i = 0; i <= n_snarls; ++i) {
         std::string seq = random_dna(8, rng);

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Demo 6 — Q4 biological validation: are G2G delta alleles enriched for
+# Demo 6 - Q4 biological validation: are G2G delta alleles enriched for
 #          population-differentiated structural variation?
 #
 # The claim under test: when G2G diffs two *population* pangenomes (here AFR vs
-# EAS), the alleles it reports as present in one but not the other — the delta
-# graph — should sit closer than chance to structural variants that are highly
+# EAS), the alleles it reports as present in one but not the other - the delta
+# graph - should sit closer than chance to structural variants that are highly
 # differentiated between those same populations (high Hudson F_ST in gnomAD-SV),
 # and should also touch known pathogenic (ClinVar) sites. We test that with a
 # permutation null (demo/hprc_enrich.py).
@@ -37,7 +37,7 @@ ENRICH="$DEMO_DIR/hprc_enrich.py"
 WINDOW="${WINDOW:-400}"; PERMS="${PERMS:-1000}"
 FST="${FST_THRESHOLD:-0.2}"; AFR="${AFR_FIELD:-AFR_AF}"; EAS="${EAS_FIELD:-EAS_AF}"
 
-# ── helper: assert a result row passes (fold and p within expected band) ───────
+# -- helper: assert a result row passes (fold and p within expected band) -------
 check() {  # $1=tsv $2=row-regex $3=label $4=min_fold $5=max_fold $6=max_p
     local row fold p
     row=$(awk -F'\t' -v re="$2" 'NR>1 && $1 ~ re {print; exit}' "$1")
@@ -50,13 +50,13 @@ check() {  # $1=tsv $2=row-regex $3=label $4=min_fold $5=max_fold $6=max_p
         exit !ok }'
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  SYNTHETIC MODE — runs with only g2g + python stdlib (validated in CI/laptop)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+#  SYNTHETIC MODE - runs with only g2g + python stdlib (validated in CI/laptop)
+# ==============================================================================
 run_synthetic() {
     local S="$OUT/synthetic"; mkdir -p "$S"
     local LEN="${SYN_LEN:-10000000}" CHROM="chr1"
-    log "Synthetic Q4 — plant a population difference, diff it, test enrichment"
+    log "Synthetic Q4 - plant a population difference, diff it, test enrichment"
 
     note "1. build two population pangenomes that differ at known coordinates"
     python3 "$DEMO_DIR/make_synthetic_pair.py" \
@@ -70,7 +70,7 @@ run_synthetic() {
 
     note "3. synthesise a gnomAD-SV + ClinVar fixture around the recovered deltas"
     # High-F_ST SVs near 60% of deltas (true signal) PLUS an equal number of
-    # high-F_ST decoys at random loci (so a delta can MISS one — the test is not
+    # high-F_ST decoys at random loci (so a delta can MISS one - the test is not
     # rigged to overlap), PLUS 4x neutral low-F_ST SVs (exercise the F_ST filter).
     python3 - "$S/delta.vcf" "$CHROM" "$LEN" "$S" 7 "$WINDOW" <<'PY'
 import sys, random
@@ -144,13 +144,13 @@ PY
     echo
     note "results TSV: $OUT/biology_results.tsv"
     note "figure:  python3 demo/make_figures.py --biology-csv $OUT/biology_results.tsv"
-    [ "$rc" = 0 ] && echo "OK — synthetic Q4 pipeline validated (signal enriched, control null)" \
-                  || { echo "FAILED — see rows above"; return 1; }
+    [ "$rc" = 0 ] && echo "OK - synthetic Q4 pipeline validated (signal enriched, control null)" \
+                  || { echo "FAILED - see rows above"; return 1; }
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  REAL MODE — population pangenomes from a labelled panel (needs vg + bcftools)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+#  REAL MODE - population pangenomes from a labelled panel (needs vg + bcftools)
+# ==============================================================================
 run_real() {
     # Each tool can be overridden with an explicit path (handy when PATH carries a
     # stale binary or the tools live in a separate env): VG=, BCFTOOLS=, TABIX=.
@@ -186,7 +186,7 @@ run_real() {
     local CHROMS="${CHROMS:-22}"
     local R="$OUT/real"; mkdir -p "$R"
 
-    log "Real Q4 — build AFR/EAS pangenomes, diff with g2g --ref, enrich"
+    log "Real Q4 - build AFR/EAS pangenomes, diff with g2g --ref, enrich"
     : > "$R/delta.vcf.body"
     for chrom in $CHROMS; do
         local panel; panel="${PANEL_TMPL:+${PANEL_TMPL//\{\}/$chrom}}"; panel="${panel:-${PANEL_VCF:-}}"
@@ -224,7 +224,7 @@ run_real() {
         --window "$WINDOW" --perms "$PERMS" --out "$OUT/biology_results.tsv"
     echo; note "results TSV: $OUT/biology_results.tsv"
     note "figure:  python3 demo/make_figures.py --biology-csv $OUT/biology_results.tsv"
-    echo "OK — real Q4 pipeline complete"
+    echo "OK - real Q4 pipeline complete"
 }
 
 case "${1:-}" in

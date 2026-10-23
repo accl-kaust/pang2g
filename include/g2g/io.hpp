@@ -13,9 +13,9 @@
  *   - Handles both GFA 1.0 (P-lines) and GFA 1.1 (W-lines).
  *
  * Output format:
- *   write_alignment_gaf()  — one line per matched snarl pair:
+ *   write_alignment_gaf()  - one line per matched snarl pair:
  *       <snarl_a_id> <snarl_b_id> <score> <allele_matches...>
- *   write_delta_vcf()      — VCF-inspired file; one record per
+ *   write_delta_vcf()      - VCF-inspired file; one record per
  *       A-only allele (delta graph ΔA→B).
  *
  * Phase 3 task estimate: 2 weeks (§3.3, item 1 + item 6).

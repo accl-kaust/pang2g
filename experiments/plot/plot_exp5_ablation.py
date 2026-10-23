@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-plot_exp5_ablation.py — Ablation study figure (Figure 5 in paper).
+plot_exp5_ablation.py - Ablation study figure (Figure 5 in paper).
 
 Shows the throughput contribution of each design decision.
 
@@ -64,7 +64,7 @@ def plot_ablation(df_main: pd.DataFrame, df_a4: pd.DataFrame,
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
 
-    # ── Panel A: A1–A3 grouped bar chart ─────────────────────
+    # -- Panel A: A1–A3 grouped bar chart ---------------------
     ax = axes[0]
     ablation_groups = ["A1", "A2", "A3"]
     x = np.arange(len(ablation_groups))
@@ -114,7 +114,7 @@ def plot_ablation(df_main: pd.DataFrame, df_a4: pd.DataFrame,
     ax.legend(handles=legend_elements, fontsize=9)
     ax.grid(True, alpha=0.3, axis="y")
 
-    # ── Panel B: A4 — Anchor detection ───────────────────────
+    # -- Panel B: A4 - Anchor detection -----------------------
     ax = axes[1]
     if not df_a4.empty:
         for variant in df_a4["variant"].unique():
@@ -133,7 +133,7 @@ def plot_ablation(df_main: pd.DataFrame, df_a4: pd.DataFrame,
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.3, which="both")
 
-    # ── Panel C: A5 — Matching algorithm vs. k ───────────────
+    # -- Panel C: A5 - Matching algorithm vs. k ---------------
     ax = axes[2]
     if not df_a5.empty:
         for variant in df_a5["variant"].unique():
@@ -158,7 +158,7 @@ def plot_ablation(df_main: pd.DataFrame, df_a4: pd.DataFrame,
         ax.text(7.1, ax.get_ylim()[0] * 2, "k=7\ninflection",
                 fontsize=8, color="darkorange", va="bottom")
 
-    fig.suptitle("G2G Ablation Study — Experiment 5", fontsize=13, fontweight="bold")
+    fig.suptitle("G2G Ablation Study - Experiment 5", fontsize=13, fontweight="bold")
     plt.tight_layout()
 
     for ext in ["pdf", "png"]:

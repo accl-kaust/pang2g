@@ -12,12 +12,12 @@
  *   SNPBubble_k2, InsertionBubble_k3, Symmetry, HungarianMatchesBrute_k2
  *
  * New tests (P3-2 / P3-1 additions):
- *   BruteMatchesPythonOracle_*  — scores pinned to Python ground truth.
- *   HungarianMatchesBrute_*     — hungarian score == brute score for k=2..6.
- *   RectangularInput_*          — na ≠ nb (padding path in LAPJV).
- *   AllBelowMinSim              — no pair above threshold; all unmatched.
- *   PerfectMatchIdentical_k6    — 6 identical pairs; score = 6.0.
- *   GreedySuboptimal            — case where greedy ≠ hungarian (motivates LAPJV).
+ *   BruteMatchesPythonOracle_*  - scores pinned to Python ground truth.
+ *   HungarianMatchesBrute_*     - hungarian score == brute score for k=2..6.
+ *   RectangularInput_*          - na ≠ nb (padding path in LAPJV).
+ *   AllBelowMinSim              - no pair above threshold; all unmatched.
+ *   PerfectMatchIdentical_k6    - 6 identical pairs; score = 6.0.
+ *   GreedySuboptimal            - case where greedy ≠ hungarian (motivates LAPJV).
  */
 
 #include <g2g/matching.hpp>
@@ -29,7 +29,7 @@
 
 using namespace g2g;
 
-// ── Helper ────────────────────────────────────────────────────
+// -- Helper ----------------------------------------------------
 
 static std::vector<std::string_view> sv(const std::vector<std::string>& v) {
     std::vector<std::string_view> out;
@@ -38,7 +38,7 @@ static std::vector<std::string_view> sv(const std::vector<std::string>& v) {
     return out;
 }
 
-// ── Original tests (preserved) ───────────────────────────────
+// -- Original tests (preserved) -------------------------------
 
 TEST(Matching, SNPBubble_k2) {
     std::vector<std::string> a = {"", ""};
@@ -75,7 +75,7 @@ TEST(Matching, HungarianMatchesBrute_k2) {
     EXPECT_NEAR(r_brute.score, r_hungarian.score, 1e-4f);
 }
 
-// ── Brute oracle vs Python ground truth ──────────────────────
+// -- Brute oracle vs Python ground truth ----------------------
 //
 // Python ground-truth computed with:
 //   from g2g.align import bipartite_allele_match
@@ -96,7 +96,7 @@ TEST(Matching, BruteOracle_k2_onePoorMatch) {
     EXPECT_EQ(r.b_unmatched.size(), 1u);
 }
 
-// k=3, all pairs identical — perfect matching, score = 3.0
+// k=3, all pairs identical - perfect matching, score = 3.0
 TEST(Matching, BruteOracle_k3_allIdentical) {
     std::vector<std::string> a = {"ACGT", "GGGG", "TTTT"};
     std::vector<std::string> b = {"ACGT", "GGGG", "TTTT"};
@@ -107,7 +107,7 @@ TEST(Matching, BruteOracle_k3_allIdentical) {
     EXPECT_EQ(r.b_unmatched.size(), 0u);
 }
 
-// ── Hungarian matches brute at k=2..6 ────────────────────────
+// -- Hungarian matches brute at k=2..6 ------------------------
 
 // k=4, mixed: two identical pairs, two below threshold
 // a=["AAAA","CCCC","GGGG","TTTT"], b=["AAAA","ZZZZ","GGGG","WWWW"]
@@ -123,7 +123,7 @@ TEST(Matching, HungarianMatchesBrute_k4) {
     EXPECT_EQ(r_b.matches.size(), r_h.matches.size());
 }
 
-// k=5, all identical — score = 5.0
+// k=5, all identical - score = 5.0
 TEST(Matching, HungarianMatchesBrute_k5_allIdentical) {
     std::vector<std::string> a = {"ACGT","GCTA","TGCA","CATG","GTAC"};
     std::vector<std::string> b = {"ACGT","GCTA","TGCA","CATG","GTAC"};
@@ -134,7 +134,7 @@ TEST(Matching, HungarianMatchesBrute_k5_allIdentical) {
     EXPECT_EQ(r_h.matches.size(), 5u);
 }
 
-// k=6, shuffled identical pairs — brute and hungarian must agree
+// k=6, shuffled identical pairs - brute and hungarian must agree
 TEST(Matching, HungarianMatchesBrute_k6_shuffled) {
     // a[i] matches b[5-i] exactly; all other pairs are poor.
     std::vector<std::string> a = {"AAAAAA","CCCCCC","GGGGGG","TTTTTT","ACGTAC","GTACGT"};
@@ -146,9 +146,9 @@ TEST(Matching, HungarianMatchesBrute_k6_shuffled) {
     EXPECT_EQ(r_h.matches.size(), 6u);
 }
 
-// ── Rectangular inputs (na ≠ nb) ─────────────────────────────
+// -- Rectangular inputs (na ≠ nb) -----------------------------
 
-// 3 alleles in A, 2 in B — one A allele must be unmatched
+// 3 alleles in A, 2 in B - one A allele must be unmatched
 TEST(Matching, Rectangular_3x2) {
     std::vector<std::string> a = {"AAAA", "CCCC", "GGGG"};
     std::vector<std::string> b = {"AAAA", "CCCC"};
@@ -172,9 +172,9 @@ TEST(Matching, Rectangular_1x4) {
     EXPECT_EQ(r_h.b_unmatched.size(), 3u);
 }
 
-// ── Edge cases ────────────────────────────────────────────────
+// -- Edge cases ------------------------------------------------
 
-// All pairs below min_sim — nothing matched
+// All pairs below min_sim - nothing matched
 TEST(Matching, AllBelowMinSim) {
     std::vector<std::string> a = {"AAAA", "CCCC"};
     std::vector<std::string> b = {"TTTT", "GGGG"};
@@ -207,7 +207,7 @@ TEST(Matching, SinglePair_noMatch) {
     EXPECT_NEAR(r.score, -1.0f, 1e-4f);
 }
 
-// ── Greedy suboptimality: motivation for LAPJV ────────────────
+// -- Greedy suboptimality: motivation for LAPJV ----------------
 //
 // Classic counter-example where greedy picks the wrong pair.
 // Similarity matrix (min_sim = 0.75):
@@ -252,7 +252,7 @@ TEST(Matching, HungarianScoreGeqGreedy) {
     EXPECT_NEAR(r_h.score, 3.0f, 1e-4f);
 }
 
-// ── Perfect k=6 match ─────────────────────────────────────────
+// -- Perfect k=6 match -----------------------------------------
 
 TEST(Matching, PerfectMatch_k6) {
     std::vector<std::string> a = {"AAAA","CCCC","GGGG","TTTT","ACGT","GTAC"};

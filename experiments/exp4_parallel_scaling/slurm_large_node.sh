@@ -1,12 +1,12 @@
 #!/bin/bash --login
 # ============================================================
-# SLURM — Experiment 4 (Parallel Scaling) — synode variant
+# SLURM - Experiment 4 (Parallel Scaling) - large-node variant
 #
-# Targets the synode partition (384 CPUs / 1.5 TB RAM). This
+# Targets a large node (hundreds of CPUs, more than 1 TB of RAM). This
 # lets the thread sweep extend to 256 threads so the Amdahl
 # fit is anchored well past the 128-core ceiling of the mc nodes.
 #
-# Submit: sbatch experiments/exp4_parallel_scaling/slurm_synode.sh
+# Submit: sbatch experiments/exp4_parallel_scaling/slurm_large_node.sh
 # ============================================================
 #SBATCH --job-name=g2g_exp4_parallel
 #SBATCH --output=logs/exp4_%j.out

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-demo/make_figures.py — compatibility shim.
+demo/make_figures.py - compatibility shim.
 
 The paper's figure generator now lives at the repository root
 (../make_figures.py) and reads the committed measurement tables by default.

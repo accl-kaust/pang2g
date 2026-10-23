@@ -1,5 +1,5 @@
 """
-sequence.py — Compute layer: sequence operations
+sequence.py - Compute layer: sequence operations
 =================================================
 All string-level computation lives here.
 No data structures are defined; inputs and outputs are plain Python types.

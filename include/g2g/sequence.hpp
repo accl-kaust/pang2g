@@ -2,7 +2,7 @@
 /**
  * include/g2g/sequence.hpp
  * ========================
- * String-level computation — C++ port of sequence.py.
+ * String-level computation - C++ port of sequence.py.
  *
  * Phase 3 optimisation targets (per Phase 2 cProfile findings):
  *   - edit_distance  accounts for 70% of total runtime via 2.1M calls.
@@ -59,7 +59,7 @@ inline std::string path_sequence(const VariationGraph& vg,
 /**
  * Compute allele sequences for a snarl: inner nodes only
  * (source and sink are excluded as shared boundary nodes).
- * Fills out — one string per allele — reusing buffer capacity.
+ * Fills out - one string per allele - reusing buffer capacity.
  * Requires the SnarlTree that owns the allele-path store for this snarl.
  */
 void allele_sequences(const VariationGraph& vg,

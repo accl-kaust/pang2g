@@ -2,19 +2,19 @@
 /**
  * include/g2g/span.hpp
  * ====================
- * Portable `g2g::span` — a non-owning view over a contiguous range.
+ * Portable `g2g::span` - a non-owning view over a contiguous range.
  *
  * G2G targets C++20, and `std::span` is the *only* C++20 standard-library
  * feature it relies on.  Unfortunately some HPC clusters still ship GCC 9
  * (e.g. Ubuntu 20.04's 9.4.0), whose libstdc++ does not provide `<span>` at
- * all — so a `#include <span>` aborts the build with
+ * all - so a `#include <span>` aborts the build with
  *     fatal error: span: No such file or directory
  *
  * To stay buildable on those toolchains without giving up C++20 elsewhere,
  * every G2G header/source uses `g2g::span` instead of `std::span`:
  *
  *   • If the standard library provides `std::span` (GCC ≥ 10, Clang ≥ 7 with
- *     libc++, MSVC), `g2g::span` is a thin alias for it — zero overhead, full
+ *     libc++, MSVC), `g2g::span` is a thin alias for it - zero overhead, full
  *     fidelity.
  *   • Otherwise, we provide a minimal dynamic-extent fallback implementing
  *     exactly the subset G2G uses:
@@ -38,7 +38,7 @@ template <class T>
 using span = std::span<T>;
 }  // namespace g2g
 
-#else  // ── fallback for pre-C++20 standard libraries (e.g. GCC 9.4) ──
+#else  // -- fallback for pre-C++20 standard libraries (e.g. GCC 9.4) --
 
 #include <cstddef>
 #include <iterator>     // std::data, std::size

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 04_intersect_gnomad_sv.sh — Intersect G2G delta alleles with gnomAD-SV
+# 04_intersect_gnomad_sv.sh - Intersect G2G delta alleles with gnomAD-SV
 #
 # Tests whether G2G-detected population-specific alleles (delta
 # graph) are enriched for population-differentiated SVs in gnomAD.
@@ -28,9 +28,9 @@ mkdir -p "$RESULTS/intersections"
 
 echo "[gnomad_int] Results: $RESULTS/intersections"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Find the most recent G2G delta BED
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 DELTA_BED=$(ls -t "$RESULTS"/afr_vs_eas_delta_*_sorted.bed.gz 2>/dev/null | head -1)
 if [[ -z "$DELTA_BED" ]]; then
     echo "[gnomad_int] ERROR: No delta BED found in $RESULTS"
@@ -49,9 +49,9 @@ if [[ ! -f "$GNOMAD_BED" ]]; then
     exit 1
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. Basic overlap: delta alleles that hit any gnomAD SV
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 OUT_OVERLAP="$RESULTS/intersections/delta_vs_gnomad_${TIMESTAMP}.bed"
 echo "[gnomad_int] Computing overlap with all gnomAD SVs..."
 
@@ -66,9 +66,9 @@ N_OVERLAP=$(wc -l < "$OUT_OVERLAP")
 echo "[gnomad_int] Delta alleles:      $N_DELTA"
 echo "[gnomad_int] Overlapping gnomAD: $N_OVERLAP ($(python3 -c "print(f'{$N_OVERLAP/$N_DELTA*100:.1f}%')" 2>/dev/null || echo "?"))"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2. Enrichment for high-FST (AFR-EAS differentiated) SVs
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 OUT_HIFST_OVERLAP="$RESULTS/intersections/delta_vs_gnomad_hifst_${TIMESTAMP}.bed"
 echo "[gnomad_int] Computing overlap with high-FST gnomAD SVs..."
 
@@ -81,9 +81,9 @@ bedtools intersect \
 N_HIFST_OVERLAP=$(wc -l < "$OUT_HIFST_OVERLAP")
 echo "[gnomad_int] High-FST overlap:   $N_HIFST_OVERLAP"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 3. Background overlap rate (random BED regions, same size)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[gnomad_int] Computing background overlap rate..."
 CHR_SIZES="$DATA_ROOT/clinvar/hg38.chrom.sizes"
 
@@ -100,15 +100,15 @@ if [[ -f "$CHR_SIZES" ]]; then
     echo "[gnomad_int] Shuffled (background):  $SHUFFLED_OVERLAP / $N_SHUFFLED"
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 4. SVtype breakdown of overlapping variants
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[gnomad_int] SV type breakdown of overlaps:"
 awk '{print $10}' "$OUT_OVERLAP" | sort | uniq -c | sort -rn | head -10 || true
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 5. Produce enrichment statistics table
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 ENRICH_TABLE="$RESULTS/intersections/enrichment_table_${TIMESTAMP}.tsv"
 python3 - <<PYEOF > "$ENRICH_TABLE"
 import math

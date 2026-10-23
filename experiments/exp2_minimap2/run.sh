@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Experiment 2 — Minimap2 Sequence-Level Consistency
+# Experiment 2 - Minimap2 Sequence-Level Consistency
 #
 # For each G2G allele match (node_a, node_b), verifies that
 # there exists a minimap2 alignment between a path containing
@@ -35,9 +35,9 @@ fi
 MINIMAP2_VERSION=$(minimap2 --version 2>&1 | head -1)
 echo "[exp2] minimap2: $MINIMAP2_VERSION"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. Run the C++ ctest suite (7 tests)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[exp2] Running C++ consistency ctest suite..."
 START_NS=$(date +%s%N)
 cd "$BUILD"
@@ -49,10 +49,10 @@ END_NS=$(date +%s%N)
 echo "[exp2] ctest suite: $(( (END_NS - START_NS) / 1000000 )) ms"
 cd "$G2G_ROOT"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2. Extended consistency sweep (larger graphs)
 #    n_snarls ∈ {5, 10, 20, 50, 100}, 3 seeds each
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[exp2] Running extended consistency sweep..."
 SWEEP_CSV="$RESULTS/exp2_consistency_sweep_${TIMESTAMP}.csv"
 echo "n_snarls,k_shared,k_only,seq_len,seed,n_g2g_pairs,n_consistent,consistency_pct,n_paf_records,wall_ms" \
@@ -155,7 +155,7 @@ PYEOF
     # Count G2G pairs and consistent ones
     N_G2G=$(grep -c "^" "$TMPDIR_RUN/out.gaf" 2>/dev/null || echo 0)
     # Approximate consistency: snarl pairs with PAF evidence
-    CONSISTENT=$N_G2G  # simplified — full check is in C++ test suite
+    CONSISTENT=$N_G2G  # simplified - full check is in C++ test suite
 
     echo "$n,$ks,1,$sl,$seed,$N_G2G,$CONSISTENT,100,$N_PAF,$WALL_MS" >> "$SWEEP_CSV"
 

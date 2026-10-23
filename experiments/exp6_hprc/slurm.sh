@@ -1,11 +1,11 @@
 #!/bin/bash --login
 # ============================================================
-# SLURM — Experiment 6 (HPRC Biological Validation)
+# SLURM - Experiment 6 (HPRC Biological Validation)
 #
 # This is a multi-stage pipeline. The HPRC download and
 # pangenome build are separate jobs (submitted with dependencies).
 #
-# Usage — submit all stages in sequence:
+# Usage - submit all stages in sequence:
 #
 #   # Stage 1: Download assemblies (~12h, network-limited)
 #   JOB1=$(sbatch --parsable experiments/exp6_hprc/slurm_download.sh)
@@ -26,7 +26,7 @@
 #SBATCH --job-name=g2g_exp6_hprc
 #SBATCH --output=logs/exp6_%j.out
 #SBATCH --error=logs/exp6_%j.err
-#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
+#SBATCH --partition=batch      # adjust to your cluster
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
@@ -48,7 +48,7 @@ export THREADS="$SLURM_CPUS_ON_NODE"
 
 echo "[slurm] Job $SLURM_JOB_ID  CPUs=$SLURM_CPUS_ON_NODE  RAM=$(free -h | awk '/Mem/{print $2}')  date=$(date)"
 
-# ── Stage 1: Stratify samples ─────────────────────────────────
+# -- Stage 1: Stratify samples ---------------------------------
 # Classifies strictly from the authoritative 1KGP panel fetched during
 # download (1kgp_pops.panel); regenerates the same balanced lists the
 # download wrote, filtered to samples whose assemblies are on disk.
@@ -59,22 +59,22 @@ python3 experiments/exp6_hprc/01_stratify_hprc_samples.py \
     --out-dir      "$G2G_DATA_ROOT/hprc/metadata/" \
     --assembly-dir "$G2G_DATA_ROOT/hprc/assemblies/"
 
-# ── Stage 2: Run G2G on HPRC pangenomes ──────────────────────
+# -- Stage 2: Run G2G on HPRC pangenomes ----------------------
 echo "[slurm] Running G2G on HPRC pangenomes..."
 bash experiments/exp6_hprc/03_run_g2g_on_hprc.sh
 
-# ── Stage 3: Intersect with gnomAD-SV ────────────────────────
+# -- Stage 3: Intersect with gnomAD-SV ------------------------
 echo "[slurm] Intersecting with gnomAD-SV..."
 bash experiments/exp6_hprc/04_intersect_gnomad_sv.sh
 
-# ── Stage 4: Intersect with ClinVar (OPTIONAL) ───────────────
+# -- Stage 4: Intersect with ClinVar (OPTIONAL) ---------------
 # ClinVar is a bonus annotation layer; the core result is the gnomAD-SV
 # enrichment above. Don't let a missing/empty ClinVar BED abort the job.
 CLINVAR_BED="$G2G_DATA_ROOT/clinvar/clinvar_pathogenic_svs.bed"
 if [[ -s "$CLINVAR_BED" ]]; then
     echo "[slurm] Intersecting with ClinVar..."
     bash experiments/exp6_hprc/05_intersect_clinvar.sh || \
-        echo "[slurm] WARNING: ClinVar step failed (non-fatal) — skipping."
+        echo "[slurm] WARNING: ClinVar step failed (non-fatal) - skipping."
 else
     echo "[slurm] SKIP ClinVar: $CLINVAR_BED missing/empty (optional layer)."
 fi

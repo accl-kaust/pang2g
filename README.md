@@ -1,4 +1,4 @@
-# PanG2G — graph-to-graph alignment of pangenome variation graphs
+# PanG2G: graph-to-graph alignment of pangenome variation graphs
 
 PanG2G compares two pangenome variation graphs **directly**, graph against
 graph, and reports the **delta graph**: every allele (SNP, indel, structural
@@ -19,7 +19,7 @@ It is the code behind
 
 Contents: [What it does](#1-what-it-does) ·
 [Quick start](#2-quick-start-any-linux-machine) ·
-[Running on KAUST IBEX](#3-running-on-kaust-ibex) ·
+[Running on a cluster](#3-running-on-a-cluster) ·
 [The test case](#4-the-test-case) ·
 [Your own graphs](#5-using-pang2g-on-your-own-graphs) ·
 [Reproducing the paper](#6-reproducing-the-paper) ·
@@ -57,7 +57,7 @@ The output is a VCF-style file with one record per private allele; see
 
 ## 2. Quick start (any Linux machine)
 
-Requirements: GCC ≥ 9 (or Clang ≥ 10), CMake ≥ 3.18, `python3` (≥ 3.6),
+Requirements: GCC >= 9 (or Clang >= 10), CMake >= 3.18, `python3` (>= 3.6),
 `bash`.  Nothing else is needed for the build or the test case; the Python
 scripts use only the standard library (numpy, if present, speeds one of them
 up).
@@ -86,64 +86,64 @@ access), and `--real` to download `vg` + `minimap2` and diff two pangenomes
 built from real HLA-DRB1 haplotypes.  `bash run_test_case.sh --help` lists
 every option.
 
-## 3. Running on KAUST IBEX
+## 3. Running on a cluster
 
-IBEX is a Slurm cluster.  The toolchain comes from modules; the versions
-below are the ones used for the paper's IBEX measurements (October 2026).
-Compiling this project takes about a minute, which is fine on the login
-node; everything heavier goes through `sbatch`.
+PanG2G needs only a C++ compiler, CMake and Python, so it fits the usual
+Slurm workflow without any site-specific setup.
 
-**On the login node** (`ilogin.ibex.kaust.edu.sa`):
+**On the login node:**
 
 ```bash
 git clone https://github.com/ahmadshakleya/G2G.git && cd G2G     # or unpack the archive
-module load gcc/12.2.0 cmake/3.28.4/gnu-11.3.1 python/3.11.0
-bash run_test_case.sh --unit                                     # ~3 minutes
+module load gcc cmake python     # whatever provides GCC >= 9, CMake >= 3.18 and python3 at your site
+bash run_test_case.sh --unit     # ~3 minutes; the compile is light enough for a login node
 ```
 
-**As a batch job** (builds and tests on a compute node; the output file
+**As a batch job** (`experiments/slurm/test_case.slurm`; the output file
 lands in `logs/`):
 
 ```bash
-# once, optional: cache googletest so the job can also run the unit tests
-# (compute nodes have no outbound network)
-mkdir -p /ibex/user/$USER
-curl -fsSL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz | tar xz -C /ibex/user/$USER
-
-sbatch experiments/ibex/test_case.slurm      # 8 CPUs, 16 GB, 30 min limit; ~3 min
+G2G_MODULES="gcc cmake python" sbatch experiments/slurm/test_case.slurm   # set --partition / --account in the file
 squeue --me
 tail -f logs/test_case_<jobid>.out
 ```
 
-The job script is `experiments/ibex/test_case.slurm`: it loads the modules,
-builds into `build/ibex` with `-DG2G_MARCH=x86-64-v3`, and runs
-`run_test_case.sh`.  Things to know on IBEX:
+The job loads the modules named in `G2G_MODULES` (leave it unset if your
+cluster needs none), builds into `build/slurm` with `-DG2G_MARCH=x86-64-v3`,
+and runs `run_test_case.sh`.  Points that matter on most clusters:
 
 - **Which binary runs where.**  The default build uses `-march=native`, so a
-  binary compiled on the login node may not run on a compute node of another
-  CPU generation (IBEX mixes Intel and several AMD generations).  Build with
+  binary compiled on the login node may not run on a compute node of a
+  different CPU generation.  Build with
   `G2G_MARCH=x86-64-v3 bash run_test_case.sh` (or
-  `cmake -DG2G_MARCH=x86-64-v3 ...`) for a binary that runs on every node; use
-  the default (native) when you build inside the job that will use it, as the
-  paper's job scripts do.
+  `cmake -DG2G_MARCH=x86-64-v3 ...`) for a binary that runs on any AVX2 node,
+  or build inside the job that will use it, as the paper's job scripts do.
 - **No network on compute nodes.**  Anything that downloads
   (`demo/01_setup_tools.sh`, `demo/04_real_hla_demo.sh`,
   `demo/09_fetch_biology_data.sh`, the googletest fetch) runs on the login
-  node.
-- **Disk.**  Keep large inputs and the generated graphs under
-  `/ibex/user/$USER` rather than in your home quota; the demo harnesses write
-  under `demo/work/`, so either clone the repository on `/ibex/user` or
-  symlink `demo/work` there.
+  node.  To include the unit tests in the batch job, unpack googletest once
+  on the login node and point `G2G_GTEST_DIR` at it:
+
+  ```bash
+  curl -fsSL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz | tar xz -C /path/to/scratch
+  G2G_GTEST_DIR=/path/to/scratch/googletest-1.14.0 sbatch experiments/slurm/test_case.slurm
+  ```
+
+- **Disk.**  Keep large inputs and generated graphs on a scratch file system
+  rather than under a home quota; the demo harnesses write under
+  `demo/work/`, so clone the repository on scratch or symlink `demo/work`
+  there.
 - **Threads.**  The parallel aligner uses all CPUs Slurm gives the job
   (`--cpus-per-task`); pass `--threads N` to the binary to use fewer.
 - **Figures** need numpy + matplotlib:
-  `python3 -m venv /ibex/user/$USER/venv && . /ibex/user/$USER/venv/bin/activate && pip install numpy matplotlib`.
-- **Larger runs.**  `experiments/ibex/*.slurm` are the whole-node jobs used
-  for the paper's 64/128-thread scaling, ablation and 8-Gbp results (they
-  copy the tree to `/ibex/user/$USER/run_<jobid>` and build there);
+  `python3 -m venv ~/g2g-venv && . ~/g2g-venv/bin/activate && pip install numpy matplotlib`.
+- **Larger runs.**  `experiments/accl/` and `experiments/ibex/` hold the
+  whole-node job scripts used for the paper's measurements on the authors'
+  clusters (parallel scaling to 128 threads, ablation, the 8-Gbp sweep);
   `experiments/exp*/slurm.sh` is the broader experiment suite, which expects
-  the conda environment described in `experiments/README.md`.  All of them
-  are submitted from the repository root.
+  the conda environment described in `experiments/README.md`.  All are
+  submitted from the repository root; set `--partition` and `--account` for
+  your site.
 
 ## 4. The test case
 
@@ -151,7 +151,7 @@ builds into `build/ibex` with `-DG2G_MARCH=x86-64-v3`, and runs
 answer is known in advance.  None needs network access or third-party
 tools.
 
-**Check 1 — planted ground truth** (`demo/03_synthetic_demo.sh`, < 1 s).
+**Check 1: planted ground truth** (`demo/03_synthetic_demo.sh`, < 1 s).
 `demo/make_synthetic_pair.py` writes two GFA graphs that embed the *same*
 400 bp reference path (`GRCh38`) but cut it into different node sizes
 (25 bp in A, 17 bp in B), and plants 5 SNPs in both graphs, 3 only in A
@@ -173,20 +173,20 @@ GRCh38  163   B_1   G    T    .     PASS    GRAPH=B;SNARL=GRCh38:163;LEN=1
 
   planted : shared=5 A_only=3 B_only=2
   reported: A_only=3 B_only=2
-  RESULT  : PASS — diff matches ground truth exactly
+  RESULT  : PASS - diff matches ground truth exactly
 
-=== 5. Self-diff (graph vs itself) — must be zero differences ===
+=== 5. Self-diff (graph vs itself) - must be zero differences ===
   a_only=0  b_only=0
 ```
 
-**Check 2 — enrichment statistic self-test** (`demo/hprc_enrich.py
+**Check 2: enrichment statistic self-test** (`demo/hprc_enrich.py
 --self-test`, ~1 s).  The paper's biological validation asks whether the
 delta alleles lie closer than chance to population-differentiated structural
 variants (high F_ST in gnomAD-SV) and to ClinVar pathogenic sites, using a
 permutation null.  The self-test plants an enrichment and must recover it
-(fold ≫ 1, p < 0.01), and must report none for a random control (fold ≈ 1).
+(fold >> 1, p < 0.01), and must report none for a random control (fold ~ 1).
 
-**Check 3 — the Q4 pipeline end to end on synthetic data**
+**Check 3: the Q4 pipeline end to end on synthetic data**
 (`demo/09_hprc_biology.sh --synthetic`, ~5 s).  A 10 Mb pair with 300
 planted population-specific sites is diffed with the real binary, a gnomAD-SV
 and ClinVar fixture is synthesised around the recovered deltas, and the
@@ -288,7 +288,7 @@ by a base from `bcftools norm`.
 
 ### Limits
 
-- Acyclic graphs only (a cyclic input stops with `Graph contains cycles —
+- Acyclic graphs only (a cyclic input stops with `Graph contains cycles -
   DAG required`).
 - Memory is linear in graph size: about 30 GB per 1 Gbp of reference in
   `--ref` mode with one variant per 200 bp (measured: 8 Gbp / 971 M nodes
@@ -311,9 +311,9 @@ regenerated from this repository.  The committed tables in `results/` and
 | Q1 real HLA-DRB1 graphs | `bash run_test_case.sh --real`; score with `experiments/plot/hla_truth_check.py demo/work/hla/popA.vcf demo/work/hla/popB.vcf demo/work/hla/hla_diff.vcf` | vg, minimap2, paftools (downloaded by `demo/01_setup_tools.sh`) |
 | Finding 1 (fig_matching) | `build/release/bench_matching > results/matching_cost_vs_k_cpp.csv` | nothing |
 | Finding 2 (fig_workload) | `cd python && python3 profile_workload.py` (Gini); allele histogram as in `results/allele_count_hist.csv` | networkx |
-| Q2 parallel scaling (fig_scaling) | `demo/07_parallel_scaling.sh`; on IBEX `sbatch experiments/ibex/scaling_64.slurm` | a many-core node |
+| Q2 parallel scaling (fig_scaling) | `demo/07_parallel_scaling.sh` (the paper's job: `experiments/ibex/scaling_64.slurm`) | a many-core node |
 | Q2 throughput vs. linearize-and-map (fig_throughput) | `demo/10_throughput_baseline.sh` | vg, bcftools, minimap2 + chr22 inputs (below) |
-| reference-anchored scaling (fig_refdiffscaling) | `demo/05_scaling_demo.sh`, `demo/06_scaling_limit.sh`; on IBEX `sbatch experiments/ibex/scaling_8gbp.slurm` | a large-memory node for the 8-Gbp point |
+| reference-anchored scaling (fig_refdiffscaling) | `demo/05_scaling_demo.sh`, `demo/06_scaling_limit.sh` (the paper's job: `experiments/ibex/scaling_8gbp.slurm`) | a large-memory node for the 8-Gbp point |
 | Q3 ablations (fig_ablation) | `demo/08_ablation.sh` | nothing |
 | Q4 biology (fig_biology, F_ST sweep) | `demo/09_fetch_biology_data.sh` then `demo/09_hprc_biology.sh`; sweep: `demo/hprc_enrich.py --fst-sweep 0.05,0.1,0.2,0.3,0.5` | vg, bcftools, tabix + ~1.5 GB of downloads |
 | all figures | `python3 make_figures.py` | numpy, matplotlib |
@@ -321,10 +321,10 @@ regenerated from this repository.  The committed tables in `results/` and
 Every harness writes the TSV/CSV that `make_figures.py` reads; pass the
 matching `--*-csv` flag to plot a fresh run.  `demo/README.md` describes
 each demo and its expected output; `experiments/README.md` describes the
-Slurm experiment suite.  `experiments/accl/` holds the three job scripts
-used for the camera-ready re-measurements on the authors' cluster (AMD EPYC
-7763 nodes, 48-CPU / 192 GB job limit); `experiments/ibex/` the IBEX jobs
-behind the 64/128-thread scaling, ablation and 8-Gbp results.
+Slurm experiment suite.  `experiments/accl/` and `experiments/ibex/` hold
+the job scripts used for the paper's measurements on the authors' clusters
+(the camera-ready re-measurements on 48-CPU / 192 GB jobs, and the
+64/128-thread scaling, ablation and 8-Gbp results on whole nodes).
 
 ### Public inputs used
 
@@ -353,14 +353,14 @@ demo/                  end-to-end demos and harnesses: synthetic truth, real HLA
                        graphs, scaling sweeps, parallel scaling, ablation, Q4 biology,
                        throughput; demo/README.md documents each with expected output
 demo/sample_outputs/   result tables and figures of the real-data runs
-experiments/           Slurm experiment suite (exp1-exp6), IBEX and ACCL job scripts,
+experiments/           Slurm experiment suite (exp1-exp6), the test-case job (slurm/),
+                       the job scripts used for the paper's measurements (accl/, ibex/),
                        generators and plot scripts; experiments/README.md
 results/               measured result tables behind the paper's figures
 make_figures.py        regenerates every figure in latex/figs/ from results/ + demo/sample_outputs/
 python/g2g/            Python reference prototype (correctness oracle; slow)
 python/                workload characterisation scripts (profile_workload.py, synth_generator.py)
 latex/                 the paper
-docs/dev-notes/        historical implementation notes
 logs/                  Slurm output and test-case logs (git-ignored)
 ```
 
@@ -368,13 +368,13 @@ logs/                  Slurm output and test-case logs (git-ignored)
 
 | symptom | cause / fix |
 |---|---|
-| `module: command not found` or `cmake: command not found` on IBEX | run `module load gcc/12.2.0 cmake/3.28.4/gnu-11.3.1 python/3.11.0` first (`module avail gcc` lists alternatives if a version has been retired) |
+| `cmake: command not found`, or the compiler rejects C++20 | load your site's toolchain modules (`module avail gcc cmake python` lists them) or install GCC >= 9 and CMake >= 3.18 |
 | `/usr/bin/env: 'bash\r': No such file or directory` | the files were copied with Windows line endings; run `find . -name '*.sh' -o -name '*.py' -o -name '*.slurm' \| xargs sed -i 's/\r$//'` (a fresh `git clone` is already correct: `.gitattributes` forces LF) |
 | `Illegal instruction` when running a binary built elsewhere | it was built with `-march=native` on a different CPU; rebuild with `G2G_MARCH=x86-64-v3` (or in the job that uses it) |
 | CMake fails fetching googletest (no network) | build without tests: `-DG2G_BUILD_TESTS=OFF` (what `run_test_case.sh` does without `--unit`), or point `G2G_GTEST_DIR` / `-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST` at an unpacked googletest-1.14.0 |
 | `fatal error: span: No such file or directory` | should not happen: GCC 9's libstdc++ lacks `<span>` and `include/g2g/span.hpp` substitutes a shim; report it if it does |
 | `ERROR: reference path 'X' not found in both graphs` | the graphs' path names differ; `grep '^[PW]' A.gfa \| cut -f2 \| head` shows them; `--ref` accepts a P-line name, or the sample or contig of a PanSN W-line |
-| `Graph contains cycles — DAG required` | the graph has a cycle (e.g. from `vg msga` or a PGGB build); PanG2G needs an acyclic, reference-anchored graph such as `vg construct` or Minigraph-Cactus output |
+| `Graph contains cycles - DAG required` | the graph has a cycle (e.g. from `vg msga` or a PGGB build); PanG2G needs an acyclic, reference-anchored graph such as `vg construct` or Minigraph-Cactus output |
 | exit status 2, `snarl_pairs=0` | nothing could be paired: wrong `--ref` name, or in graph-to-graph mode the inputs share no boundary sequences; try `--ref`, `--pairing interval`, or `--dump-snarls` to inspect |
 | positions look off by one against a VCF | `--vcf` output uses 0-based POS (section 5); add 1 |
 | `sbatch: error: Unable to open output file` | submit from the repository root so `logs/` exists |

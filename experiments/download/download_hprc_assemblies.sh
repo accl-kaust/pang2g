@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # Download HPRC Year 1 (v2.0) assemblies for AFR and EAS
-# populations — needed for Experiment 6.
+# populations - needed for Experiment 6.
 #
 # Total size: ~1 TB (all 94 samples, diploid, both haplotypes)
 # We download only AFR (n=20) and EAS (n=20) samples = ~400 GB.
@@ -33,9 +33,9 @@ echo "[hprc] Populations: $POPS"
 echo "[hprc] Samples/pop: $N_PER_POP"
 echo "[hprc] Parallel:    $NCPU jobs"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. Download sample metadata (population assignments)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 METADATA_URL="https://raw.githubusercontent.com/human-pangenomics/HPP_Year1_Assemblies/main/assembly_index/Year1_assemblies_v2_genbank.index"
 
 echo "[hprc] Downloading sample metadata..."
@@ -46,14 +46,14 @@ wget -q --show-progress -O "$METADATA_DIR/hprc_v2_index.tsv" "$METADATA_URL" || 
 
 # Download the authoritative 1000 Genomes population table so we can classify
 # each HPRC sample by ancestry instead of trusting a hardcoded list. We use the
-# expanded 3202-sample pedigree+population file (2020), which — unlike the 2013
-# 2504-sample panel — actually contains the newer HPRC samples (HG00438,
+# expanded 3202-sample pedigree+population file (2020), which - unlike the 2013
+# 2504-sample panel - actually contains the newer HPRC samples (HG00438,
 # NA19240, etc.). The 2504 panel is kept only as a fallback. Validate the file
 # really looks like a population table (>1000 data rows mentioning AFR/EAS)
 # rather than an empty file or an HTML error page.
 PANEL="$METADATA_DIR/1kgp_pops.panel"
 # The 3202-sample table contains the HPRC samples; the 2013 2504-panel does NOT,
-# so it is deliberately excluded — falling back to it silently mislabels
+# so it is deliberately excluded - falling back to it silently mislabels
 # everything as unclassified. We REQUIRE a known HPRC sample (HG00438) to be
 # present, not just any AFR/EAS string, so a wrong file can't pass validation.
 PANEL_URLS=(
@@ -86,10 +86,10 @@ fi
 
 echo "[hprc] Metadata written to $METADATA_DIR"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2+3. Resolve fasta URLs AND select a BALANCED AFR/EAS sample set
-# ─────────────────────────────────────────────────────────────
-# The HPRC Year-1 assembly set is heavily skewed away from EAS — only ~6 East
+# -------------------------------------------------------------
+# The HPRC Year-1 assembly set is heavily skewed away from EAS - only ~6 East
 # Asian samples exist in the whole index. Rather than hardcode (fragile, and our
 # earlier guesses were wrong: NA18*/NA19* are actually YRI), we join the index
 # against the 1KGP panel to get each sample's super-population, then pick an
@@ -199,9 +199,9 @@ mapfile -t EAS_SAMPLES < "$METADATA_DIR/eas_samples.txt"
 echo "[hprc] AFR samples (${#AFR_SAMPLES[@]}): ${AFR_SAMPLES[*]}"
 echo "[hprc] EAS samples (${#EAS_SAMPLES[@]}): ${EAS_SAMPLES[*]}"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 4. Download assemblies (both haplotypes per sample)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 to_https() {
     local u="$1"
     if [[ "$u" == s3://* ]]; then
@@ -262,9 +262,9 @@ mkdir -p "$ASSEMBLY_DIR/EAS"
 printf '%s\n' "${EAS_SAMPLES[@]}" | \
     xargs -P "$NCPU" -I{} bash -c 'download_sample "$@"' _ {} EAS
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 5. Verify downloads
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo ""
 echo "[hprc] Verifying downloads..."
 AFR_COUNT=$(find "$ASSEMBLY_DIR/AFR" -name "*.fa.gz" -size +1M | wc -l)

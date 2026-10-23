@@ -1,17 +1,17 @@
 /**
  * tests/test_parallel.cpp
  * =======================
- * Phase 4 test suite — work-stealing parallel runtime.
+ * Phase 4 test suite - work-stealing parallel runtime.
  *
  * Test groups
  * -----------
- * ParallelBasic  — single-thread parallel == sequential output
- * ParallelMulti  — multi-thread produces same result as sequential
- * TaskDag        — task DAG structure (dep counts, priorities)
- * ScalingProxy   — timing proxy for Experiment 4 data (not a strict assert,
+ * ParallelBasic  - single-thread parallel == sequential output
+ * ParallelMulti  - multi-thread produces same result as sequential
+ * TaskDag        - task DAG structure (dep counts, priorities)
+ * ScalingProxy   - timing proxy for Experiment 4 data (not a strict assert,
  *                  but records wall time for the paper's scaling figure)
- * MemEvict       — results freed after parent executes (peak memory)
- * EnvOverride    — G2G_NUM_THREADS env variable honoured
+ * MemEvict       - results freed after parent executes (peak memory)
+ * EnvOverride    - G2G_NUM_THREADS env variable honoured
  */
 
 #include <gtest/gtest.h>
@@ -30,7 +30,7 @@
 namespace g2g {
 namespace {
 
-// ── Graph builders ────────────────────────────────────────────────────────────
+// -- Graph builders ------------------------------------------------------------
 
 /**
  * Build a variation graph with `num_bubbles` independent bubbles,
@@ -84,7 +84,7 @@ static VariationGraph make_bubbles(const std::string& name,
 
 /**
  * Build a chain of bubbles whose allele counts vary per bubble (given by `ks`).
- * Allele sequences depend only on (bubble, allele) — NOT on `name` — so two
+ * Allele sequences depend only on (bubble, allele) - NOT on `name` - so two
  * graphs built from the same `ks` have byte-identical corresponding snarls and
  * must align position-for-position.  Because the bubble sizes differ, a
  * scheduler that paired snarls by subtree work (size) would cross-pair them.
@@ -123,7 +123,7 @@ static VariationGraph make_varying_bubbles(const std::string& name,
  * Backbone of distinct anchor nodes a0..a_{n-1} (each a UNIQUE sequence) with a
  * 2-allele bubble (ref edge + one alt node) at each position in `bubbles`.
  * Because the anchors are distinct, every bubble has a distinct boundary key, so
- * two graphs' bubbles correspond ONLY where their positions coincide — unlike
+ * two graphs' bubbles correspond ONLY where their positions coincide - unlike
  * the chained builders above, whose bubbles all share the ("N","N") boundary.
  */
 static VariationGraph make_positional(const std::string& name, int n_anchor,
@@ -143,7 +143,7 @@ static VariationGraph make_positional(const std::string& name, int n_anchor,
     return vg;
 }
 
-// ── Reference: sequential aligner result ─────────────────────────────────────
+// -- Reference: sequential aligner result -------------------------------------
 
 static AlignmentResult seq_align(const VariationGraph& ga,
                                   const VariationGraph& gb) {
@@ -151,7 +151,7 @@ static AlignmentResult seq_align(const VariationGraph& ga,
     return aligner.align(ga, gb);
 }
 
-// ── ParallelBasic: 1 thread == sequential ────────────────────────────────────
+// -- ParallelBasic: 1 thread == sequential ------------------------------------
 
 TEST(ParallelBasic, SingleThreadMatchesSequential) {
     auto ga = make_bubbles("A", 4, 3);
@@ -185,7 +185,7 @@ TEST(ParallelBasic, SingleBubble) {
     EXPECT_GE(result.total_score, 0.f);
 }
 
-// ── ParallelMulti: multi-thread result consistent with sequential ─────────────
+// -- ParallelMulti: multi-thread result consistent with sequential -------------
 
 TEST(ParallelMulti, TwoThreadsMatchSequential) {
     auto ga = make_bubbles("A", 8, 3);
@@ -245,8 +245,8 @@ TEST(ParallelMulti, MaxHardwareThreads) {
 
 // Regression: corresponding snarls of *different* sizes must still pair
 // position-for-position.  The earlier subtree-work pairing cross-matched them
-// (e.g. the smallest A-snarl with the largest B-snarl), producing a different —
-// often negative — total score than the sequential aligner.
+// (e.g. the smallest A-snarl with the largest B-snarl), producing a different  - 
+// often negative - total score than the sequential aligner.
 TEST(ParallelMulti, HeterogeneousSnarlSizesMatchSequential) {
     std::vector<uint32_t> ks = {2, 6, 3, 8, 4, 5};
     auto ga = make_varying_bubbles("A", ks);
@@ -266,7 +266,7 @@ TEST(ParallelMulti, HeterogeneousSnarlSizesMatchSequential) {
     EXPECT_EQ(par.b_only_alleles.size(), seq.b_only_alleles.size());
 }
 
-// ── TaskDag: structural properties of the task DAG ───────────────────────────
+// -- TaskDag: structural properties of the task DAG ---------------------------
 
 TEST(TaskDag, FlatTreeAllTasksReadyImmediately) {
     // Flat snarl trees (depth 1) → all dep_counts == 0
@@ -352,13 +352,13 @@ TEST(TaskDag, HigherKHigherPriority) {
     }
 }
 
-// ── ScalingProxy: wall-time data for Experiment 4 ────────────────────────────
-// These tests are informational (they don't assert speedup — we have only
+// -- ScalingProxy: wall-time data for Experiment 4 ----------------------------
+// These tests are informational (they don't assert speedup - we have only
 // a few cores in the test environment) but produce the timing data that
 // goes into Figure 3 of the paper.
 
 TEST(ScalingProxy, WallTimeDeclinesWithMoreThreads) {
-    // 50 bubbles, k=4 — enough work to see a trend even on 2 cores
+    // 50 bubbles, k=4 - enough work to see a trend even on 2 cores
     auto ga = make_bubbles("A", 50, 4);
     auto gb = make_bubbles("B", 50, 4);
 
@@ -377,7 +377,7 @@ TEST(ScalingProxy, WallTimeDeclinesWithMoreThreads) {
     double tN_wall = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - t0).count();
 
-    // Record (no strict assert — Experiment 4 will run on HPRC scale)
+    // Record (no strict assert - Experiment 4 will run on HPRC scale)
     std::cout << "[ScalingProxy] T1=" << t1_wall << "s  T" << hw
               << "=" << tN_wall << "s  speedup="
               << t1_wall / tN_wall << "x\n";
@@ -399,7 +399,7 @@ TEST(ScalingProxy, StatsFieldsPopulated) {
     EXPECT_EQ(s.num_threads,    2u);
 }
 
-// ── RunStats instrumentation: steals, imbalance, ready_peak, phases ──────────
+// -- RunStats instrumentation: steals, imbalance, ready_peak, phases ----------
 
 TEST(RunStats, ImbalanceIsAtLeastOneAndStealsBounded) {
     auto ga = make_bubbles("A", 40, 4);
@@ -459,7 +459,7 @@ TEST(RunStats, SequentialAlignerExposesPhaseTimes) {
     EXPECT_GT(pt.dp_seconds,        0.0);  // DP always does real work here
 }
 
-// ── EnvOverride ───────────────────────────────────────────────────────────────
+// -- EnvOverride ---------------------------------------------------------------
 
 TEST(EnvOverride, EnvVariableHonoured) {
     // Set G2G_NUM_THREADS=3, construct with auto-detect (0), verify
@@ -493,7 +493,7 @@ TEST(EnvOverride, ExplicitCountOverridesEnv) {
 #endif
 }
 
-// ── AlignSnarls interface (used by GraphAligner replacement) ──────────────────
+// -- AlignSnarls interface (used by GraphAligner replacement) ------------------
 
 TEST(ParallelAlignSnarls, ReturnsCorrectCount) {
     auto ga = make_bubbles("A", 6, 2);

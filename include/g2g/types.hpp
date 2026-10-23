@@ -2,12 +2,12 @@
 /**
  * include/g2g/types.hpp
  * =====================
- * Core data structures. No computation here — mirrors types.py.
+ * Core data structures. No computation here - mirrors types.py.
  *
  * Memory layout notes (for Phase 3 cache-oblivious work):
  *   - Node sequences are stored in VariationGraph::seq_data (flat byte array)
  *     and referenced by [offset, length] pairs.  No per-node std::string.
- *   - SnarlTree uses van Emde Boas layout (Phase 3, §2.5.2) — index helpers
+ *   - SnarlTree uses van Emde Boas layout (Phase 3, §2.5.2) - index helpers
  *     are in decompose.hpp.
  */
 
@@ -18,7 +18,7 @@
 
 namespace g2g {
 
-// ── Node / Edge types ─────────────────────────────────────────
+// -- Node / Edge types -----------------------------------------
 
 using NodeId = uint32_t;
 constexpr NodeId kInvalidNode = ~NodeId{0};
@@ -30,7 +30,7 @@ struct NodeRef {
     NodeId   id;       // stable external id
 };
 
-// ── Snarl ─────────────────────────────────────────────────────
+// -- Snarl -----------------------------------------------------
 
 /**
  * A snarl is a (source, sink) bubble.
@@ -58,7 +58,7 @@ struct Snarl {
     uint32_t child_count()  const { return children_end - children_begin; }
 };
 
-// ── Alignment records ─────────────────────────────────────────
+// -- Alignment records -----------------------------------------
 
 struct AlleleMatch {
     uint16_t idx_a;
@@ -104,7 +104,7 @@ struct AlignmentResult {
     std::vector<SnarlAlignment> snarl_alignments;
     float                       total_score{0.f};
 
-    // Delta graph: alleles present in only one of the two graphs — the alleles
+    // Delta graph: alleles present in only one of the two graphs - the alleles
     // LAPJV left unmatched inside paired snarls plus every allele of a snarl
     // that found no partner.  Populated by build_deltas() (align.hpp).
     std::vector<DeltaAllele>    a_only_alleles;   // in A, not in B

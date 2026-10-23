@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-hla_truth_check.py — score a `g2g --ref` delta VCF against the variant lists
+hla_truth_check.py - score a `g2g --ref` delta VCF against the variant lists
 the two population graphs were BUILT from (demo/04_real_hla_demo.sh).
 
 Ground truth: an atomic variant (0-based pos, ref, alt) is A-only if it is in

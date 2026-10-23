@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-make_figures.py — regenerate every figure of the PanG2G paper (latex/figs/*.pdf).
+make_figures.py - regenerate every figure of the PanG2G paper (latex/figs/*.pdf).
 
 Every data figure is drawn from a committed measurement file, so a plain
 
@@ -48,7 +48,7 @@ plt.rcParams.update({
 BLUE, RED, GREY, GREEN = "#1f77b4", "#d62728", "#7f7f7f", "#2ca02c"
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
+# -- helpers -------------------------------------------------------------------
 def _box(ax, x, y, w, h, text, fc="#eef3fb", ec=BLUE, fs=8, lw=1.2):
     ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.012,rounding_size=0.03",
                                 fc=fc, ec=ec, lw=lw, mutation_aspect=0.6))
@@ -87,9 +87,9 @@ def _need(path):
     return path
 
 
-# ── data figures ──────────────────────────────────────────────────────────────
+# -- data figures --------------------------------------------------------------
 def fig_matching(path, csv_path):
-    """k, brute_ms, lapjv_ms — measured by tools/bench_matching.cpp (C++)."""
+    """k, brute_ms, lapjv_ms - measured by tools/bench_matching.cpp (C++)."""
     rows = _rows(_need(csv_path))
     k, t_b, t_l = _col(rows, "k"), _col(rows, "brute_ms"), _col(rows, "lapjv_ms")
     fig, ax = plt.subplots(figsize=(3.4, 2.5))
@@ -243,7 +243,7 @@ def fig_scaling(path, tsv, max_cores=64):
     ax.set_xlabel("cores"); ax.set_ylabel("speedup vs. sequential")
     ax.legend(loc="upper left"); ax.grid(True, which="both", ls=":", alpha=0.4)
     if diverged:
-        ax.text(0.5, 0.5, r"INVALID — parallel $\neq$ sequential", transform=ax.transAxes,
+        ax.text(0.5, 0.5, r"INVALID - parallel $\neq$ sequential", transform=ax.transAxes,
                 ha="center", va="center", fontsize=13, color=RED, alpha=0.3, rotation=18)
     fig.savefig(path); plt.close(fig)
 
@@ -358,7 +358,7 @@ def fig_pairing_error(path, csv_path):
     fig.savefig(path); plt.close(fig)
 
 
-# ── schematics ────────────────────────────────────────────────────────────────
+# -- schematics ----------------------------------------------------------------
 def fig_paradigm(path):
     fig, axs = plt.subplots(1, 3, figsize=(7.0, 1.9))
     for ax in axs: _clean(ax); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
@@ -542,8 +542,8 @@ def fig_veb(path):
     veb_order = ["R", "S1", "a", "b", "S2", "c", "S3", "d", "e"]
     hi = {**{n: st_colors["S1"] for n in ["S1", "a", "b"]}, **{n: st_colors["S3"] for n in ["S3", "d", "e"]},
           "R": "#eef3fb", "S2": "#eef3fb", "c": "#f5f5f5"}
-    cells(axes[1], bfs_order, hi, "(b) BFS layout — subtrees scattered")
-    cells(axes[2], veb_order, hi, "(c) vEB layout — subtrees contiguous")
+    cells(axes[1], bfs_order, hi, "(b) BFS layout - subtrees scattered")
+    cells(axes[2], veb_order, hi, "(c) vEB layout - subtrees contiguous")
     a2 = axes[2]
     a2.annotate("", xy=(0.205, 0.15), xytext=(0.41, 0.15), arrowprops=dict(arrowstyle="|-|", color=BLUE, lw=0.8))
     a2.text(0.305, 0.03, "S1 subtree", ha="center", fontsize=5.5, color=BLUE)
@@ -552,7 +552,7 @@ def fig_veb(path):
     fig.tight_layout(); fig.savefig(path); plt.close(fig)
 
 
-# ── driver ────────────────────────────────────────────────────────────────────
+# -- driver --------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--outdir", default=R("latex", "figs"))

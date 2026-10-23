@@ -2,7 +2,7 @@
 # Run the whole demo end to end, teeing every step into demo/logs/.
 # Usage: bash demo/run_all.sh              (build + synthetic + scaling + real)
 #        SKIP_SCALING=1 bash demo/run_all.sh   (skip the scaling sweep)
-#        SKIP_REAL=1 bash demo/run_all.sh      (synthetic only — no downloads)
+#        SKIP_REAL=1 bash demo/run_all.sh      (synthetic only - no downloads)
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 LOGS="$DEMO_DIR/logs"; mkdir -p "$LOGS"
 
@@ -14,7 +14,7 @@ if [ "${SKIP_SCALING:-0}" != "1" ]; then
 fi
 
 if [ "${SKIP_REAL:-0}" = "1" ]; then
-    echo "SKIP_REAL=1 — skipping the real-data demo."
+    echo "SKIP_REAL=1 - skipping the real-data demo."
     exit 0
 fi
 bash "$DEMO_DIR/01_setup_tools.sh"      2>&1 | tee "$LOGS/01_setup_tools.log"

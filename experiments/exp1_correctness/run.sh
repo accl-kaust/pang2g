@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Experiment 1 — Synthetic Ground-Truth Correctness
+# Experiment 1 - Synthetic Ground-Truth Correctness
 #
 # Runs the Exp1 test suite (planted variants
 # at known positions; measures recall and precision).
@@ -27,18 +27,18 @@ echo "[exp1] G2G root:   $G2G_ROOT"
 echo "[exp1] Results:    $RESULTS"
 echo "[exp1] Timestamp:  $TIMESTAMP"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 0. Build if needed
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 if [[ ! -f "$BINARY" ]]; then
-    echo "[exp1] Binary not found — building..."
+    echo "[exp1] Binary not found - building..."
     cmake -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -G Ninja "$G2G_ROOT"
     cmake --build "$BUILD" -j"$(nproc)"
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. Run the ctest suite (43 + standalone tests)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[exp1] Running ctest suite..."
 START_NS=$(date +%s%N)
 
@@ -52,12 +52,12 @@ END_NS=$(date +%s%N)
 ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
 echo "[exp1] ctest suite finished in ${ELAPSED_MS} ms"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2. Pairing-error sweep (Exp1b): planted graphs of 5 to 1e5 snarls, short
 #    (colliding) boundary keys and private snarls, boundary-key vs.
 #    anchor-interval pairing.  Scores BOTH deltas by allele sequence.
 #    (The earlier inline sweep read the wrong VCF column and is removed.)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[exp1] Running pairing-error sweep..."
 SWEEP_CSV="$RESULTS/exp1b_pairing_error_${TIMESTAMP}.csv"
 python3 "$G2G_ROOT/experiments/exp1_correctness/pairing_error_sweep.py" \

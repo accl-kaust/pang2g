@@ -1,16 +1,16 @@
 """
-graph.py — Memory layer: VariationGraph
+graph.py - Memory layer: VariationGraph
 ========================================
 Stores the variation graph in a networkx DiGraph.
 All methods are either builders (mutate state) or accessors (read state).
-No algorithmic computation — that lives in sequence.py / decompose.py.
+No algorithmic computation - that lives in sequence.py / decompose.py.
 
 Class
 -----
 VariationGraph
     .add_node(id, seq)          builder
     .add_edge(u, v)             builder
-    .add_path(name, node_ids)   builder — also registers edges
+    .add_path(name, node_ids)   builder - also registers edges
     .seq(node_id)               accessor
     .nodes()                    accessor
     .successors(v)              accessor
@@ -40,7 +40,7 @@ class VariationGraph:
         self.g: nx.DiGraph            = nx.DiGraph()
         self.paths: dict[str, list[str]] = {}
 
-    # ── builders ──────────────────────────────────────────────
+    # -- builders ----------------------------------------------
 
     def add_node(self, node_id: str, seq: str) -> "VariationGraph":
         self.g.add_node(node_id, seq=seq)
@@ -57,7 +57,7 @@ class VariationGraph:
             self.add_edge(u, v)
         return self
 
-    # ── accessors ─────────────────────────────────────────────
+    # -- accessors ---------------------------------------------
 
     def seq(self, node_id: str) -> str:
         return self.g.nodes[node_id]["seq"]
@@ -71,7 +71,7 @@ class VariationGraph:
     def predecessors(self, v: str) -> list[str]:
         return list(self.g.predecessors(v))
 
-    # ── display ───────────────────────────────────────────────
+    # -- display -----------------------------------------------
 
     def __repr__(self) -> str:
         return (f"VariationGraph({self.name!r}, "

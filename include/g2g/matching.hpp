@@ -2,20 +2,20 @@
 /**
  * include/g2g/matching.hpp
  * ========================
- * Bipartite allele matching — C++ replacement for bipartite_allele_match().
+ * Bipartite allele matching - C++ replacement for bipartite_allele_match().
  *
  * Phase 2 finding: brute-force is 1,491× slower at k=7 vs k=2; infeasible
  * at k≥8.  This module provides:
  *
- *   hungarian_match()  — O(k^3) via Jonker-Volgenant LAPJV algorithm.
+ *   hungarian_match()  - O(k^3) via Jonker-Volgenant LAPJV algorithm.
  *                        Mandatory for k > 6.  This is the Phase 3
  *                        highest-priority task (§3.3, item 4).
  *
- *   greedy_match()     — O(k^2 log k) approximation; (1-1/e) ratio.
+ *   greedy_match()     - O(k^2 log k) approximation; (1-1/e) ratio.
  *                        Fallback for k > 30 (Phase 2: rare at HPRC scale
  *                        but present in complex SV regions).
  *
- *   brute_match()      — Exact brute-force; only for k ≤ 6 unit tests
+ *   brute_match()      - Exact brute-force; only for k ≤ 6 unit tests
  *                        (correctness oracle against the Python prototype).
  *
  * All three share the same MatchResult type so the aligner can swap them.
@@ -73,7 +73,7 @@ MatchResult greedy_match(g2g::span<const std::string_view> seqs_a,
                           const MatchParams& params = {});
 
 /**
- * Brute-force — exact, for k ≤ 6 only.
+ * Brute-force - exact, for k ≤ 6 only.
  * Used as a test oracle to verify hungarian_match output.
  * Mirrors bipartite_allele_match() from align.py exactly.
  */

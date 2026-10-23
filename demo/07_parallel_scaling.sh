@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo 4 — parallel scaling of the work-stealing aligner.
+# Demo 4 - parallel scaling of the work-stealing aligner.
 #
 # Fixes one graph pair and sweeps the thread count, reporting end-to-end AND
 # DP-phase speedup (the Amdahl distinction) plus the scheduler's [runstats]
@@ -10,7 +10,7 @@
 #   * Baseline is --threads 1, NOT --sequential. Both use the SAME algorithm
 #     (anchor-based snarl correspondence + per-snarl DP); the only difference is
 #     thread count, so the speedup is pure parallelism. (--sequential is a
-#     DIFFERENT, greedy O(snarls^2) pairing — it over-pairs and is far slower;
+#     DIFFERENT, greedy O(snarls^2) pairing - it over-pairs and is far slower;
 #     comparing against it conflates an algorithmic change with parallelism, as
 #     an early "172x" measurement did.)
 #   * The pair carries SV-like snarls (long, multi-allele bubbles via --alt-len),
@@ -37,7 +37,7 @@ CFRAC="${CFRAC:-0.5}"; ALT_LEN="${ALT_LEN:-200}"; REPS="${REPS:-3}"
 NPROC="$(nproc)"; THREADS="${THREADS:-1 2 4 8 16 32 64 128}"
 
 bp=$(( SIZE_MB * 1000000 )); N=$(( bp / 200 )); na=$(( N / 10 )); nb="$na"; nsh=$(( N - na - nb ))
-log "Parallel scaling — ${SIZE_MB} Mb pair, SV-like snarls (max_k=${MAX_K}, alt_len=${ALT_LEN}); baseline = 1 thread"
+log "Parallel scaling - ${SIZE_MB} Mb pair, SV-like snarls (max_k=${MAX_K}, alt_len=${ALT_LEN}); baseline = 1 thread"
 python3 "$DEMO_DIR/make_synthetic_pair.py" --length "$bp" \
     --n-shared "$nsh" --n-a "$na" --n-b "$nb" --chop-a "$CHOP" --chop-b "$CHOP" \
     --max-k "$MAX_K" --complex-frac "$CFRAC" --alt-len "$ALT_LEN" --outdir "$OUT" >/dev/null
@@ -80,7 +80,7 @@ echo
 note "results: $TSV   (baseline = 1 thread; speedup is pure parallelism)"
 note "plot:    python3 make_figures.py --scaling-csv $TSV"
 if [ "$bad" = 1 ]; then
-    echo "WARNING: thread counts disagree on snarl-pair count — a parallel bug, not a speedup." >&2
+    echo "WARNING: thread counts disagree on snarl-pair count - a parallel bug, not a speedup." >&2
 else
-    echo "OK — parallel scaling sweep complete (deterministic across thread counts)"
+    echo "OK - parallel scaling sweep complete (deterministic across thread counts)"
 fi

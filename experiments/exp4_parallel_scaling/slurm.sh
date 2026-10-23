@@ -1,6 +1,6 @@
 #!/bin/bash --login
 # ============================================================
-# SLURM — Experiment 4 (Parallel Scaling)
+# SLURM - Experiment 4 (Parallel Scaling)
 # Needs 128 CPUs and 256 GB RAM for HPRC-scale graph.
 #
 # Submit: sbatch experiments/exp4_parallel_scaling/slurm.sh
@@ -9,7 +9,7 @@
 #SBATCH --job-name=g2g_exp4_parallel
 #SBATCH --output=logs/exp4_%j.out
 #SBATCH --error=logs/exp4_%j.err
-#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
+#SBATCH --partition=batch      # adjust to your cluster
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128

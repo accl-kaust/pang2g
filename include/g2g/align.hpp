@@ -2,14 +2,14 @@
 /**
  * include/g2g/align.hpp
  * =====================
- * Graph-to-graph alignment — sequential driver and snarl pairing.
+ * Graph-to-graph alignment - sequential driver and snarl pairing.
  *
  * Pipeline (GraphAligner::align, mirrored by ParallelAligner::align):
- *   1. find_anchors()        — backbone node matching (anchor.hpp)
- *   2. SnarlDecomposer       — snarl tree construction (decompose.hpp)
- *   3. pair_snarls()         — snarl pairing (boundary-key or anchor-interval)
- *   4. score_snarl_pair()    — W_seq + W_topo + W_struct (LAPJV allele matching)
- *   5. build_deltas()        — delta graphs: unmatched alleles of paired snarls
+ *   1. find_anchors()        - backbone node matching (anchor.hpp)
+ *   2. SnarlDecomposer       - snarl tree construction (decompose.hpp)
+ *   3. pair_snarls()         - snarl pairing (boundary-key or anchor-interval)
+ *   4. score_snarl_pair()    - W_seq + W_topo + W_struct (LAPJV allele matching)
+ *   5. build_deltas()        - delta graphs: unmatched alleles of paired snarls
  *                              plus every allele of an unpaired snarl
  *
  * The parallel runtime (parallel.hpp) replaces the per-pair loop of step 4 with
@@ -31,10 +31,10 @@ namespace g2g {
 /**
  * How snarls of A are paired with snarls of B before the per-pair matching.
  *
- *  Boundary  — identical (source, sink) boundary sequences; repeated keys are
+ *  Boundary  - identical (source, sink) boundary sequences; repeated keys are
  *              consumed positionally (FIFO).  O(|TA|+|TB|).  Default; this is
  *              the rule all reported scaling/ablation numbers were produced with.
- *  Interval  — anchor-guided: snarls are grouped into the intervals between
+ *  Interval  - anchor-guided: snarls are grouped into the intervals between
  *              consecutive shared anchors and paired within each interval by
  *              an order-preserving dynamic program.  Contains pairing errors to
  *              a single interval.  Near-linear when anchors are dense.
@@ -53,7 +53,7 @@ struct AlignerParams {
     MatchParams  match;
 };
 
-// ── Per-phase wall-clock breakdown ────────────────────────────────────────────
+// -- Per-phase wall-clock breakdown --------------------------------------------
 // Populated by the aligners so the CLI can emit a `[timing]` line under
 // --verbose-timing.  (I/O time is measured separately in main, since GFA
 // reading happens before the aligner is invoked.)
@@ -102,7 +102,7 @@ private:
  * byte-identical.  Pairing is injective and resolved in snarl order, so
  * repeated boundary sequences fall back to a positional (FIFO) match.  Runs in
  * O(|TA| + |TB|).  A snarl present in only one graph whose key repeats shifts
- * every later snarl with that key by one position — the cascade that
+ * every later snarl with that key by one position - the cascade that
  * PairingMode::Interval prevents.
  */
 std::vector<std::pair<uint32_t, uint32_t>> correspond_snarls(

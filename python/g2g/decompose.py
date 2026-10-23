@@ -1,5 +1,5 @@
 """
-decompose.py — Compute layer: snarl decomposition
+decompose.py - Compute layer: snarl decomposition
 ==================================================
 Identifies bubble snarls in a VariationGraph and builds the snarl tree.
 Pure computation: reads graph topology, writes Snarl objects.
@@ -9,7 +9,7 @@ Algorithm (simple bubble / dominator approximation)
 For each node s with out-degree ≥ 2 (in topological order):
   1. BFS from each immediate successor to collect reachable sets.
   2. The sink t is the topologically earliest node in the intersection
-     of all reachable sets — the first node every path from s must visit.
+     of all reachable sets - the first node every path from s must visit.
   3. Enumerate all simple paths from s to t as alleles.
 
 This covers SNPs, small indels, and simple SVs.
@@ -49,7 +49,7 @@ class SnarlDecomposer:
         try:
             topo = list(nx.topological_sort(g))
         except nx.NetworkXUnfeasible:
-            raise ValueError("Graph contains cycles — prototype requires a DAG.")
+            raise ValueError("Graph contains cycles - prototype requires a DAG.")
 
         all_snarls: list[Snarl] = []
         visited_sources: set[str] = set()
@@ -84,7 +84,7 @@ class SnarlDecomposer:
         child_ids = {c.id for sn in all_snarls for c in sn.children}
         return [sn for sn in all_snarls if sn.id not in child_ids]
 
-    # ── internal helpers ──────────────────────────────────────
+    # -- internal helpers --------------------------------------
 
     def _find_sink(self, source: str) -> Optional[str]:
         """

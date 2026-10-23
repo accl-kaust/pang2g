@@ -42,7 +42,7 @@
 
 namespace g2g {
 
-// ── Topological sort (Kahn's algorithm) ──────────────────────────────────────
+// -- Topological sort (Kahn's algorithm) --------------------------------------
 
 std::vector<NodeId> topological_sort(const VariationGraph& vg) {
     uint32_t n = vg.num_nodes();
@@ -64,7 +64,7 @@ std::vector<NodeId> topological_sort(const VariationGraph& vg) {
             if (--in_deg[v] == 0) q.push(v);
     }
     if (order.size() != n)
-        throw std::runtime_error("Graph contains cycles — DAG required");
+        throw std::runtime_error("Graph contains cycles - DAG required");
     return order;
 }
 
@@ -78,7 +78,7 @@ const std::vector<NodeId>& TopoCache::get(const VariationGraph& g) {
     return order;
 }
 
-// ── Superbubble scan ──────────────────────────────────────────────────────────
+// -- Superbubble scan ----------------------------------------------------------
 
 namespace {
 
@@ -138,7 +138,7 @@ std::optional<NodeId> find_superbubble_sink(NodeId s, const VariationGraph& vg,
 
 }  // namespace
 
-// ── annotate_work (P3-4) ──────────────────────────────────────────────────────
+// -- annotate_work (P3-4) ------------------------------------------------------
 //
 // Fill Snarl::subtree_work for every snarl bottom-up.
 // subtree_work(s) = k^3 + sum(subtree_work(c) for c in children(s))
@@ -172,12 +172,12 @@ void SnarlDecomposer::annotate_work(SnarlTree& tree) {
     }
 }
 
-// ── apply_veb_order (P3-4) ────────────────────────────────────────────────────
+// -- apply_veb_order (P3-4) ----------------------------------------------------
 //
 // Reorder SnarlTree::snarls from DFS order into van Emde Boas (vEB) recursive
 // layout.  vEB layout guarantees that any subtree of height h fits in
 // O(N^{1/2}) cache lines, giving O(N log_B N / B) cache complexity for
-// bottom-up traversal — optimal for comparison-based tree algorithms.
+// bottom-up traversal - optimal for comparison-based tree algorithms.
 //
 // Algorithm (Brodal et al. 2002 / cache-oblivious B-tree layout):
 //   1. Find the median level of the tree (split height h/2).
@@ -244,7 +244,7 @@ void SnarlDecomposer::apply_veb_order(SnarlTree& tree) {
     // (no children), these are all zero and need no update.
     // For nested snarls, remap all children_begin/end ranges here.
     // The allele-path indices (alleles_begin/end) index into
-    // allele_path_offsets which is NOT reordered — it stays parallel to the
+    // allele_path_offsets which is NOT reordered - it stays parallel to the
     // original snarl order.  We therefore remap the allele_path_offsets/
     // lengths arrays to stay consistent.
 
@@ -284,10 +284,10 @@ void SnarlDecomposer::apply_veb_order(SnarlTree& tree) {
         r = old_to_new[r];
 }
 
-// ── build_tree_from_boundaries ────────────────────────────────────────────────
+// -- build_tree_from_boundaries ------------------------------------------------
 //
-// Given snarl boundaries (source, sink) — from either the built-in superbubble
-// scan or the vg back-end — enumerate each snarl's alleles, drop snarls nested
+// Given snarl boundaries (source, sink) - from either the built-in superbubble
+// scan or the vg back-end - enumerate each snarl's alleles, drop snarls nested
 // inside another (keep top-level only), build the flat allele store, annotate
 // work, and apply the vEB layout.
 
@@ -394,7 +394,7 @@ SnarlTree SnarlDecomposer::build_tree_from_boundaries(
     return tree;
 }
 
-// ── SnarlDecomposer::decompose() ──────────────────────────────────────────────
+// -- SnarlDecomposer::decompose() ----------------------------------------------
 
 SnarlTree SnarlDecomposer::decompose() const {
     std::vector<NodeId> topo = topological_sort(vg_);

@@ -27,7 +27,7 @@ using namespace g2g;
 
 namespace {
 
-// Deterministic 12-mer for (slot, allele) — identical in both graphs.
+// Deterministic 12-mer for (slot, allele) - identical in both graphs.
 std::string allele_seq(int slot, int a) {
     static const char B[] = "ACGT";
     std::string s(12, 'A');
@@ -138,7 +138,7 @@ AlignerParams params(PairingMode m) { AlignerParams p; p.pairing = m; return p; 
 
 }  // namespace
 
-// ── Unpaired snarls reach the delta ──────────────────────────────────────────
+// -- Unpaired snarls reach the delta ------------------------------------------
 
 TEST(Deltas, UnpairedSnarlAllelesAreReported) {
     Pair p = build("SASS", /*distinct=*/true, /*linker_every=*/0);
@@ -157,7 +157,7 @@ TEST(Deltas, UnpairedSnarlAllelesAreReported) {
     EXPECT_EQ(q.unpaired_snarls_a, r.unpaired_snarls_a);
 }
 
-// ── Boundary-key cascade ─────────────────────────────────────────────────────
+// -- Boundary-key cascade -----------------------------------------------------
 
 TEST(Pairing, BoundaryKeyCollisionCascades) {
     // 1-bp identical boundaries everywhere; slot 1 exists only in A.
@@ -176,7 +176,7 @@ TEST(Pairing, BoundaryKeyCollisionCascades) {
     EXPECT_NE(seqs(r.a_only_alleles), ms(p.truth_a));
 }
 
-// ── Anchor-interval pairing contains the error ───────────────────────────────
+// -- Anchor-interval pairing contains the error -------------------------------
 
 TEST(Pairing, IntervalPairingRecoversPlantedDeltas) {
     Pair p = build("SASSSSSS", /*distinct=*/false, /*linker_every=*/3);

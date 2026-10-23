@@ -1,4 +1,4 @@
-# G2G Phase 5 — Evaluation
+# G2G Phase 5 - Evaluation
 
 Experiment suite for the Graph-to-Graph (G2G) pangenome aligner. Six
 experiments cover correctness, baseline consistency, throughput, parallel
@@ -6,14 +6,13 @@ scaling, an ablation study, and biological validation on HPRC data.
 
 Everything here runs on a Slurm cluster with conda/mamba and no sudo (it was
 developed on a 64-core AMD EPYC 7763 node; set `--partition`/`--account` in the
-`slurm.sh` files for your site, e.g. `batch` on KAUST Ibex, where CPU jobs are
-submitted from `ilogin`). All jobs record wall time and peak memory.
+`slurm.sh` files for your site). All jobs record wall time and peak memory.
 
-For a first run on IBEX use the top-level test case instead of this suite:
-`sbatch experiments/ibex/test_case.slurm` (see the root `README.md`); the
-other scripts in `experiments/ibex/` are the whole-node jobs behind the
-paper's IBEX measurements and need no conda environment, only the modules
-named in `experiments/ibex/common.sh`.
+For a first run on a cluster use the top-level test case instead of this suite:
+`sbatch experiments/slurm/test_case.slurm` (see the root `README.md`). The
+scripts under `experiments/accl/` and `experiments/ibex/` are the whole-node
+jobs behind the paper's measurements on the authors' clusters; they need no
+conda environment, only a compiler, CMake and Python.
 
 ---
 
@@ -54,14 +53,14 @@ bash experiments/download/install_tools.sh
 ```
 
 - **PanGraph** is fetched as the prebuilt Rust binary (v1.3.0+) from the
-  `neherlab/pangraph` GitHub releases — it is *not* on bioconda, and the old
+  `neherlab/pangraph` GitHub releases - it is *not* on bioconda, and the old
   Julia package no longer builds. It lands at `$G2G_DATA_ROOT/tools/pangraph`
   and that dir is appended to your PATH in `~/.bashrc`.
 - After running the installer, refresh your current shell so `pangraph`
   resolves: `export PATH="$G2G_DATA_ROOT/tools:$PATH"` (or open a new shell).
 - PanGraph is **optional**: if it isn't installed, Exp3 still runs and records
   its PanGraph rows with `exit_code=-1` (skipped sentinel). You can backfill
-  that baseline later without rerunning the whole sweep — see
+  that baseline later without rerunning the whole sweep - see
   [§3.1](#31-backfilling-the-pangraph-baseline-exp3).
 
 ---
@@ -73,7 +72,7 @@ bash experiments/download/install_tools.sh
 > chain the demo harnesses (`demo/0[5-9]*.sh`, `demo/10_*.sh`) and the exp1b sweep.
 
 
-**Always submit from the repo root** — the SLURM scripts set
+**Always submit from the repo root** - the SLURM scripts set
 `G2G_ROOT=${SLURM_SUBMIT_DIR:-$PWD}`, i.e. the directory you call `sbatch`
 from.
 
@@ -84,23 +83,23 @@ conda activate g2g_eval
 
 | Exp | Command | Partition | CPUs / RAM / Time | Needs data? |
 |---|---|---|---|---|
-| 1 — Correctness | `sbatch experiments/exp1_correctness/slurm.sh` | batch | 16 / 32G / 2h | no (synthetic) |
-| 2 — minimap2 consistency | `sbatch experiments/exp2_minimap2/slurm.sh` | batch | 16 / 64G / 4h | no (synthetic) |
-| 3 — Throughput | `sbatch experiments/exp3_throughput/slurm.sh` | batch | 64 / 256G / 14h | no (synthetic) |
-| 4 — Parallel scaling | `sbatch experiments/exp4_parallel_scaling/slurm.sh` | batch | 128 / 400G / 12h | no (synthetic) |
-| 5 — Ablation | `sbatch experiments/exp5_ablation/slurm.sh` | batch | 64 / 256G / 12h | no (synthetic) |
-| 6 — HPRC biology | see [§4](#4-experiment-6-hprc-biological-validation) | batch | 64 / 400G / 14h | **yes** |
+| 1 - Correctness | `sbatch experiments/exp1_correctness/slurm.sh` | batch | 16 / 32G / 2h | no (synthetic) |
+| 2 - minimap2 consistency | `sbatch experiments/exp2_minimap2/slurm.sh` | batch | 16 / 64G / 4h | no (synthetic) |
+| 3 - Throughput | `sbatch experiments/exp3_throughput/slurm.sh` | batch | 64 / 256G / 14h | no (synthetic) |
+| 4 - Parallel scaling | `sbatch experiments/exp4_parallel_scaling/slurm.sh` | batch | 128 / 400G / 12h | no (synthetic) |
+| 5 - Ablation | `sbatch experiments/exp5_ablation/slurm.sh` | batch | 64 / 256G / 12h | no (synthetic) |
+| 6 - HPRC biology | see [§4](#4-experiment-6-hprc-biological-validation) | batch | 64 / 400G / 14h | **yes** |
 
-Experiments 1–5 are fully synthetic and need no downloads — submit them right
+Experiments 1–5 are fully synthetic and need no downloads - submit them right
 away.
 
-### Wider runs on `synode` (384 CPU / 1.5 TB)
+### Wider runs on a large node
 
 For more throughput headroom and a thread sweep past 128 cores:
 
 ```bash
-sbatch experiments/exp3_throughput/slurm_synode.sh        # 128 CPU / 512G
-sbatch experiments/exp4_parallel_scaling/slurm_synode.sh  # 256 CPU / 768G
+sbatch experiments/exp3_throughput/slurm_large_node.sh        # 128 CPU / 512G
+sbatch experiments/exp4_parallel_scaling/slurm_large_node.sh  # 256 CPU / 768G
 ```
 
 ---
@@ -133,7 +132,7 @@ This reuses the GFAs already under `$G2G_DATA_ROOT/synthetic_gfa`, skips
 minimap2 and both G2G runs, and writes only the PanGraph rows to
 `results/phase5/exp3/exp3_throughput_pangraph_<ts>.csv`. The plot command
 below globs `exp3_throughput_*.csv`, so it picks up both the original sweep
-and this backfill automatically — no manual merge needed.
+and this backfill automatically - no manual merge needed.
 
 After an experiment finishes, render its figure (writes PDF+PNG to
 `results/phase5/figures/`):
@@ -156,24 +155,23 @@ python experiments/plot/plot_exp6_biology.py \
 ## 4. Experiment 6 (HPRC biological validation)
 
 This one needs real data. By default everything lands under
-`$G2G_DATA_ROOT` (defaults to `$HOME/g2g_data`, since the shared
-`/data/fat` volume is not writable by individual user accounts). If you
-do get write access to a larger shared volume, just export
+`$G2G_DATA_ROOT` (defaults to `$HOME/g2g_data`). If you have a larger scratch
+or shared volume, export
 `G2G_DATA_ROOT=/path/to/share` before submitting and every stage will
 use it. Run the stages in order; each later stage depends on the previous.
 
 > **Compute nodes have no internet.** Stages 0 and 1 (anything that
-> downloads) must run on the **login node**, *not* as a Slurm job —
+> downloads) must run on the **login node**, *not* as a Slurm job  - 
 > a batch job has no outbound network and will hang/fail. Only the
 > compute-heavy stages (2 and 3) are submitted with `sbatch`.
 
 ```bash
-# ── On the LOGIN NODE, inside tmux ──────────────────────
+# -- On the LOGIN NODE, inside tmux ----------------------
 
-# Stage 0 — install third-party tools (PanGraph, minigraph, cactus, gfatools)
+# Stage 0 - install third-party tools (PanGraph, minigraph, cactus, gfatools)
 bash experiments/download/install_tools.sh
 
-# Stage 1 — download datasets (~400 GB, hours). Long-running → use tmux.
+# Stage 1 - download datasets (~400 GB, hours). Long-running → use tmux.
 tmux new -s g2g_dl
 conda activate g2g_eval
 bash experiments/download/download_all_login.sh
@@ -186,18 +184,18 @@ bash experiments/download/download_all_login.sh
 #   ClinVar SV extraction is an optional layer; if it yields 0 SVs the Exp6
 #   Slurm job skips it and still produces the core gnomAD-SV result.
 
-# ── On the COMPUTE NODES (as Slurm jobs) ──────────────────────────
+# -- On the COMPUTE NODES (as Slurm jobs) --------------------------
 
-# Stage 2 — build the AFR and EAS pangenomes with minigraph-cactus
+# Stage 2 - build the AFR and EAS pangenomes with minigraph-cactus
 #   (small balanced panel ~5 samples/pop → a few hours each; 14h walltime)
 sbatch experiments/exp6_hprc/slurm_build_pangenomes.sh
 
-# Stage 3 — G2G align + gnomAD-SV enrichment + ClinVar overlap
+# Stage 3 - G2G align + gnomAD-SV enrichment + ClinVar overlap
 sbatch experiments/exp6_hprc/slurm.sh
 ```
 
 `download_all_login.sh` runs all three download scripts in sequence and is
-re-runnable — completed files are skipped, so if a transfer drops you can
+re-runnable - completed files are skipped, so if a transfer drops you can
 just start it again. The old `slurm_download.sh` is deprecated and now exits
 with an error pointing here.
 
@@ -221,11 +219,10 @@ gnomAD-SV → intersect ClinVar. The individual scripts
 | `results/phase5/figures/` | Rendered figures |
 | `logs/` | Slurm stdout/stderr |
 
-`G2G_DATA_ROOT` defaults to `$HOME/g2g_data`. The cluster's `/data/fat`
-share is not writable by individual user accounts, so datasets and
-pangenome builds go under your home by default. If you are granted a quota
-on a larger shared volume, export `G2G_DATA_ROOT` to point there before
-submitting any job — the synthetic experiments (3–5) only use it as scratch
+`G2G_DATA_ROOT` defaults to `$HOME/g2g_data`. Datasets and pangenome builds
+go under your home by default; if you have a larger scratch or shared volume,
+export `G2G_DATA_ROOT` to point there before
+submitting any job - the synthetic experiments (3–5) only use it as scratch
 for generated GFAs, while Exp6 stores the real HPRC/gnomAD/ClinVar data and
 built pangenomes there.
 

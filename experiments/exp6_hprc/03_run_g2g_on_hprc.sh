@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 03_run_g2g_on_hprc.sh — Run G2G on AFR vs EAS pangenomes
+# 03_run_g2g_on_hprc.sh - Run G2G on AFR vs EAS pangenomes
 #
 # Aligns the AFR population pangenome against the EAS pangenome
 # using the production G2G binary. Produces:
@@ -33,9 +33,9 @@ if [[ ! -f "$G2G_BIN" ]]; then
     exit 1
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Find GFA files from pangenome build
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 AFR_GFA="$PANGENOME_DIR/AFR/afr_pangenome.gfa"
 EAS_GFA="$PANGENOME_DIR/EAS/eas_pangenome.gfa"
 
@@ -59,9 +59,9 @@ fi
 echo "[g2g_hprc] AFR GFA: $AFR_GFA ($(du -sh "$AFR_GFA" | cut -f1))"
 echo "[g2g_hprc] EAS GFA: $EAS_GFA ($(du -sh "$EAS_GFA" | cut -f1))"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Run G2G
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 OUT_GAF="$RESULTS/afr_vs_eas_${TIMESTAMP}.gaf"
 OUT_VCF="$RESULTS/afr_vs_eas_${TIMESTAMP}.vcf"
 TIME_FILE="$RESULTS/g2g_hprc_time_${TIMESTAMP}.txt"
@@ -84,9 +84,9 @@ echo "[g2g_hprc] Completed in ${ELAPSED}s  peak_mem=$((PEAK_KB/1024))MB"
 echo "g2g_hprc start=$START_EPOCH end=$END_EPOCH elapsed_s=$ELAPSED peak_kb=$PEAK_KB" \
     >> "$RESULTS/timing_${TIMESTAMP}.txt"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Summarize output
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 if [[ -f "$OUT_GAF" ]]; then
     SNARL_PAIRS=$(grep -c "^" "$OUT_GAF" 2>/dev/null || echo 0)
     echo "[g2g_hprc] Snarl pairs aligned:  $SNARL_PAIRS"
@@ -97,9 +97,9 @@ if [[ -f "$OUT_VCF" ]]; then
     echo "[g2g_hprc] Delta alleles (VCF):  $DELTA_ALLELES"
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Convert VCF to BED for downstream intersection
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 OUT_BED="$RESULTS/afr_vs_eas_delta_${TIMESTAMP}.bed"
 echo "[g2g_hprc] Converting VCF to BED for bedtools intersection..."
 

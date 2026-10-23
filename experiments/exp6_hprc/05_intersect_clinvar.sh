@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================
-# 05_intersect_clinvar.sh — Intersect G2G shared alleles with ClinVar
+# 05_intersect_clinvar.sh - Intersect G2G shared alleles with ClinVar
 #
 # Tests whether the *shared* G2G alleles (present in both AFR
 # and EAS pangenomes) contain known pathogenic variants from
-# ClinVar — demonstrating cross-population conservation of
+# ClinVar - demonstrating cross-population conservation of
 # clinically relevant SVs.
 #
 # Hypothesis:
@@ -23,9 +23,9 @@ TIMESTAMP=$(date +%Y%m%dT%H%M%S)
 
 mkdir -p "$RESULTS/intersections"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Find G2G alignment output (GAF file has the matched alleles)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 GAF_FILE=$(ls -t "$RESULTS"/afr_vs_eas_*.gaf 2>/dev/null | head -1)
 if [[ -z "$GAF_FILE" ]]; then
     echo "[clinvar_int] ERROR: No GAF file found in $RESULTS"
@@ -41,11 +41,11 @@ if [[ ! -f "$CLINVAR_PATH" ]]; then
     exit 1
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. Extract shared allele coordinates from GAF
 #    GAF format: each line = one snarl alignment
 #    Shared alleles are the matched allele_matches (not delta)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 SHARED_BED="$RESULTS/intersections/shared_alleles_${TIMESTAMP}.bed"
 echo "[clinvar_int] Extracting shared allele coordinates from GAF..."
 
@@ -78,7 +78,7 @@ print(f"[gaf2bed] Wrote {written} shared allele regions to {out_bed}", file=sys.
 PYEOF
 
 if [[ ! -s "$SHARED_BED" ]]; then
-    echo "[clinvar_int] WARNING: shared BED is empty — GAF format may not include coordinates."
+    echo "[clinvar_int] WARNING: shared BED is empty - GAF format may not include coordinates."
     echo "[clinvar_int] Attempting fallback: extract from VCF complement..."
     # Alternative: use the delta VCF to define shared regions as genome-wide minus delta
     DELTA_VCF=$(ls -t "$RESULTS"/afr_vs_eas_*.vcf 2>/dev/null | head -1)
@@ -113,9 +113,9 @@ tabix -p bed "${SHARED_BED%.bed}_sorted.bed.gz"
 SHARED_BED_GZ="${SHARED_BED%.bed}_sorted.bed.gz"
 echo "[clinvar_int] Shared BED: $SHARED_BED_GZ ($(zcat "$SHARED_BED_GZ" | wc -l) regions)"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2. Intersect shared alleles with ClinVar pathogenic SVs
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 OUT_PATHOGENIC="$RESULTS/intersections/shared_vs_clinvar_pathogenic_${TIMESTAMP}.bed"
 echo "[clinvar_int] Intersecting with ClinVar pathogenic SVs..."
 
@@ -130,9 +130,9 @@ N_PATH_OVERLAP=$(wc -l < "$OUT_PATHOGENIC")
 echo "[clinvar_int] Shared alleles:         $N_SHARED"
 echo "[clinvar_int] ClinVar path. overlaps: $N_PATH_OVERLAP"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 3. Intersect with all ClinVar SVs (broader)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 OUT_ALL_CLINVAR="$RESULTS/intersections/shared_vs_clinvar_all_${TIMESTAMP}.bed"
 bedtools intersect \
     -a "$SHARED_BED_GZ" \
@@ -142,18 +142,18 @@ bedtools intersect \
 N_ALL_CLINVAR_OVERLAP=$(wc -l < "$OUT_ALL_CLINVAR")
 echo "[clinvar_int] ClinVar all SVs overlaps: $N_ALL_CLINVAR_OVERLAP"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 4. Top overlapping ClinVar conditions
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 if [[ -s "$OUT_PATHOGENIC" ]]; then
     echo ""
     echo "[clinvar_int] Top ClinVar conditions overlapping shared alleles:"
     awk '{print $NF}' "$OUT_PATHOGENIC" | sort | uniq -c | sort -rn | head -15
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 5. Summary statistics table
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 CLINVAR_TABLE="$RESULTS/intersections/clinvar_summary_${TIMESTAMP}.tsv"
 python3 - <<PYEOF > "$CLINVAR_TABLE"
 n_shared = $N_SHARED

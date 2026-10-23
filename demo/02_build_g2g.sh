@@ -3,19 +3,19 @@
 #
 # Robust to two common breakages:
 #   * a build/ cache pinned to a build tool that no longer exists
-#     (e.g. a removed conda 'ninja') — we detect and wipe it;
-#   * no working 'ninja' on PATH — we fall back to Unix Makefiles.
+#     (e.g. a removed conda 'ninja') - we detect and wipe it;
+#   * no working 'ninja' on PATH - we fall back to Unix Makefiles.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 BUILD="$REPO_DIR/build"
 
 # 1. If a previous configure recorded a make program that is now missing
 #    (the classic ".../envs/<env>/bin/ninja: no such file" error), the cache is
-#    unusable — wipe it so we can reconfigure from scratch.
+#    unusable - wipe it so we can reconfigure from scratch.
 if [ -f "$BUILD/CMakeCache.txt" ]; then
     mk=$(sed -n 's/^CMAKE_MAKE_PROGRAM:[^=]*=//p' "$BUILD/CMakeCache.txt" | head -1)
     if [ -n "$mk" ] && [ ! -x "$mk" ]; then
-        note "build cache points at a missing build tool ($mk) — wiping build/"
+        note "build cache points at a missing build tool ($mk) - wiping build/"
         rm -rf "$BUILD"
     fi
 fi
@@ -39,4 +39,4 @@ configure || { note "reconfiguring build/ from scratch"; rm -rf "$BUILD"; config
 cmake --build "$BUILD" -j"$(nproc)" --target g2g
 
 "$G2G" --help 2>&1 | head -3 || true
-echo "OK — built $G2G"
+echo "OK - built $G2G"

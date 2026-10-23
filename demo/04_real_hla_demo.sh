@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo 2 — REAL biological data: HLA-DRB1 pangenomes.
+# Demo 2 - REAL biological data: HLA-DRB1 pangenomes.
 #
 # Builds two population pangenome graphs from real HLA-DRB1 haplotypes the way
 # real ones are made (align to GRCh38 -> call variants -> vg construct), then
@@ -10,7 +10,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 need_g2g
 for t in vg minimap2 k8; do
-    have "$t" || { echo "ERROR: '$t' not found — run demo/01_setup_tools.sh" >&2; exit 1; }
+    have "$t" || { echo "ERROR: '$t' not found - run demo/01_setup_tools.sh" >&2; exit 1; }
 done
 PAFTOOLS="$TOOLS/paftools.js"
 OUT="$WORK/hla"; mkdir -p "$OUT"
@@ -87,8 +87,8 @@ log "6. Diff:  g2g cg_A.gfa cg_B.gfa --ref GRCh38 --vcf hla_diff.vcf"
 log "7. Sample of the variant-level diff (real chr coordinates)"
 grep -v '^##' "$OUT/hla_diff.vcf" | head -8
 
-log "8. Self-diff (cg_A vs cg_A) — must be zero differences"
+log "8. Self-diff (cg_A vs cg_A) - must be zero differences"
 "$G2G" "$OUT/cg_A.gfa" "$OUT/cg_A.gfa" --ref GRCh38 2>&1 \
     | grep -o "a_only=[0-9]*  b_only=[0-9]*" | sed 's/^/  /'
 
-echo; echo "OK — real HLA demo complete (outputs in $OUT)"
+echo; echo "OK - real HLA demo complete (outputs in $OUT)"

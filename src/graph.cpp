@@ -1,7 +1,7 @@
 /**
  * src/graph.cpp
  * =============
- * VariationGraph builder methods — compact CSR layout.
+ * VariationGraph builder methods - compact CSR layout.
  * TODO: implement add_node, add_path, finalise (edge-list → CSR).
  */
 #include <g2g/graph.hpp>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Experiment 4 — Parallel Scaling (Speedup Plot)
+# Experiment 4 - Parallel Scaling (Speedup Plot)
 #
 # Fixes graph size at 100K snarls and varies thread count from
 # 1 to 128 (doubling each time). Measures:
@@ -39,18 +39,18 @@ mkdir -p "$RESULTS" "$GFA_DIR"
 echo "[exp4] N_SNARLS=$N_SNARLS  MAX_THREADS=$MAX_THREADS  REPEATS=$REPEATS"
 echo "[exp4] Results: $RESULTS"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 0. Build if needed
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 if [[ ! -f "$G2G_BIN" ]]; then
     echo "[exp4] Building G2G..."
     cmake -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -G Ninja "$G2G_ROOT"
     cmake --build "$BUILD" -j"$(nproc)"
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. Generate fixed-size graph (3 seeds for variance estimation)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 SEEDS=(42 123 456)
 GFA_FILES=()
 for seed in "${SEEDS[@]}"; do
@@ -66,9 +66,9 @@ for seed in "${SEEDS[@]}"; do
     GFA_FILES+=("$GFA_A:$GFA_B:$seed")
 done
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2. Thread counts (powers of 2 from 1 to MAX_THREADS)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 THREAD_COUNTS=()
 t=1
 while [[ $t -le $MAX_THREADS ]]; do
@@ -81,16 +81,16 @@ if [[ "${THREAD_COUNTS[-1]}" != "$MAX_THREADS" ]]; then
 fi
 echo "[exp4] Thread counts: ${THREAD_COUNTS[*]}"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 3. CSV header
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 CSV="$RESULTS/exp4_parallel_scaling_${TIMESTAMP}.csv"
 echo "n_snarls,seed,threads,repeat,wall_ms,peak_kb,snarl_pairs,speedup,efficiency,rc" \
     > "$CSV"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 4. Measure T1 (single-thread baseline) for each seed
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 declare -A T1_MAP
 
 for gfa_pair in "${GFA_FILES[@]}"; do
@@ -125,9 +125,9 @@ for gfa_pair in "${GFA_FILES[@]}"; do
     echo "[exp4] T1[$seed]=${T1_MEDIAN}ms"
 done
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 5. Parallel scaling sweep
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 for threads in "${THREAD_COUNTS[@]}"; do
     [[ "$threads" == "1" ]] && continue  # already measured
 

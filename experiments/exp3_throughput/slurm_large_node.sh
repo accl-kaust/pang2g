@@ -1,13 +1,13 @@
 #!/bin/bash --login
 # ============================================================
-# SLURM — Experiment 3 (Throughput Scaling) — synode variant
+# SLURM - Experiment 3 (Throughput Scaling) - large-node variant
 #
-# Same as slurm.sh but targets the high-core synode partition
+# Same as slurm.sh but targets a node with more cores
 # (384 CPUs / 1.5 TB RAM per node). Gives the largest graphs
 # (500K–1M snarls) more headroom and faster parallel runs.
 #
 # Submit with:
-#   sbatch experiments/exp3_throughput/slurm_synode.sh
+#   sbatch experiments/exp3_throughput/slurm_large_node.sh
 # ============================================================
 #SBATCH --job-name=g2g_exp3_throughput
 #SBATCH --output=logs/exp3_%j.out

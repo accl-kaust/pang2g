@@ -30,11 +30,11 @@
 
 namespace g2g {
 
-// ── Snarl tree ────────────────────────────────────────────────
+// -- Snarl tree ------------------------------------------------
 
 /**
  * Flat array of Snarl objects in van Emde Boas order.
- * The tree structure is encoded in Snarl::children_begin/end —
+ * The tree structure is encoded in Snarl::children_begin/end  - 
  * all children of snarl[i] are stored at snarls[children_begin..children_end).
  *
  * vEB ordering guarantees that for any subtree of height h,
@@ -76,7 +76,7 @@ struct SnarlTree {
     }
 };
 
-// ── Decomposer ────────────────────────────────────────────────
+// -- Decomposer ------------------------------------------------
 
 class SnarlDecomposer {
 public:
@@ -107,7 +107,7 @@ private:
     static void annotate_work(SnarlTree& tree);
 };
 
-// ── External snarl back-end (snarls_vg.cpp) ───────────────────
+// -- External snarl back-end (snarls_vg.cpp) -------------------
 //
 // Ask the `vg` toolkit for snarl boundaries (source, sink) in NodeId space,
 // shelling out to `vg snarls | vg view -Rj`.  Returns std::nullopt if vg is
@@ -117,7 +117,7 @@ private:
 std::optional<std::vector<std::pair<NodeId, NodeId>>>
 vg_snarl_boundaries(const VariationGraph& vg);
 
-// ── Topology helpers ──────────────────────────────────────────
+// -- Topology helpers ------------------------------------------
 
 /** Topological sort of a DAG; throws if cycles detected. */
 std::vector<NodeId> topological_sort(const VariationGraph& vg);

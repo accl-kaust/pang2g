@@ -16,7 +16,7 @@
  * reference coordinate, independent of how each graph chops its nodes, so
  * corresponding variants line up regardless of segmentation.  At each position
  * the alternate alleles are compared by sequence: alleles in both graphs are
- * shared, alleles in only one go to that graph's delta — with real reference
+ * shared, alleles in only one go to that graph's delta - with real reference
  * coordinates (chrom/pos) attached.
  *
  * Requires both graphs to embed the reference as a path: a GFA P-line named

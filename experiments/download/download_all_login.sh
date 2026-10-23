@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ============================================================
-# Experiment 6 — download ALL datasets on the LOGIN NODE.
+# Experiment 6 - download ALL datasets on the LOGIN NODE.
 #
 # The compute nodes have NO internet access, so the
-# Exp6 downloads cannot run as a Slurm job — they must run on a login node,
+# Exp6 downloads cannot run as a Slurm job - they must run on a login node,
 # which does have outbound network. Because the HPRC pull is large
 # (~400 GB) and long-running, run this inside a tmux session so it survives
 # disconnects:
@@ -62,7 +62,7 @@ echo "[dl] ============================================================"
 run_stage() {
     local name="$1"; shift
     echo ""
-    echo "[dl] ── $name ─────────────────────────────────────────────"
+    echo "[dl] -- $name ---------------------------------------------"
     local start; start=$(date +%s)
     if bash "$@"; then
         echo "[dl] $name OK ($(( $(date +%s) - start ))s)"

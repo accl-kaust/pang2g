@@ -1,7 +1,7 @@
 /**
  * tests/test_phase5_exp2_minimap2.cpp
  * =====================================
- * Phase 5, Experiment 2 — Minimap2 Sequence-Level Consistency
+ * Phase 5, Experiment 2 - Minimap2 Sequence-Level Consistency
  *
  * Protocol (roadmap §2.7.1 / §5.1 Option A)
  * ------------------------------------------
@@ -56,9 +56,9 @@
 using namespace g2g;
 namespace fs = std::filesystem;
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Utilities
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 static std::string random_dna(int len, std::mt19937& rng) {
     static const char BASES[] = "ACGT";
@@ -73,9 +73,9 @@ static bool minimap2_available() {
     return std::system("minimap2 --version > /dev/null 2>&1") == 0;
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Graph builder (same topology as Experiment 1)
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 static std::pair<VariationGraph, VariationGraph>
 build_graph_pair(int n_snarls, int k_shared = 2, int k_only = 1,
@@ -134,9 +134,9 @@ build_graph_pair(int n_snarls, int k_shared = 2, int k_only = 1,
     return { std::move(ga), std::move(gb) };
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Path enumeration with node-coverage guarantee
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 using Path = std::vector<NodeId>;
 using Frame = std::pair<NodeId, Path>;
@@ -198,7 +198,7 @@ static std::vector<Path> enumerate_paths(const VariationGraph& vg,
 
     std::set<Path> path_set;
 
-    // ── Phase 1: guarantee every node is covered ──────────────
+    // -- Phase 1: guarantee every node is covered --------------
     for (NodeId target = 0; target < vg.num_nodes(); ++target) {
         // Build: best_source → target → any_sink
         bool added = false;
@@ -221,7 +221,7 @@ static std::vector<Path> enumerate_paths(const VariationGraph& vg,
         }
     }
 
-    // ── Phase 2: fill remaining quota with DFS ─────────────────
+    // -- Phase 2: fill remaining quota with DFS -----------------
     for (NodeId src : sources) {
         std::vector<Frame> stk = {{ src, { src } }};
         while (!stk.empty() && (int)path_set.size() < max_paths) {
@@ -245,9 +245,9 @@ static std::vector<Path> enumerate_paths(const VariationGraph& vg,
     return std::vector<Path>(path_set.begin(), path_set.end());
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // GFA and FASTA writers
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 [[maybe_unused]] static void write_gfa(const VariationGraph& vg, const fs::path& p) {
     std::ofstream f(p);
@@ -303,9 +303,9 @@ write_paths_fasta(const VariationGraph& vg,
     return index;
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // PAF parser
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 struct PafRecord {
     std::string query_name;
@@ -340,9 +340,9 @@ static std::vector<PafRecord> parse_paf(const fs::path& p) {
     return recs;
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Node-offset helper
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 /** Return [start, end) byte span of node n within the path's concatenated sequence. */
 static std::pair<int,int> node_span_in_path(const VariationGraph& vg,
@@ -356,9 +356,9 @@ static std::pair<int,int> node_span_in_path(const VariationGraph& vg,
     return { -1, -1 };
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Coverage index builder
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 using NodePair = std::pair<NodeId, NodeId>;
 
@@ -390,9 +390,9 @@ static std::set<NodePair> build_coverage_index(
     return covered;
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // G2G match extractor
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 /** Extract (inner_node_a, inner_node_b) pairs from a G2G alignment result. */
 static std::vector<NodePair> extract_g2g_pairs(
@@ -416,9 +416,9 @@ static std::vector<NodePair> extract_g2g_pairs(
     return pairs;
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Core consistency check logic
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 struct ConsistencyResult {
     int n_g2g_pairs{};
@@ -442,7 +442,7 @@ static ConsistencyResult check_consistency(
 {
     ConsistencyResult res;
 
-    // ── 1. Run G2G ─────────────────────────────────────────────
+    // -- 1. Run G2G ---------------------------------------------
     AlignerParams params;
     GraphAligner aligner(params);
     auto result = aligner.align(ga, gb);
@@ -458,19 +458,19 @@ static ConsistencyResult check_consistency(
         return res;  // trivially consistent
     }
 
-    // ── 2. Enumerate paths ─────────────────────────────────────
+    // -- 2. Enumerate paths -------------------------------------
     auto paths_a = enumerate_paths(ga, max_paths);
     auto paths_b = enumerate_paths(gb, max_paths);
     res.n_paths_a = static_cast<int>(paths_a.size());
     res.n_paths_b = static_cast<int>(paths_b.size());
 
-    // ── 3. Write FASTA files ───────────────────────────────────
+    // -- 3. Write FASTA files -----------------------------------
     fs::path fa_file = tmp_dir / "paths_a.fa";
     fs::path fb_file = tmp_dir / "paths_b.fa";
     auto idx_a = write_paths_fasta(ga, paths_a, fa_file);
     auto idx_b = write_paths_fasta(gb, paths_b, fb_file);
 
-    // ── 4. Run minimap2 ────────────────────────────────────────
+    // -- 4. Run minimap2 ----------------------------------------
     fs::path paf_file = tmp_dir / "out.paf";
     std::string cmd = "minimap2 -x asm5 --secondary=no "
                     + fb_file.string() + " "
@@ -482,25 +482,25 @@ static ConsistencyResult check_consistency(
     auto paf = parse_paf(paf_file);
     res.n_paf_records = static_cast<int>(paf.size());
 
-    // ── 5. Build coverage index ────────────────────────────────
+    // -- 5. Build coverage index --------------------------------
     auto covered = build_coverage_index(paf, idx_a, idx_b, ga, gb);
 
-    // ── 6. Count consistent pairs ──────────────────────────────
+    // -- 6. Count consistent pairs ------------------------------
     for (const auto& [na, nb] : g2g_pairs)
         if (covered.count({ na, nb })) ++res.n_consistent;
 
     return res;
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Test fixture + cases
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 class Minimap2ConsistencyTest : public ::testing::TestWithParam<int> {
 protected:
     void SetUp() override {
         if (!minimap2_available())
-            GTEST_SKIP() << "minimap2 not found on PATH — skipping Experiment 2";
+            GTEST_SKIP() << "minimap2 not found on PATH - skipping Experiment 2";
     }
 };
 
@@ -508,7 +508,7 @@ TEST_P(Minimap2ConsistencyTest, ConsistencyAtLeast80Pct) {
     int n_snarls = GetParam();
     auto [ga, gb] = build_graph_pair(n_snarls, 2, 1, 15, 42);
 
-    // Write to /tmp/<test_unique_dir> — remove first to prevent stale files
+    // Write to /tmp/<test_unique_dir> - remove first to prevent stale files
     fs::path tmp = fs::temp_directory_path()
                  / ("g2g_exp2_" + std::to_string(n_snarls));
     fs::remove_all(tmp);
@@ -525,7 +525,7 @@ TEST_P(Minimap2ConsistencyTest, ConsistencyAtLeast80Pct) {
     RecordProperty("n_paths_b",     res.n_paths_b);
 
     if (res.n_g2g_pairs == 0) {
-        SUCCEED() << "No G2G matches — trivially consistent";
+        SUCCEED() << "No G2G matches - trivially consistent";
         return;
     }
 
@@ -535,7 +535,7 @@ TEST_P(Minimap2ConsistencyTest, ConsistencyAtLeast80Pct) {
         << " (" << res.rate() * 100 << "%)";
 }
 
-// ── Perfect consistency on single snarl ──────────────────────
+// -- Perfect consistency on single snarl ----------------------
 TEST_F(Minimap2ConsistencyTest, SingleSnarlPerfectConsistency) {
     if (!minimap2_available())
         GTEST_SKIP() << "minimap2 not found on PATH";
@@ -555,7 +555,7 @@ TEST_F(Minimap2ConsistencyTest, SingleSnarlPerfectConsistency) {
     }
 }
 
-// ── PAF records produced ─────────────────────────────────────
+// -- PAF records produced -------------------------------------
 TEST_F(Minimap2ConsistencyTest, MiniMap2ProducesPafOutput) {
     if (!minimap2_available())
         GTEST_SKIP() << "minimap2 not found on PATH";
@@ -571,7 +571,7 @@ TEST_F(Minimap2ConsistencyTest, MiniMap2ProducesPafOutput) {
         << "Expected minimap2 to produce at least one PAF record";
 }
 
-// ── All paths include every node (coverage guarantee) ─────────
+// -- All paths include every node (coverage guarantee) ---------
 TEST_F(Minimap2ConsistencyTest, PathEnumerationCoversAllNodes) {
     if (!minimap2_available())
         GTEST_SKIP() << "minimap2 not found on PATH";

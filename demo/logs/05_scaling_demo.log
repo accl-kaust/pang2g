@@ -1,5 +1,5 @@
 
-=== Scaling sweep — g2g --ref diff, increasing size (A=25bp / B=17bp chopping) ===
+=== Scaling sweep - g2g --ref diff, increasing size (A=25bp / B=17bp chopping) ===
       ref_bp  variants    nodesA    nodesB   snarls  a_only  b_only    OK   decomp_s   wall_s  peak_MB
       100000       500      4921      6930      400      50      50  PASS   0.001550 0.024648      7.7
       500000      2500     24601     34647     2000     250     250  PASS   0.007068 0.104278     20.3
@@ -9,4 +9,4 @@
     results table saved to $REPO/demo/work/scaling/scale_results.tsv
     largest point: 8.0 Mb ref, 393601+554306 nodes, 40000 variants -> 2.447067s, 260.1 MB peak
     throughput: 16346 variants/s, 387365 total nodes/s
-OK — scaling sweep complete: diff stayed EXACT at every size, near-linear time
+OK - scaling sweep complete: diff stayed EXACT at every size, near-linear time

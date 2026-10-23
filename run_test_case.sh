@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# run_test_case.sh — build PanG2G and run its end-to-end test case.
+# run_test_case.sh - build PanG2G and run its end-to-end test case.
 #
 #   bash run_test_case.sh            # build + the three checks below        (~2 min)
 #   bash run_test_case.sh --unit     # ... plus the GoogleTest suite (161 tests)
 #   bash run_test_case.sh --real     # ... plus two real HLA-DRB1 pangenomes (downloads)
 #
 # Checks (each has a known expected answer; none needs network access or any
-# third-party bioinformatics tool — only a C++ compiler, CMake and python3):
+# third-party bioinformatics tool - only a C++ compiler, CMake and python3):
 #
 #   1. planted ground truth      demo/03_synthetic_demo.sh
 #      Two graphs embed the same reference sequence but split it into different
@@ -34,7 +34,7 @@
 # Environment
 #   BUILD_DIR      CMake build directory               (default: build/release)
 #   G2G_MARCH      -march for the build: native (default), or x86-64-v3 to build
-#                  on one node and run on another (IBEX login -> compute node)
+#                  on one node and run on another (login node -> compute node)
 #   G2G_GTEST_DIR  unpacked googletest-1.14.0 source tree for an offline --unit
 #   JOBS           parallel compile jobs               (default: nproc)
 #
@@ -57,7 +57,7 @@ case "$BUILD_DIR" in /*) BUILD_ABS="$BUILD_DIR" ;; *) BUILD_ABS="$ROOT/$BUILD_DI
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
 LOGDIR="$ROOT/logs/test_case"; mkdir -p "$LOGDIR"
 
-# ── toolchain ────────────────────────────────────────────────────────────────
+# -- toolchain ----------------------------------------------------------------
 missing=()
 for t in cmake python3; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
 CXX_BIN="${CXX:-}"
@@ -65,7 +65,7 @@ CXX_BIN="${CXX:-}"
 [ -n "$CXX_BIN" ] || missing+=("a C++ compiler (g++ / clang++)")
 if [ "${#missing[@]}" -gt 0 ]; then
     echo "ERROR: not found: ${missing[*]}" >&2
-    echo "       on KAUST IBEX run first:  module load gcc/12.2.0 cmake/3.28.4/gnu-11.3.1 python/3.11.0" >&2
+    echo "       on a cluster, load the toolchain modules first (e.g. module load gcc cmake python)" >&2
     exit 2
 fi
 echo "PanG2G test case  -  $(date)"
@@ -73,9 +73,9 @@ echo "  host: $(hostname)   cpus: $(nproc 2>/dev/null || echo '?')   compiler: $
 echo "  cmake: $(cmake --version | head -1 | sed 's/cmake version //')   python3: $(python3 --version 2>&1 | sed 's/Python //')"
 echo "  build dir: $BUILD_DIR   -march: ${G2G_MARCH:-native}   jobs: $JOBS"
 
-# ── step runner ──────────────────────────────────────────────────────────────
+# -- step runner --------------------------------------------------------------
 NAMES=(); STATUS=(); SECS=()
-run_step() {   # <name> <command...>  — run, tee to a log, record PASS/FAIL
+run_step() {   # <name> <command...>  - run, tee to a log, record PASS/FAIL
     local name="$1"; shift
     local slug t0 rc
     slug=$(printf '%s' "$name" | tr -c 'A-Za-z0-9' '_' | tr -s '_' | sed 's/_$//')
@@ -102,7 +102,7 @@ summary() {
     return "$fail"
 }
 
-# ── build ────────────────────────────────────────────────────────────────────
+# -- build --------------------------------------------------------------------
 build() {
     local gen="Unix Makefiles"; ninja --version >/dev/null 2>&1 && gen="Ninja"
     local tests=OFF; [ "$UNIT" -eq 1 ] && tests=ON

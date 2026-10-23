@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Experiment 3 — Throughput Scaling
+# Experiment 3 - Throughput Scaling
 #
 # Runs G2G on graphs of increasing size:
 #   1K, 5K, 10K, 50K, 100K, 500K, 1M snarls
@@ -66,9 +66,9 @@ if [[ ! -f "$G2G_BIN" ]]; then
     cmake --build "$BUILD" -j"$(nproc)"
 fi
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Graph sizes to test
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Format: "n_snarls:seq_len:k_max"
 # seq_len_mean=12 for SNP-scale, 100 for SV-scale mix
 SIZES=(
@@ -90,9 +90,9 @@ fi
 echo "n_snarls,seq_len,k_max,seed,tool,threads,wall_ms,peak_kb,snarl_pairs,score,exit_code" \
     > "$CSV"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Helper: run one tool with timing
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 run_timed() {
     local label="$1"; local cmd="$2"
     local time_file="$3"; local out_file="$4"
@@ -110,17 +110,17 @@ run_timed() {
     echo "${wall_ms}:${peak_kb}:${rc}"
 }
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Main loop
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 for size_spec in "${SIZES[@]}"; do
     IFS=':' read -r n sl kmax <<< "$size_spec"
 
 for seed in "${SEEDS[@]}"; do
     echo ""
-    echo "══ n_snarls=$n  seq_len=$sl  k_max=$kmax  seed=$seed ══"
+    echo "== n_snarls=$n  seq_len=$sl  k_max=$kmax  seed=$seed =="
 
-    # ── Generate GFA files ────────────────────────────────────
+    # -- Generate GFA files ------------------------------------
     GFA_A="$GFA_DIR/ga_n${n}_sl${sl}_km${kmax}_s${seed}.gfa"
     GFA_B="$GFA_DIR/gb_n${n}_sl${sl}_km${kmax}_s${seed}.gfa"
 
@@ -145,7 +145,7 @@ for seed in "${SEEDS[@]}"; do
     TMPDIR_RUN=$(mktemp -d "$RESULTS/run_${n}_${seed}_XXXXXX")
     trap "rm -rf $TMPDIR_RUN" EXIT
 
-    # ── Baseline 1: minimap2 (linearize + align) ─────────────
+    # -- Baseline 1: minimap2 (linearize + align) -------------
     if [[ "$ONLY_PANGRAPH" != "1" ]]; then
     echo "[exp3] Baseline 1: minimap2..."
 
@@ -211,7 +211,7 @@ PYEOF
     echo "$n,$sl,$kmax,$seed,minimap2,$THREADS,$mm2_wall,$mm2_mem,0,0,$mm2_rc" >> "$CSV"
     fi  # ONLY_PANGRAPH guard (minimap2)
 
-    # ── Baseline 2: PanGraph (skip if Julia not available) ───
+    # -- Baseline 2: PanGraph (skip if Julia not available) ---
     if [[ "$SKIP_PANGRAPH" == "0" ]] && command -v pangraph &>/dev/null; then
         echo "[exp3] Baseline 2: PanGraph..."
         # Convert GFA to FASTA (PanGraph works on FASTA genomes)
@@ -247,7 +247,7 @@ PYEOF
         echo "$n,$sl,$kmax,$seed,pangraph,0,0,0,0,0,-1" >> "$CSV"
     fi
 
-    # ── Baseline 3: Sequential G2G ────────────────────────────
+    # -- Baseline 3: Sequential G2G ----------------------------
     if [[ "$ONLY_PANGRAPH" != "1" ]]; then
     echo "[exp3] Baseline 3: Sequential G2G..."
     SEQ_CMD="$G2G_BIN $GFA_A $GFA_B --sequential \
@@ -262,7 +262,7 @@ PYEOF
     echo "  G2G-seq: ${seq_wall}ms  ${seq_mem}KB  pairs=$seq_pairs  score=$seq_score"
     echo "$n,$sl,$kmax,$seed,g2g_sequential,1,$seq_wall,$seq_mem,$seq_pairs,$seq_score,$seq_rc" >> "$CSV"
 
-    # ── Production G2G (parallel) ─────────────────────────────
+    # -- Production G2G (parallel) -----------------------------
     echo "[exp3] Production G2G (parallel, $THREADS threads)..."
     PAR_CMD="$G2G_BIN $GFA_A $GFA_B --threads $THREADS \
         --gaf $TMPDIR_RUN/par_out.gaf --vcf $TMPDIR_RUN/par_out.vcf"

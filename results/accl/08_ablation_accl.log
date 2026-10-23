@@ -1,5 +1,5 @@
 
-=== Ablation — each optimization OFF vs the optimized baseline ===
+=== Ablation - each optimization OFF vs the optimized baseline ===
     building baseline + ablation binaries into /home/shaklea/Research/G2G/G2G_camera_ready/demo/work/ablation (a few minutes)…
       building baseline …
     generating control + treatment graphs…
@@ -19,6 +19,6 @@
 
     slowdown = disabled / baseline   (1.00x = no effect; >1 = the optimization helps here)
     results: /home/shaklea/Research/G2G/G2G_camera_ready/demo/work/ablation/ablation_results.tsv
-    vEB rows read ~1.0x: the layout is a no-op on depth-1 snarls (honest null).
+    vEB rows read ~1.0x: the layout is a no-op on depth-1 snarls, so 1.0x is the expected result.
     static-partition control ~1.0x (balanced work) vs treatment >1.0x (skewed work).
-OK — ablation complete
+OK - ablation complete

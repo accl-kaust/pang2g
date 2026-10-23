@@ -1,5 +1,5 @@
 
-=== Real Q4 — build AFR/EAS pangenomes, diff with g2g --ref, enrich ===
+=== Real Q4 - build AFR/EAS pangenomes, diff with g2g --ref, enrich ===
     [22] subset panel (ALL.chr22.phase3.genotypes.vcf.gz) by population → vg construct → GFA
     [22] g2g --ref 22
 [g2g] reading "/home/shaklea/Research/G2G/G2G_camera_ready/demo/work/biology/real/popA_22.gfa" ...
@@ -24,4 +24,4 @@ wrote /home/shaklea/Research/G2G/G2G_camera_ready/demo/work/biology/biology_resu
 
     results TSV: /home/shaklea/Research/G2G/G2G_camera_ready/demo/work/biology/biology_results.tsv
     figure:  python3 demo/make_figures.py --biology-csv /home/shaklea/Research/G2G/G2G_camera_ready/demo/work/biology/biology_results.tsv
-OK — real Q4 pipeline complete
+OK - real Q4 pipeline complete

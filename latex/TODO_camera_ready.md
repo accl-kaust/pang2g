@@ -1,6 +1,6 @@
 # BIBM 2026 camera-ready TODO — status after the 2026-10-04 revision pass
 
-Branch: `claude/camera-ready-paper-e5f755` (worktree; not merged to main).
+Branch: the camera-ready revision branch.
 R1/R2/R3 = reviewer #1/#2/#3. Camera-ready deadline: **25 Oct 2026**; limit **8 pages
 including references** (BIBM 2026 CFP). The compiled draft is `latex/PanG2G_camera_ready_draft.pdf`
 (8 pages). Items marked **USER** need an action only you can take.

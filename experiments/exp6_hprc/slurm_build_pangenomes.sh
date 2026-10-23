@@ -1,12 +1,12 @@
 #!/bin/bash --login
-# SLURM — Build HPRC pangenomes (Stage 2 of Exp6)
+# SLURM - Build HPRC pangenomes (Stage 2 of Exp6)
 # Balanced panel is small (~5 samples/pop = ~6 genomes incl. GRCh38), so each
 # minigraph-cactus build is a few hours; both fit inside the cluster's 14h
 # walltime cap. If a build ever bumps the limit, split AFR/EAS into two jobs.
 #SBATCH --job-name=g2g_exp6_build
 #SBATCH --output=logs/exp6_build_%j.out
 #SBATCH --error=logs/exp6_build_%j.err
-#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
+#SBATCH --partition=batch      # adjust to your cluster
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Demo 1 — controlled synthetic pair with KNOWN ground truth.
+# Demo 1 - controlled synthetic pair with KNOWN ground truth.
 #
 # Two graphs share a reference path but plant a known set of variants and chop
 # the reference into DIFFERENT nodes. `g2g --ref` must recover exactly the
-# planted shared / A-only / B-only variants — proving correctness and
+# planted shared / A-only / B-only variants - proving correctness and
 # robustness to node segmentation. Also runs a self-diff (graph vs itself),
 # which must report zero differences.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -44,12 +44,12 @@ for k, c in truth.items():
 ok = (got["A"] == exp["A"] and got["B"] == exp["B"])
 print(f"  planted : shared={len(exp['shared'])} A_only={len(exp['A'])} B_only={len(exp['B'])}")
 print(f"  reported: A_only={len(got['A'])} B_only={len(got['B'])}")
-print("  RESULT  :", "PASS — diff matches ground truth exactly" if ok else "FAIL")
+print("  RESULT  :", "PASS - diff matches ground truth exactly" if ok else "FAIL")
 sys.exit(0 if ok else 1)
 PY
 
-log "5. Self-diff (graph vs itself) — must be zero differences"
+log "5. Self-diff (graph vs itself) - must be zero differences"
 "$G2G" "$OUT/demoA.gfa" "$OUT/demoA.gfa" --ref GRCh38 2>&1 \
     | grep -o "a_only=[0-9]*  b_only=[0-9]*" | sed 's/^/  /'
 
-echo; echo "OK — synthetic demo complete (outputs in $OUT)"
+echo; echo "OK - synthetic demo complete (outputs in $OUT)"

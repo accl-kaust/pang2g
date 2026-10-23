@@ -1,8 +1,8 @@
 """
-report.py — I/O layer: result reporting
+report.py - I/O layer: result reporting
 ========================================
 Formats and prints an AlignmentResult to stdout.
-No computation here — all scores are read directly from the result object.
+No computation here - all scores are read directly from the result object.
 
 Functions
 ---------
@@ -16,14 +16,14 @@ from g2g.sequence import seq_similarity, path_sequence
 
 def print_result(result: AlignmentResult) -> None:
     ga, gb = result.graph_a, result.graph_b
-    sep = "─" * 60
+    sep = "-" * 60
 
-    print(f"\n{'═'*60}")
+    print(f"\n{'='*60}")
     print(f"  Graph-to-Graph Alignment")
     print(f"  {ga.name}  ×  {gb.name}")
-    print(f"{'═'*60}")
+    print(f"{'='*60}")
 
-    # ── Anchor nodes ──────────────────────────────────────────
+    # -- Anchor nodes ------------------------------------------
     print(f"\n{sep}")
     print("  ANCHOR NODES  (shared backbone)")
     print(sep)
@@ -35,7 +35,7 @@ def print_result(result: AlignmentResult) -> None:
     else:
         print("  (none found)")
 
-    # ── Snarl alignments ──────────────────────────────────────
+    # -- Snarl alignments --------------------------------------
     print(f"\n{sep}")
     print("  SNARL ALIGNMENTS")
     print(sep)
@@ -64,7 +64,7 @@ def print_result(result: AlignmentResult) -> None:
             print(f"      B-only   allele[{idx}] {seqs_b[idx]!r}"
                   f"  (no match in A)")
 
-    # ── Delta graphs ──────────────────────────────────────────
+    # -- Delta graphs ------------------------------------------
     print(f"\n{sep}")
     print("  DELTA GRAPH  ΔA→B  (A-only alleles)")
     print(sep)
@@ -73,7 +73,7 @@ def print_result(result: AlignmentResult) -> None:
             seq = path_sequence(ga.g, path)
             print(f"  snarl {snarl_id}  path={path}  seq={seq!r}")
     else:
-        print("  (none — graphs are structurally equivalent here)")
+        print("  (none - graphs are structurally equivalent here)")
 
     print(f"\n{sep}")
     print("  DELTA GRAPH  ΔB→A  (B-only alleles)")
@@ -85,7 +85,7 @@ def print_result(result: AlignmentResult) -> None:
     else:
         print("  (none)")
 
-    # ── Total score ───────────────────────────────────────────
+    # -- Total score -------------------------------------------
     print(f"\n{sep}")
     print(f"  TOTAL ALIGNMENT SCORE:  {result.total_score:.4f}")
     print(sep)

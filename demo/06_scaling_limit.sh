@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo 3b — push the scaling to the machine's limit.
+# Demo 3b - push the scaling to the machine's limit.
 #
 # A geometric sweep (doubling the reference size each step) that climbs until
 # the NEXT point would exceed the node's RAM or a wall-clock budget, then stops
@@ -33,7 +33,7 @@ MAX_MB="${MAX_MB:-8192}"
 DENSITY="${DENSITY:-200}"
 CHOP_A=25; CHOP_B=17
 
-log "Scaling to the limit — doubling until RAM or budget is hit"
+log "Scaling to the limit - doubling until RAM or budget is hit"
 note "MemTotal $(awk -v k="$mt_kb" 'BEGIN{printf "%.1f", k/1048576}') GB  |  mem ceiling ${MEM_CEIL_MB} MB  |  budget ${BUDGET_SEC}s  |  density 1 var / ${DENSITY} bp"
 
 TSV="$OUT/scale_limit_results.tsv"
@@ -54,7 +54,7 @@ while :; do
     N=$(( bp / DENSITY )); na=$(( N / 10 )); [ "$na" -lt 1 ] && na=1
     nb="$na"; nsh=$(( N - na - nb ))
 
-    # ── projection guards (skip on the first, known-safe point) ──────────────
+    # -- projection guards (skip on the first, known-safe point) --------------
     if [ "$last_nodes" -gt 0 ]; then
         ratio=$(awk -v a="$mb" -v b="$last_mb" 'BEGIN{print a/b}')
         proj_mem=$(awk -v m="$last_mem" -v r="$ratio" 'BEGIN{printf "%.0f", m*r}')
@@ -66,25 +66,25 @@ while :; do
             stop_reason="next point ~${proj_wall}s would exceed remaining budget ${rem}s"; break; fi
     fi
 
-    # ── disk guard (GFA for both graphs, ~65 B/node) ─────────────────────────
+    # -- disk guard (GFA for both graphs, ~65 B/node) -------------------------
     est_mb=$(awk -v bp="$bp" -v ca="$CHOP_A" -v cb="$CHOP_B" 'BEGIN{printf "%.0f",(bp/ca+bp/cb)*65/1048576}')
     free_mb=$(df -Pm "$OUT" | awk 'NR==2{print $4}')
     if [ "$free_mb" -lt $(( est_mb * 2 )) ]; then
         stop_reason="insufficient disk for ~${est_mb} MB of GFA (free ${free_mb} MB)"; break; fi
 
-    # ── generate ─────────────────────────────────────────────────────────────
+    # -- generate -------------------------------------------------------------
     if ! python3 "$DEMO_DIR/make_synthetic_pair.py" --length "$bp" \
             --n-shared "$nsh" --n-a "$na" --n-b "$nb" \
             --chop-a "$CHOP_A" --chop-b "$CHOP_B" --outdir "$OUT" >/dev/null 2>"$OUT/gen.err"; then
         stop_reason="generator failed at ${mb} Mb ($(tail -1 "$OUT/gen.err"))"; break; fi
 
-    # ── diff (robust: a kill/OOM here must not abort the script) ─────────────
+    # -- diff (robust: a kill/OOM here must not abort the script) -------------
     err="$OUT/run.err"
     if ! "$G2G" "$OUT/demoA.gfa" "$OUT/demoB.gfa" --ref GRCh38 \
             --verbose-timing --vcf "$OUT/scale.vcf" >/dev/null 2>"$err"; then
         rc=$?
         rm -f "$OUT"/demo*.gfa
-        stop_reason="g2g exited ${rc} at ${mb} Mb (likely OOM-killed) — ceiling is the previous point"; break; fi
+        stop_reason="g2g exited ${rc} at ${mb} Mb (likely OOM-killed) - ceiling is the previous point"; break; fi
 
     nA=$(sed -n 's/.*GA: \([0-9]*\) nodes  GB: \([0-9]*\) nodes.*/\1/p' "$err")
     nB=$(sed -n 's/.*GA: \([0-9]*\) nodes  GB: \([0-9]*\) nodes.*/\2/p' "$err")
@@ -106,7 +106,7 @@ while :; do
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
            "$mb" "$bp" "$nA" "$nB" "$sp" "$ao" "$bo" "$ok" "$dec" "$wall" "$mem" >> "$TSV"
 
-    if [ "$ok" = "FAIL" ]; then stop_reason="INCORRECT diff at ${mb} Mb — stopping"; break; fi
+    if [ "$ok" = "FAIL" ]; then stop_reason="INCORRECT diff at ${mb} Mb - stopping"; break; fi
 
     ceiling="$mb Mb  |  $nA + $nB nodes  |  $sp bubbles  |  ${wall}s  |  ${mem} MB peak"
     last_nodes=$(( nA + nB )); last_mem="$mem"; last_wall="$wall"; last_mb="$mb"
@@ -121,7 +121,7 @@ if [ -n "$ceiling" ]; then
     echo "  $ceiling"
     awk -F'\t' 'NR>1 && $8=="PASS"{n=$3+$4; v=$2/'"$DENSITY"'; w=$10; mb=$1}
         END{ if(w>0) printf "  throughput at ceiling: %.0f variants/s, %.0f nodes/s (single core)\n", v/w, n/w }' "$TSV"
-    echo "OK — pushed to the limit; diff stayed EXACT at every completed size"
+    echo "OK - pushed to the limit; diff stayed EXACT at every completed size"
 else
-    echo "No point completed — lower START_MB or check resources." >&2; exit 1
+    echo "No point completed - lower START_MB or check resources." >&2; exit 1
 fi

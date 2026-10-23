@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-plot_exp3_throughput.py — Throughput scaling figure (Figure 3 in paper).
+plot_exp3_throughput.py - Throughput scaling figure (Figure 3 in paper).
 
 Generates:
   - Log-log plot: wall time vs. graph size for all tools
@@ -66,7 +66,7 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
 def plot_throughput(agg: pd.DataFrame, out_dir: str) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
-    # ── Panel A: Wall time vs. n_snarls (log-log) ──
+    # -- Panel A: Wall time vs. n_snarls (log-log) --
     ax = axes[0, 0]
     for tool, (label, color, marker, lw) in TOOL_DISPLAY.items():
         sub = agg[agg["tool"] == tool].sort_values("n_snarls")
@@ -97,7 +97,7 @@ def plot_throughput(agg: pd.DataFrame, out_dir: str) -> None:
                 transform=ax.transAxes, fontsize=9, va="top",
                 bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5))
 
-    # ── Panel B: Memory usage vs. n_snarls ────────
+    # -- Panel B: Memory usage vs. n_snarls --------
     ax = axes[0, 1]
     for tool, (label, color, marker, lw) in TOOL_DISPLAY.items():
         sub = agg[agg["tool"] == tool].sort_values("n_snarls")
@@ -115,7 +115,7 @@ def plot_throughput(agg: pd.DataFrame, out_dir: str) -> None:
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3, which="both")
 
-    # ── Panel C: Speedup G2G-par vs. G2G-seq ─────
+    # -- Panel C: Speedup G2G-par vs. G2G-seq -----
     ax = axes[1, 0]
     par = agg[agg["tool"] == "g2g_parallel"].set_index("n_snarls")
     seq = agg[agg["tool"] == "g2g_sequential"].set_index("n_snarls")
@@ -132,7 +132,7 @@ def plot_throughput(agg: pd.DataFrame, out_dir: str) -> None:
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.3)
 
-    # ── Panel D: G2G vs. minimap2 speedup ─────────
+    # -- Panel D: G2G vs. minimap2 speedup ---------
     ax = axes[1, 1]
     mm2 = agg[agg["tool"] == "minimap2"].set_index("n_snarls")
     par = agg[agg["tool"] == "g2g_parallel"].set_index("n_snarls")
@@ -149,7 +149,7 @@ def plot_throughput(agg: pd.DataFrame, out_dir: str) -> None:
         ax.set_title("(D) G2G vs. minimap2 time ratio\n(>1 means G2G is faster)")
         ax.grid(True, alpha=0.3, axis="y")
 
-    fig.suptitle("G2G Throughput Scaling — Experiment 3", fontsize=13, fontweight="bold")
+    fig.suptitle("G2G Throughput Scaling - Experiment 3", fontsize=13, fontweight="bold")
     plt.tight_layout()
 
     out_path = os.path.join(out_dir, "fig3_throughput_scaling.pdf")

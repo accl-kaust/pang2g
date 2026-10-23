@@ -6,7 +6,7 @@
  *
  * Phase 2 finding: _find_anchors accounts for 39% of runtime at n=500
  * via O(|VA|·|VB|) naïve pairwise scan.  At HPRC scale |V|~10^7,
- * this is 10^14 comparisons — completely infeasible.
+ * this is 10^14 comparisons - completely infeasible.
  *
  * This module replaces the naïve scan with a minimizer k-mer index
  * (sliding-window sketching, as in minimap2):

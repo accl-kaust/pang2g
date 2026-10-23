@@ -6,8 +6,8 @@
  * Each snarl bubble is decomposed into atomic variants (SNPs / indels) by
  * aligning every allele to the snarl's reference allele and keying each
  * difference by its ABSOLUTE reference position.  Because that position is a
- * property of the reference coordinate — not of how a graph chops its nodes or
- * how many adjacent variants a bubble happens to span — a merged bubble in one
+ * property of the reference coordinate - not of how a graph chops its nodes or
+ * how many adjacent variants a bubble happens to span - a merged bubble in one
  * graph decomposes into the same atomic variants as the separate bubbles in the
  * other, so corresponding variants match.
  */
@@ -27,7 +27,7 @@
 namespace g2g {
 namespace {
 
-// ── PanSN reference-path resolution ───────────────────────────────────────────
+// -- PanSN reference-path resolution -------------------------------------------
 
 struct PanSN { std::string sample; std::string contig; };
 
@@ -68,7 +68,7 @@ std::vector<RefPath> resolve_ref_paths(const VariationGraph& g,
     return prefix;
 }
 
-// ── Allele decomposition into atomic variants ─────────────────────────────────
+// -- Allele decomposition into atomic variants ---------------------------------
 
 struct AtomicVar {
     uint32_t    roff;   // 0-based offset within the reference allele

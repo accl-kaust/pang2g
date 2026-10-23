@@ -1,9 +1,9 @@
 #!/bin/bash --login
-# SLURM — Experiment 2 (Minimap2 Consistency)
+# SLURM - Experiment 2 (Minimap2 Consistency)
 #SBATCH --job-name=g2g_exp2_minimap2
 #SBATCH --output=logs/exp2_%j.out
 #SBATCH --error=logs/exp2_%j.err
-#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
+#SBATCH --partition=batch      # adjust to your cluster
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16

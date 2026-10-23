@@ -1,7 +1,7 @@
 /**
  * tests/test_io.cpp
  * =================
- * GFA reader tests — Phase 3 Task P3-8.
+ * GFA reader tests - Phase 3 Task P3-8.
  *
  * Test plan (from roadmap §3.3):
  *   "Round-trip a hand-written GFA file; verify node count, edge count,
@@ -9,9 +9,9 @@
  *    through the full pipeline and confirm test results are unchanged."
  *
  * Suites:
- *   GfaReader   — unit tests for the parser itself.
- *   GfaRoundTrip — demo graph written as GFA, parsed back, aligner run.
- *   GfaEdgeCases — malformed input, missing sequences, W-lines.
+ *   GfaReader   - unit tests for the parser itself.
+ *   GfaRoundTrip - demo graph written as GFA, parsed back, aligner run.
+ *   GfaEdgeCases - malformed input, missing sequences, W-lines.
  */
 
 #include <g2g/io.hpp>
@@ -25,7 +25,7 @@
 
 using namespace g2g;
 
-// ── Helpers ───────────────────────────────────────────────────
+// -- Helpers ---------------------------------------------------
 
 static VariationGraph parse(const std::string& gfa_text,
                              const std::string& name = "test") {
@@ -33,7 +33,7 @@ static VariationGraph parse(const std::string& gfa_text,
     return read_gfa(ss, name);
 }
 
-// ── GfaReader: basic node / edge / path parsing ───────────────
+// -- GfaReader: basic node / edge / path parsing ---------------
 
 TEST(GfaReader, NodeCount) {
     auto vg = parse(
@@ -151,7 +151,7 @@ TEST(GfaReader, GraphNameSetFromArgument) {
     EXPECT_EQ(vg.name, "my_pangenome");
 }
 
-// ── Reverse-complement orientation ───────────────────────────
+// -- Reverse-complement orientation ---------------------------
 
 TEST(GfaReader, NegativeOrientInPath_RcNodeCreated) {
     // A path with a '-' oriented segment should create a rc node
@@ -180,7 +180,7 @@ TEST(GfaReader, NegativeOrientInPath_RcSequenceCorrect) {
     EXPECT_EQ(vg.seq(vg.id_map.at("a_rc")), "TGTAATC");
 }
 
-// ── W-line (GFA 1.1 walk) ────────────────────────────────────
+// -- W-line (GFA 1.1 walk) ------------------------------------
 
 TEST(GfaReader, WalkLine_ParsedAsPath) {
     auto vg = parse(
@@ -205,7 +205,7 @@ TEST(GfaReader, WalkLine_ReverseOrientation) {
     EXPECT_EQ(vg.num_paths(), 1u);
 }
 
-// ── Error handling ────────────────────────────────────────────
+// -- Error handling --------------------------------------------
 
 TEST(GfaReader, MissingSLineFieldThrows) {
     EXPECT_THROW(parse("S\tonlyone\n"), std::runtime_error);
@@ -225,7 +225,7 @@ TEST(GfaReader, UnknownSegmentInPLineThrows) {
     ), std::runtime_error);
 }
 
-// ── Demo graph round-trip ─────────────────────────────────────
+// -- Demo graph round-trip -------------------------------------
 //
 // Write the demo graphs (from test_align.cpp) as GFA strings,
 // parse them back, run the aligner, and verify results match the
@@ -324,7 +324,7 @@ TEST_F(GfaRoundTrip, TotalScorePositive) {
     EXPECT_GT(result_.total_score, 0.f);
 }
 
-// ── write_alignment_gaf smoke test ───────────────────────────
+// -- write_alignment_gaf smoke test ---------------------------
 
 TEST_F(GfaRoundTrip, WriteGafDoesNotThrow) {
     SnarlTree ta = SnarlDecomposer(ga_).decompose();

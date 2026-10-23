@@ -26,13 +26,13 @@ done
 
 echo "[gnomad] Output: $OUT_DIR"
 
-# ─────────────────────────────────────────────────────────────
-# gnomAD v4 SV — public GCS bucket (no credentials needed)
+# -------------------------------------------------------------
+# gnomAD v4 SV - public GCS bucket (no credentials needed)
 # Full SV callset (all chromosomes)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 GNOMAD_BASE="https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/genome_sv"
 
-# Main SV VCF (sites only — no genotypes, smaller file ~500 MB)
+# Main SV VCF (sites only - no genotypes, smaller file ~500 MB)
 SV_VCF_URL="${GNOMAD_BASE}/gnomad.v4.1.sv.sites.vcf.gz"
 SV_TBI_URL="${SV_VCF_URL}.tbi"
 
@@ -55,12 +55,12 @@ echo "[gnomad] Downloading tabix index..."
 wget -q -O "$OUT_DIR/gnomad.v4.1.sv.sites.vcf.gz.tbi" "$SV_TBI_URL" || \
     tabix -p vcf "$OUT_DIR/gnomad.v4.1.sv.sites.vcf.gz"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Discover which INFO tags this release actually carries.
 # gnomAD v4.1 SV does NOT have INFO/POPMAX_AF (popmax was renamed to grpmax
-# in v4) and ships no per-pair FST field at all — so we detect the real tag
+# in v4) and ships no per-pair FST field at all - so we detect the real tag
 # names from the header and compute AFR/EAS FST ourselves.
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 VCF="$OUT_DIR/gnomad.v4.1.sv.sites.vcf.gz"
 HDR="$(bcftools view -h "$VCF")"
 have_tag() { grep -q "##INFO=<ID=$1," <<< "$HDR"; }
@@ -76,10 +76,10 @@ for t in AF_afr AF_AFR afr_AF AFR_AF; do have_tag "$t" && { AFR_TAG="$t"; break;
 for t in AF_eas AF_EAS eas_AF EAS_AF; do have_tag "$t" && { EAS_TAG="$t"; break; }; done
 echo "[gnomad] tags: popmax='${PMAX_TAG:-none}' afr='${AFR_TAG:-none}' eas='${EAS_TAG:-none}'"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Extract SV BED file (for bedtools intersection)
 # Columns: chrom, start, end, svid, svtype, AF, popmax_af(. if absent)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[gnomad] Extracting SV BED for intersection..."
 PMAX_FMT='.'; [[ -n "$PMAX_TAG" ]] && PMAX_FMT="%INFO/$PMAX_TAG"
 bcftools query \
@@ -97,13 +97,13 @@ tabix -f -p bed "$OUT_DIR/gnomad.v4.1.sv.bed.gz"
 
 echo "[gnomad] SV BED: $OUT_DIR/gnomad.v4.1.sv.bed.gz"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Extract population-differentiated SVs (high AFR/EAS FST).
 # gnomAD ships no FST field, so compute Wright's FST from the per-population
 # allele frequencies: pbar=(p_afr+p_eas)/2; Ht=2*pbar*(1-pbar);
 # Hs=(2*p_afr*(1-p_afr)+2*p_eas*(1-p_eas))/2; FST=(Ht-Hs)/Ht.
 # Threshold > 0.10 ≈ population-differentiated.
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 HIFST_BED="$OUT_DIR/gnomad.v4.1.sv.high_fst_afr_eas.bed"
 if [[ -n "$AFR_TAG" && -n "$EAS_TAG" ]]; then
     echo "[gnomad] Computing AFR/EAS FST from $AFR_TAG, $EAS_TAG (threshold > 0.10)..."
@@ -126,7 +126,7 @@ if [[ -n "$AFR_TAG" && -n "$EAS_TAG" ]]; then
         > "$HIFST_BED"
     echo "[gnomad] High-FST SVs: $(wc -l < "$HIFST_BED") records"
 else
-    echo "[gnomad] WARNING: per-population AF tags not found — skipping high-FST BED." >&2
+    echo "[gnomad] WARNING: per-population AF tags not found - skipping high-FST BED." >&2
     : > "$HIFST_BED"
 fi
 

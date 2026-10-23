@@ -23,7 +23,7 @@
 
 using namespace g2g;
 
-// ── Build demo graphs ─────────────────────────────────────────
+// -- Build demo graphs -----------------------------------------
 // Mirrors build_demo_graphs() in demo.py exactly.
 
 static VariationGraph build_graph_a() {
@@ -66,7 +66,7 @@ static VariationGraph build_graph_b() {
     return gb;
 }
 
-// ── Tests ─────────────────────────────────────────────────────
+// -- Tests -----------------------------------------------------
 
 class DemoAlignTest : public ::testing::Test {
 protected:

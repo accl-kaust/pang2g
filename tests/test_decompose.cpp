@@ -4,11 +4,11 @@
  * Tests for P3-4 (vEB layout + annotate_work) and P3-5b (MinimizerIndex).
  *
  * Suite layout:
- *   SnarlWork      — annotate_work() correctness
- *   VebLayout      — apply_veb_order() structural correctness + allele integrity
- *   VebPerf        — traversal-order timing proxy for the ablation study (Q3)
- *   MinimizerIdx   — MinimizerIndex unit tests
- *   AnchorIndex    — find_anchors() switching between naïve and index paths
+ *   SnarlWork      - annotate_work() correctness
+ *   VebLayout      - apply_veb_order() structural correctness + allele integrity
+ *   VebPerf        - traversal-order timing proxy for the ablation study (Q3)
+ *   MinimizerIdx   - MinimizerIndex unit tests
+ *   AnchorIndex    - find_anchors() switching between naïve and index paths
  */
 
 #include <g2g/decompose.hpp>
@@ -28,7 +28,7 @@
 
 using namespace g2g;
 
-// ── Graph builder helpers ─────────────────────────────────────
+// -- Graph builder helpers -------------------------------------
 
 // Build the standard demo graph A (two bubbles in series)
 static VariationGraph make_demo_graph_a() {
@@ -76,7 +76,7 @@ static VariationGraph make_bubble(int k, const std::string& prefix = "") {
     return g;
 }
 
-// ── SnarlWork ─────────────────────────────────────────────────
+// -- SnarlWork -------------------------------------------------
 
 TEST(SnarlWork, SingleBubble_k3) {
     auto g = make_demo_graph_a();
@@ -103,7 +103,7 @@ TEST(SnarlWork, LinearChain_noSnarls) {
     EXPECT_EQ(tree.snarls.size(), 0u);
 }
 
-// ── VebLayout ─────────────────────────────────────────────────
+// -- VebLayout -------------------------------------------------
 
 TEST(VebLayout, AllSnarlsPresent) {
     auto g = make_demo_graph_a();
@@ -174,7 +174,7 @@ TEST(VebLayout, SourceSinkPreservedAfterReorder) {
     }
 }
 
-// ── VebPerf: traversal-order timing proxy ─────────────────────
+// -- VebPerf: traversal-order timing proxy ---------------------
 //
 // This is the ablation-study data point for paper §2.7.3 (Q3, Experiment 5).
 // We build a synthetic graph with many snarls, then measure wall-clock time
@@ -227,7 +227,7 @@ TEST(VebPerf, VebOrderDoesNotChangeTotalAlleles) {
     EXPECT_EQ(tree.snarls.size(), 20u);
 }
 
-// ── MinimizerIdx ──────────────────────────────────────────────
+// -- MinimizerIdx ----------------------------------------------
 
 TEST(MinimizerIdx, IndexedNodeCount) {
     auto g = make_demo_graph_a();
@@ -285,7 +285,7 @@ TEST(MinimizerIdx, NearDuplicateReturnedAsCandidate) {
     EXPECT_TRUE(found) << "near-duplicate did not find b2a as candidate";
 }
 
-// ── AnchorIndex: find_anchors switches between paths ──────────
+// -- AnchorIndex: find_anchors switches between paths ----------
 
 TEST(AnchorIndex, NaivePathSmallGraph) {
     // Demo graphs: |backbone_a|*|backbone_b| << kNaiveThreshold → naïve path
@@ -420,7 +420,7 @@ TEST(AnchorIndex, SensitivitySweep) {
     }
 }
 
-// ── Vg snarl back-end (snarls_vg.cpp) ─────────────────────────
+// -- Vg snarl back-end (snarls_vg.cpp) -------------------------
 // These tests exercise the optional vg-toolkit decomposer.  They self-skip
 // when vg is not available (set $G2G_VG to the vg binary, or put vg on PATH);
 // in CI without vg they are skipped rather than failed.

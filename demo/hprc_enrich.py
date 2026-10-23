@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-hprc_enrich.py — population-differentiation enrichment for a G2G delta graph.
+hprc_enrich.py - population-differentiation enrichment for a G2G delta graph.
 
 The Q4 claim: the alleles G2G reports as present in one population pangenome but
 not the other (the delta graph) should be enriched for *population-differentiated*
-structural variants — i.e. SVs with a high F_ST between the two populations —
+structural variants - i.e. SVs with a high F_ST between the two populations  - 
 relative to chance. This script tests that with a permutation null.
 
 Inputs
@@ -12,7 +12,7 @@ Inputs
               records are the population-specific alleles.
   --gnomad-sv gnomAD-SV VCF (or any VCF whose INFO carries per-population allele
               frequencies). F_ST is computed per record from two AF fields.
-  --sizes     chrom sizes (UCSC ".genome" or ".fai": "chrom<TAB>length …") — the
+  --sizes     chrom sizes (UCSC ".genome" or ".fai": "chrom<TAB>length …") - the
               universe the permutation shuffles within.
   --clinvar   (optional) ClinVar VCF; reports delta overlap with pathogenic sites.
 
@@ -213,7 +213,7 @@ def analyse(delta, gnomad, sizes, args, label, out_rows):
     out_rows.append((label, obs, round(exp, 2), round(fold, 3), p))
 
 
-# ── synthetic self-test ───────────────────────────────────────────────────────
+# -- synthetic self-test -------------------------------------------------------
 def self_test():
     print("[self-test] planted-enrichment + negative control")
     rng = random.Random(1)
@@ -252,7 +252,7 @@ def main():
                          "the same delta (no graph rebuild). Writes a sweep TSV to --out.")
     ap.add_argument("--min-len", type=int, default=0,
                     help="keep only delta alleles with INFO LEN >= this (e.g. 50 for "
-                         "SV-sized deltas — the like-for-like set vs structural variants)")
+                         "SV-sized deltas - the like-for-like set vs structural variants)")
     ap.add_argument("--window", type=int, default=1000)
     ap.add_argument("--perms", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
@@ -271,12 +271,12 @@ def main():
     if not deltas:
         print("no delta alleles to test (check --min-len / the delta VCF)"); return
 
-    # ── F_ST dose-response sweep ───────────────────────────────────────────────
+    # -- F_ST dose-response sweep -----------------------------------------------
     if a.fst_sweep:
         thresholds = sorted(float(t) for t in a.fst_sweep.split(","))
         recs, n_tot, n_use = read_gnomad_records(a.gnomad_sv, a.afr_field, a.eas_field)
         print(f"delta alleles: {len(deltas)}   gnomAD-SV: {n_tot} ({n_use} with AF) "
-              f"— F_ST dose-response over {thresholds}")
+              f" -  F_ST dose-response over {thresholds}")
         rows = []
         for t in thresholds:
             hi, n_hi = targets_at(recs, t)

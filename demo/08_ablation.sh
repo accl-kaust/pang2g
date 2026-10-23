@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo 5 — ablation of G2G's design choices.
+# Demo 5 - ablation of G2G's design choices.
 #
 # Builds the fully-optimized baseline and one binary per ablation (each with a
 # single optimization DISABLED via a CMake flag), then compares them at a
@@ -7,11 +7,11 @@
 # it should), reporting the slowdown (disabled / baseline) of the phase each
 # choice affects. The expected pattern: control ~1.0x, treatment > 1.0x.
 #
-# Honest notes (verified against the code):
+# Notes:
 #   * The CMake option names are paper-facing; the build maps each to the
 #     internal macro the optimization actually reads (see CMakeLists.txt).
 #   * vEB layout (G2G_BFS_LAYOUT) is a no-op on the current depth-1 snarls, so
-#     its rows should read ~1.0x — that is a real result, not a measurement bug.
+#     its rows should read ~1.0x - that is a real result, not a measurement bug.
 #   * Static work-partition (G2G_STATIC_PARTITION) replaces work-stealing with a
 #     fixed cyclic (ti % P) task assignment. Its control is a BALANCED workload
 #     (every complex snarl identical, via --uniform-k) where a static split is
@@ -57,7 +57,7 @@ metric() {  # $1=bin $2=A $3=B $4=timing-field $5..=run flags -> min over 3 reps
 }
 ratio() { awk -v a="$1" -v b="$2" 'BEGIN{ if (b>0 && a!="NA") printf "%.2fx", a/b; else printf "NA" }'; }
 
-log "Ablation — each optimization OFF vs the optimized baseline"
+log "Ablation - each optimization OFF vs the optimized baseline"
 note "building baseline + ablation binaries into $ABL (a few minutes)…"
 BASE=$(build "")
 
@@ -72,7 +72,7 @@ gen --outdir "$ABL/g_k7"      --length 200000 --n-shared 2000 --n-a 30 --n-b 30 
 gen --outdir "$ABL/g_sv_s"    --length 50000  --n-shared 120  --n-a 20 --n-b 20 --max-k 40 --complex-frac 1.0 --alt-len 200
 gen --outdir "$ABL/g_sv_b"    --length 400000 --n-shared 3000 --n-a 50 --n-b 50 --max-k 40 --complex-frac 1.0 --alt-len 200
 # static-partition: BALANCED control (identical heavy snarls) vs SKEWED treatment
-# (heavy-tailed) — same idea, differing only in per-snarl work variance.
+# (heavy-tailed) - same idea, differing only in per-snarl work variance.
 gen --outdir "$ABL/g_bal"     --length 250000 --n-shared 200  --n-a 10 --n-b 10 --max-k 16 --complex-frac 1.0 --alt-len 120 --uniform-k
 gen --outdir "$ABL/g_skew"    --length 400000 --n-shared 320  --n-a 10 --n-b 10 --max-k 40 --complex-frac 1.0 --alt-len 160
 
@@ -100,6 +100,6 @@ row "vEB layout"              G2G_BFS_LAYOUT     dp    "--threads 1"    "$ABL/g_
 echo
 note "slowdown = disabled / baseline   (1.00x = no effect; >1 = the optimization helps here)"
 note "results: $ABL/ablation_results.tsv"
-note "vEB rows read ~1.0x: the layout is a no-op on depth-1 snarls (honest null)."
+note "vEB rows read ~1.0x: the layout is a no-op on depth-1 snarls, so 1.0x is the expected result."
 note "static-partition control ~1.0x (balanced work) vs treatment >1.0x (skewed work)."
-echo "OK — ablation complete"
+echo "OK - ablation complete"

@@ -16,7 +16,7 @@
 -- Found OpenMP_CXX: -fopenmp (found version "4.5")
 -- Found OpenMP: TRUE (found version "4.5")
 -- Found OpenMP 4.5
--- libhandlegraph not found — snarl decomposition will use built-in stub
+-- libhandlegraph not found - snarl decomposition will use built-in stub
 -- Configuring done (1.8s)
 -- Generating done (0.0s)
 -- Build files have been written to: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/build
@@ -36,4 +36,4 @@
 Usage: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/build/g2g <graph_a.gfa> <graph_b.gfa> [options]
 
 Options:
-OK — built /home/shaklea/Research/G2G/G2G_Project_Summer_2026/build/g2g
+OK - built /home/shaklea/Research/G2G/G2G_Project_Summer_2026/build/g2g

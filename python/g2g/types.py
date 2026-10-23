@@ -1,5 +1,5 @@
 """
-types.py — Memory layer
+types.py - Memory layer
 =======================
 Pure data structures with no computation.
 All fields are set at construction or by the aligner; no methods
@@ -27,7 +27,7 @@ class Snarl:
     such that all paths from source to sink stay inside S.
 
     allele_paths  : list of node-id lists, each one path through the bubble
-    children      : nested child snarls (snarl tree — populated by decomposer)
+    children      : nested child snarls (snarl tree - populated by decomposer)
     """
     source: str
     sink: str
@@ -62,7 +62,7 @@ class SnarlAlignment:
     Alignment record for one matched snarl pair (sa from graph A,
     sb from graph B).
 
-    allele_matches : list of (i, j) index pairs — allele i in sa
+    allele_matches : list of (i, j) index pairs - allele i in sa
                      is matched to allele j in sb
     w_seq          : boundary sequence similarity contribution
     w_topo         : topological consistency contribution

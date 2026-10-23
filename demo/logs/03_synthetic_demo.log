@@ -24,9 +24,9 @@ GRCh38	163	B_1	G	T	.	PASS	GRAPH=B;SNARL=GRCh38:163;LEN=1
 === 4. Check the diff against the planted ground truth ===
   planted : shared=5 A_only=3 B_only=2
   reported: A_only=3 B_only=2
-  RESULT  : PASS — diff matches ground truth exactly
+  RESULT  : PASS - diff matches ground truth exactly
 
-=== 5. Self-diff (graph vs itself) — must be zero differences ===
+=== 5. Self-diff (graph vs itself) - must be zero differences ===
   a_only=0  b_only=0
 
-OK — synthetic demo complete (outputs in $REPO/demo/work/synthetic)
+OK - synthetic demo complete (outputs in $REPO/demo/work/synthetic)

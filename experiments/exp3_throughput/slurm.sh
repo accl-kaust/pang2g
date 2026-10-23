@@ -1,6 +1,6 @@
 #!/bin/bash --login
 # ============================================================
-# SLURM — Experiment 3 (Throughput Scaling)
+# SLURM - Experiment 3 (Throughput Scaling)
 #
 # Runs all graph sizes (1K → 1M snarls) × 3 seeds × 4 tools.
 # Estimated wall time: 8–12h depending on largest graphs.
@@ -13,7 +13,7 @@
 #SBATCH --job-name=g2g_exp3_throughput
 #SBATCH --output=logs/exp3_%j.out
 #SBATCH --error=logs/exp3_%j.err
-#SBATCH --partition=batch      # adjust to your cluster (e.g. batch on KAUST Ibex)
+#SBATCH --partition=batch      # adjust to your cluster
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64

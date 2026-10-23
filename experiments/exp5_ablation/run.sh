@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Experiment 5 — Ablation Study
+# Experiment 5 - Ablation Study
 #
 # Measures the isolated contribution of each design decision:
 #
@@ -43,9 +43,9 @@ echo "[exp5] Results:  $RESULTS"
 echo "[exp5] Threads:  $THREADS"
 echo "[exp5] Repeats:  $REPEATS"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Verify all ablation binaries are built
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 VARIANTS=(
     "release"
     "abl_bfs_layout"
@@ -58,15 +58,15 @@ VARIANTS=(
 for v in "${VARIANTS[@]}"; do
     bin="$BUILDS/$v/g2g"
     if [[ ! -f "$bin" ]]; then
-        echo "[exp5] Missing binary: $bin — run 01_build_all.sh first"
+        echo "[exp5] Missing binary: $bin - run 01_build_all.sh first"
         exit 1
     fi
 done
 echo "[exp5] All ${#VARIANTS[@]} ablation binaries found."
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Helper: run g2g with timing, return "wall_ms:peak_kb:rc"
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 run_g2g() {
     local bin="$1"; local gfa_a="$2"; local gfa_b="$3"
     local extra_flags="$4"
@@ -88,9 +88,9 @@ run_g2g() {
     echo "${wall_ms}:${peak_kb}:${rc}"
 }
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # A1–A3: 10K snarl graphs
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 N_MED=10000
 SEEDS_MED=(42 123 456 789 1234)
 
@@ -188,9 +188,9 @@ for seed in "${SEEDS_MED[@]}"; do
 done
 echo "[exp5] A3 done."
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # A4: Minimizer index vs. naïve anchor detection (100K snarls)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 N_LARGE=100000
 CSV_A4="$RESULTS/exp5_ablation_anchor_${TIMESTAMP}.csv"
 echo "ablation,variant,n_snarls,seed,threads,repeat,wall_ms,peak_kb,rc" \
@@ -229,15 +229,15 @@ for seed in "${SEEDS_MED[@]:0:3}"; do  # 3 seeds for large graphs
 done
 echo "[exp5] A4 done."
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # A5: Hungarian vs. brute-force matching at fixed k
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 CSV_A5="$RESULTS/exp5_ablation_matching_${TIMESTAMP}.csv"
 echo "ablation,variant,k,n_snarls,seed,threads,repeat,wall_ms,peak_kb,rc" \
     > "$CSV_A5"
 
 K_VALUES=(5 6 7 8 10 15 20)
-N_A5=1000  # small graph, only a few snarls — isolate matching cost
+N_A5=1000  # small graph, only a few snarls - isolate matching cost
 
 for k in "${K_VALUES[@]}"; do
     for seed in 42 123 456; do
@@ -317,9 +317,9 @@ PYEOF
 done
 echo "[exp5] A5 done."
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Summary
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo ""
 echo "[exp5] Results:"
 echo "  $CSV_MAIN"

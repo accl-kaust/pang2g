@@ -1,7 +1,7 @@
 /**
  * src/parallel.cpp
  * ================
- * Phase 4 — Work-stealing parallel runtime (OpenMP implementation).
+ * Phase 4 - Work-stealing parallel runtime (OpenMP implementation).
  *
  * Replaces oneTBB with:
  *   - OpenMP threads (#pragma omp parallel)
@@ -19,7 +19,7 @@
  * in insertion order rather than by priority).
  *
  * G2G_STATIC_PARTITION ablation: when compiled with -DG2G_STATIC_PARTITION=1,
- * the shared queue and stealing are removed entirely — each thread owns a
+ * the shared queue and stealing are removed entirely - each thread owns a
  * fixed (cyclic) slice of the tasks and runs only those.  This exposes the
  * per-snarl load imbalance that work-stealing hides; results are unchanged.
  */
@@ -44,7 +44,7 @@
 
 namespace g2g {
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers -------------------------------------------------------------------
 
 static uint32_t detect_threads() {
     if (const char* env = std::getenv("G2G_NUM_THREADS")) {
@@ -59,14 +59,14 @@ static uint32_t detect_threads() {
 #endif
 }
 
-// ── ParallelAligner constructor ───────────────────────────────────────────────
+// -- ParallelAligner constructor -----------------------------------------------
 
 ParallelAligner::ParallelAligner(const AlignerParams& params, uint32_t num_threads)
     : params_(params)
     , num_threads_(num_threads == 0 ? detect_threads() : num_threads)
 {}
 
-// ── Task execution (identical to sequential score_snarl_pair) ─────────────────
+// -- Task execution (identical to sequential score_snarl_pair) -----------------
 
 SnarlAlignment ParallelAligner::execute_task(
     const VariationGraph& ga,
@@ -115,7 +115,7 @@ SnarlAlignment ParallelAligner::execute_task(
     return aln;
 }
 
-// ── Task DAG construction ─────────────────────────────────────────────────────
+// -- Task DAG construction -----------------------------------------------------
 
 std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
     const VariationGraph& ga,
@@ -172,7 +172,7 @@ std::vector<SnarlPairTask> ParallelAligner::build_task_dag(
     return tasks;
 }
 
-// ── Ready-queue entry ─────────────────────────────────────────────────────────
+// -- Ready-queue entry ---------------------------------------------------------
 
 struct ReadyEntry {
     uint32_t task_idx;
@@ -185,7 +185,7 @@ struct CmpPriority {
     }
 };
 
-// ── Main parallel scheduler (OpenMP) ──────────────────────────────────────────
+// -- Main parallel scheduler (OpenMP) ------------------------------------------
 
 ParallelAligner::Result ParallelAligner::align_snarls(
     const VariationGraph& ga,
@@ -215,12 +215,12 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     uint64_t ready_peak = 0;   // guarded by queue_mtx (and the pre-launch seed)
 
 #ifdef G2G_STATIC_PARTITION
-    // ── Static work-partition scheduler (ablation) ────────────────────────────
+    // -- Static work-partition scheduler (ablation) ----------------------------
     // No shared queue and no stealing: thread `tid` of a P-thread team owns
     // exactly the tasks with (ti % P == tid) and runs only those, re-scanning its
     // own set until each owned task's dependencies are met.  Dependencies are
     // still honoured, so the results are byte-identical to the work-stealing path
-    // — but a thread that draws several heavy snarls cannot shed them, so the DP
+    // - but a thread that draws several heavy snarls cannot shed them, so the DP
     // phase inherits the per-snarl load imbalance that work-stealing removes.  By
     // construction no task ever crosses its static owner, so `steals` stays 0 and
     // `imbalance` reports the static skew.
@@ -431,7 +431,7 @@ ParallelAligner::Result ParallelAligner::align_snarls(
     return {std::move(alignments), stats};
 }
 
-// ── Full pipeline ─────────────────────────────────────────────────────────────
+// -- Full pipeline -------------------------------------------------------------
 
 AlignmentResult ParallelAligner::align(
     const VariationGraph& ga,
@@ -465,7 +465,7 @@ AlignmentResult ParallelAligner::align(
     for (const auto& sa : result.snarl_alignments)
         result.total_score += sa.score;
 
-    // Delta graph construction — the same routine as the sequential aligner, so
+    // Delta graph construction - the same routine as the sequential aligner, so
     // the two paths emit byte-identical deltas (unmatched alleles of paired
     // snarls plus every allele of an unpaired snarl).
     build_deltas(ga, gb, ta, tb, result);

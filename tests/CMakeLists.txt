@@ -22,7 +22,7 @@ if(G2G_HAVE_OPENMP)
   gtest_discover_tests(test_parallel)
 endif()
 
-# ── Phase 5 correctness tests ──────────────────────────────────
+# -- Phase 5 correctness tests ----------------------------------
 add_executable(test_phase5_exp1 test_phase5_exp1_synthetic_gt.cpp)
 target_link_libraries(test_phase5_exp1 PRIVATE g2g_lib GTest::gtest_main)
 gtest_discover_tests(test_phase5_exp1)

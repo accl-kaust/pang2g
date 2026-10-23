@@ -3,7 +3,7 @@
  * ==============
  * Anchor node detection between two variation graphs.
  *
- * Phase 3 Task P3-5b: MinimizerIndex — COMPLETE.
+ * Phase 3 Task P3-5b: MinimizerIndex - COMPLETE.
  *
  * Design (from §2.5.4 of the paper):
  *   Build a minimizer sketch index (sliding-window k-mer sketches, as in
@@ -41,11 +41,11 @@
 
 namespace g2g {
 
-// ── Constants ─────────────────────────────────────────────────
+// -- Constants -------------------------------------------------
 
 static constexpr uint64_t kNaiveThreshold = 1'000'000ULL;
 
-// ── FNV-1a 32-bit hash ────────────────────────────────────────
+// -- FNV-1a 32-bit hash ----------------------------------------
 
 uint32_t MinimizerIndex::hash_kmer(std::string_view kmer) {
     // FNV-1a: fast, deterministic, good avalanche on short DNA strings.
@@ -57,7 +57,7 @@ uint32_t MinimizerIndex::hash_kmer(std::string_view kmer) {
     return hash;
 }
 
-// ── Minimizer extraction ──────────────────────────────────────
+// -- Minimizer extraction --------------------------------------
 
 std::vector<uint32_t> MinimizerIndex::minimizers(std::string_view seq) const {
     const int k = params_.kmer_len;
@@ -97,7 +97,7 @@ std::vector<uint32_t> MinimizerIndex::minimizers(std::string_view seq) const {
     return result;
 }
 
-// ── Index construction ────────────────────────────────────────
+// -- Index construction ----------------------------------------
 
 MinimizerIndex::MinimizerIndex(const VariationGraph& vg, const AnchorParams& p)
     : vg_(vg), params_(p) { build(); }
@@ -126,7 +126,7 @@ void MinimizerIndex::build() {
     }
 }
 
-// ── Query ─────────────────────────────────────────────────────
+// -- Query -----------------------------------------------------
 
 std::vector<NodeId> MinimizerIndex::query(std::string_view query_seq) const {
     auto mins = minimizers(query_seq);
@@ -146,7 +146,7 @@ std::vector<NodeId> MinimizerIndex::query(std::string_view query_seq) const {
     return candidates;
 }
 
-// ── find_anchors ──────────────────────────────────────────────
+// -- find_anchors ----------------------------------------------
 
 std::vector<AnchorMatch> find_anchors(const VariationGraph& ga,
                                        const VariationGraph& gb,
@@ -171,7 +171,7 @@ std::vector<AnchorMatch> find_anchors(const VariationGraph& ga,
         || true   // ablation A4: always use naive path
 #endif
     ) {
-        // ── Naïve O(|backbone_a| * |backbone_b|) scan ─────────
+        // -- Naïve O(|backbone_a| * |backbone_b|) scan ---------
         for (NodeId na : backbone_a) {
             float  best_sim = params.min_sim - 1e-9f;
             NodeId best_nb  = kInvalidNode;
@@ -186,7 +186,7 @@ std::vector<AnchorMatch> find_anchors(const VariationGraph& ga,
             }
         }
     } else {
-        // ── MinimizerIndex path ────────────────────────────────
+        // -- MinimizerIndex path --------------------------------
         // Index graph B; query each node in graph A's backbone.
         // Candidate pairs share ≥1 minimizer; refine with full seq_similarity.
         MinimizerIndex idx_b(gb, params);

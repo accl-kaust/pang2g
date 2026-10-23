@@ -15,8 +15,8 @@
  *             float* u = nullptr, float* v = nullptr);
  *
  *   cost     : n×n cost matrix, row-major, cost[i*n + j] = cost of pairing row i with col j.
- *   row_sol  : output — row_sol[i] = column assigned to row i.
- *   col_sol  : output — col_sol[j] = row    assigned to col j.
+ *   row_sol  : output - row_sol[i] = column assigned to row i.
+ *   col_sol  : output - col_sol[j] = row    assigned to col j.
  *   u, v     : optional dual variables (size n each); may be nullptr.
  *   returns  : 0 on success.
  *
@@ -38,11 +38,11 @@
 namespace g2g {
 
 /**
- * lapjv — square assignment, minimise sum of cost[row_sol[i], i].
+ * lapjv - square assignment, minimise sum of cost[row_sol[i], i].
  *
  * Implementation follows the three-phase structure of Jonker & Volgenant:
- *   Phase 1: column reduction   — initial cheap assignment.
- *   Phase 2: reduction transfer — repair incomplete assignment.
+ *   Phase 1: column reduction   - initial cheap assignment.
+ *   Phase 2: reduction transfer - repair incomplete assignment.
  *   Phase 3: augmenting row reduction (shortest-path augmentation).
  */
 inline int lapjv(int n,

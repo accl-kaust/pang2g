@@ -2,7 +2,7 @@
 /**
  * include/g2g/parallel.hpp
  * ========================
- * Phase 4 — Work-stealing parallel runtime for the snarl-pair DP.
+ * Phase 4 - Work-stealing parallel runtime for the snarl-pair DP.
  *
  * OpenMP implementation (replaces oneTBB).
  *
@@ -13,7 +13,7 @@
  * independent and can run in parallel.
  *
  * We implement the scheduler with:
- *   1. SnarlPairTask  — A unit of work: score one (SA_idx, SB_idx) pair.
+ *   1. SnarlPairTask  - A unit of work: score one (SA_idx, SB_idx) pair.
  *   2. A std::priority_queue protected by a mutex as the ready queue,
  *      ordered by subtree_work descending (steal-largest).
  *   3. OpenMP threads pulling tasks from the ready queue.
@@ -38,12 +38,12 @@
 
 namespace g2g {
 
-// ── Task record ───────────────────────────────────────────────────────────────
+// -- Task record ---------------------------------------------------------------
 
 struct SnarlPairTask {
     uint32_t ia;           // index into SnarlTree A
     uint32_t ib;           // index into SnarlTree B
-    uint64_t priority;     // subtree_work — scheduler hint
+    uint64_t priority;     // subtree_work - scheduler hint
 
     int32_t  parent_idx;   // -1 if root
     std::atomic<int32_t> dep_count{0};
@@ -62,13 +62,13 @@ struct SnarlPairTask {
     SnarlPairTask& operator=(SnarlPairTask&&) = delete;
 };
 
-// ── Scheduler statistics ──────────────────────────────────────────────────────
+// -- Scheduler statistics ------------------------------------------------------
 
 struct RunStats {
     uint64_t tasks_executed{0};
     uint64_t tasks_ready_peak{0};   // high-water mark of the ready queue
     uint64_t steals{0};             // tasks run by a thread other than their
-                                    // static round-robin owner (ti % P) — a
+                                    // static round-robin owner (ti % P) - a
                                     // proxy for dynamic load redistribution
                                     // vs. a static partition
     double   imbalance{1.0};        // load-imbalance factor:
@@ -82,7 +82,7 @@ struct RunStats {
     PhaseTimes phases;              // index / decompose / dp breakdown
 };
 
-// ── Parallel aligner ──────────────────────────────────────────────────────────
+// -- Parallel aligner ----------------------------------------------------------
 
 class ParallelAligner {
 public:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-pairing_error_sweep.py — Exp1b: snarl-pairing error as a function of graph size.
+pairing_error_sweep.py - Exp1b: snarl-pairing error as a function of graph size.
 
 For each configuration (n_snarls, boundary-node length, private-snarl fraction,
 anchor-linker spacing) and seed, this script

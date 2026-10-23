@@ -40,11 +40,11 @@
 #include <string>
 #include <thread>
 
-#include <sys/resource.h>   // getrusage — self-reported peak RSS (no GNU time dep)
+#include <sys/resource.h>   // getrusage - self-reported peak RSS (no GNU time dep)
 
 namespace fs = std::filesystem;
 
-// ── Argument parsing ──────────────────────────────────────────
+// -- Argument parsing ------------------------------------------
 
 struct Args {
     fs::path gfa_a;
@@ -151,7 +151,7 @@ static Args parse_args(int argc, char** argv) {
     return a;
 }
 
-// ── Main ──────────────────────────────────────────────────────
+// -- Main ------------------------------------------------------
 
 int main(int argc, char** argv) {
     Args args = parse_args(argc, argv);
@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
     using Clock = std::chrono::steady_clock;
     const auto wall_t0 = Clock::now();
 
-    // ── Load graphs ───────────────────────────────────────────
+    // -- Load graphs -------------------------------------------
     g2g::VariationGraph ga, gb;
     double io_seconds = 0.0;
     try {
@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
     std::cerr << "[g2g] GA: " << ga.num_nodes() << " nodes"
               << "  GB: " << gb.num_nodes() << " nodes\n";
 
-    // ── Decompose both graphs (shared by the diff and the writers) ─
+    // -- Decompose both graphs (shared by the diff and the writers) -
     g2g::SnarlTree ta, tb;
     double decompose_seconds = 0.0;
     try {
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // ── Optional snarl dump (debugging aid) ───────────────────
+    // -- Optional snarl dump (debugging aid) -------------------
     if (!args.dump_snarls.empty()) {
         std::ofstream f(args.dump_snarls);
         if (!f) { std::cerr << "ERROR: cannot open " << args.dump_snarls << "\n"; return 1; }
@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
         std::cerr << "[g2g] snarls written to " << args.dump_snarls << "\n";
     }
 
-    // ── Run alignment / diff ──────────────────────────────────
+    // -- Run alignment / diff ----------------------------------
     g2g::AlignmentResult result;
     g2g::RunStats run_stats{};   // .phases filled in both paths; scheduler
                                  // fields (steals/imbalance/...) only parallel
@@ -266,11 +266,11 @@ int main(int argc, char** argv) {
                   << "\n";
     }
 
-    // ── Verbose timing / runtime stats ────────────────────────
+    // -- Verbose timing / runtime stats ------------------------
     if (args.verbose_timing) {
         const double wall_seconds =
             std::chrono::duration<double>(Clock::now() - wall_t0).count();
-        // Self-reported peak resident memory — avoids depending on GNU
+        // Self-reported peak resident memory - avoids depending on GNU
         // /usr/bin/time being installed on the host. On Linux ru_maxrss is KiB.
         struct rusage ru{};
         getrusage(RUSAGE_SELF, &ru);
@@ -299,7 +299,7 @@ int main(int argc, char** argv) {
 
     // (ta, tb already decomposed above and reused by the writers.)
 
-    // ── Write GAF ─────────────────────────────────────────────
+    // -- Write GAF ---------------------------------------------
     if (args.gaf_out.empty()) {
         g2g::write_alignment_gaf(std::cout, result, ga, gb, ta, tb);
     } else {
@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
         std::cerr << "[g2g] alignment written to " << args.gaf_out << "\n";
     }
 
-    // ── Write VCF ─────────────────────────────────────────────
+    // -- Write VCF ---------------------------------------------
     if (!args.vcf_out.empty()) {
         std::ofstream f(args.vcf_out);
         if (!f) { std::cerr << "ERROR: cannot open " << args.vcf_out << "\n"; return 1; }

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-make_synthetic_pair.py — controlled reference-anchored pangenome pair.
+make_synthetic_pair.py - controlled reference-anchored pangenome pair.
 
 Builds two GFA graphs (A and B) that embed the SAME reference path but plant a
-known set of variants and — crucially — chop the shared reference into
+known set of variants and - crucially - chop the shared reference into
 DIFFERENT nodes.  This is the situation that breaks naive boundary matching and
 that `g2g --ref` is designed to handle: variants are matched by reference
 COORDINATE, not by node boundaries.
@@ -29,7 +29,7 @@ def write_gfa(path, ref, variants, chop, label, ref_name):
     variant's exact reference coordinate regardless of `chop`.
 
     Written in O(1) memory via two deterministic walks (the P-line, then the
-    S/L lines) instead of materialising every node/edge — so the generator
+    S/L lines) instead of materialising every node/edge - so the generator
     scales to hundreds of megabases. g2g's GFA reader is two-pass / order
     independent, so emitting P before S/L is fine.
     """
@@ -56,7 +56,7 @@ def write_gfa(path, ref, variants, chop, label, ref_name):
     with open(path, "w") as f:
         f.write("H\tVN:Z:1.1\n")
 
-        # Pass 1 — reference P-line (backbone nodes only, in order).
+        # Pass 1 - reference P-line (backbone nodes only, in order).
         f.write(f"P\t{ref_name}\t")
         nid = 0
         first = True
@@ -67,7 +67,7 @@ def write_gfa(path, ref, variants, chop, label, ref_name):
                 first = False
         f.write("\t*\n")
 
-        # Pass 2 — S (segments) and L (links), streamed.
+        # Pass 2 - S (segments) and L (links), streamed.
         nid = 0
         prev_bb = None        # previous backbone node (reference-path chain)
         b_before = None       # backbone node just before the current variant
@@ -114,7 +114,7 @@ def main():
     ap.add_argument("--uniform-k", action="store_true",
                     help="make every complex snarl IDENTICAL (exactly --max-k "
                          "alleles, each exactly --alt-len long) instead of "
-                         "heavy-tailed — a balanced heavy workload, the control "
+                         "heavy-tailed - a balanced heavy workload, the control "
                          "for the static-partition scheduler ablation")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
@@ -137,7 +137,7 @@ def main():
     usable = a.length - 2 * margin
     # Place variants on an even grid so they are always >=2 bp apart (clean,
     # independent bubbles) regardless of count, and spread across the whole
-    # reference. O(N) — scales to multi-megabase references (the earlier
+    # reference. O(N) - scales to multi-megabase references (the earlier
     # shuffle-pool + pairwise proximity check was O(length * need)).
     assert usable >= need * 2, "increase --length or lower variant counts"
     step = usable // need

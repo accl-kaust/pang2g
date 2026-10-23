@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Download the third-party tools used by the REAL-data demo (04) into demo/tools/.
-# The synthetic demo (03) needs none of these — only g2g + python3.
+# The synthetic demo (03) needs none of these - only g2g + python3.
 #
 # Tools:
-#   vg        — build pangenome graphs from a reference + VCF (vgteam)
-#   minimap2  — align haplotypes to the reference (lh3)
-#   paftools.js + k8 — call variants from the alignment (ships with minimap2)
-#   pysam     — bgzip/tabix/faidx (pip)
+#   vg        - build pangenome graphs from a reference + VCF (vgteam)
+#   minimap2  - align haplotypes to the reference (lh3)
+#   paftools.js + k8 - call variants from the alignment (ships with minimap2)
+#   pysam     - bgzip/tabix/faidx (pip)
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 VG_VER=v1.75.0
@@ -38,4 +38,4 @@ log "Tool versions"
 "$TOOLS/vg" version | head -1
 "$TOOLS/minimap2" --version | sed 's/^/minimap2 /'
 python3 -c "import pysam; print('pysam', pysam.__version__)"
-echo "OK — tools ready in $TOOLS"
+echo "OK - tools ready in $TOOLS"

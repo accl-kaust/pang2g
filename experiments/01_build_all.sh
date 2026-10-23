@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Phase 5 — Build All G2G Variants
+# Phase 5 - Build All G2G Variants
 #
 # Builds the production binary and five ablation variants.
 # Each variant disables one optimization so we can measure
@@ -24,7 +24,7 @@ G2G_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NCPU=$(nproc)
 ENV_NAME="${G2G_ENV_NAME:-g2g_eval}"
 
-# ── Ensure the g2g_eval toolchain env is active ───────────────
+# -- Ensure the g2g_eval toolchain env is active ---------------
 # The cmake/ninja/compilers live inside the conda env, not in base.
 if [[ "${CONDA_DEFAULT_ENV:-}" != "$ENV_NAME" ]]; then
     echo "[build] Activating conda env '$ENV_NAME' (was: ${CONDA_DEFAULT_ENV:-none})"
@@ -33,7 +33,7 @@ if [[ "${CONDA_DEFAULT_ENV:-}" != "$ENV_NAME" ]]; then
     conda activate "$ENV_NAME"
 fi
 
-# ── Preflight: confirm the build toolchain is on PATH ─────────
+# -- Preflight: confirm the build toolchain is on PATH ---------
 missing=()
 for tool in cmake ninja; do
     command -v "$tool" &>/dev/null || missing+=("$tool")
@@ -55,9 +55,9 @@ build_variant() {
     local extra_flags=("$@")
     local dir="$G2G_ROOT/build/$name"
     echo ""
-    echo "══════════════════════════════════════════"
+    echo "=========================================="
     echo " Building: $name"
-    echo "══════════════════════════════════════════"
+    echo "=========================================="
     cmake -B "$dir" \
         -DCMAKE_BUILD_TYPE=Release \
         -G Ninja \
@@ -92,8 +92,8 @@ for variant in release abl_bfs_layout abl_steal_random abl_naive_anchor \
     bin="$G2G_ROOT/build/$variant/g2g"
     if [[ -f "$bin" ]]; then
         size=$(du -sh "$bin" | cut -f1)
-        echo "  ✓  $variant  ($size)"
+        echo "  ok       $variant  ($size)"
     else
-        echo "  ✗  $variant  MISSING"
+        echo "  MISSING  $variant"
     fi
 done

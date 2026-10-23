@@ -1,5 +1,5 @@
 
-=== Scaling to the limit — doubling until RAM or budget is hit ===
+=== Scaling to the limit - doubling until RAM or budget is hit ===
     MemTotal 503.7 GB  |  mem ceiling 412635 MB  |  budget 32400s  |  density 1 var / 200 bp
    ref_mb      nodesA      nodesB    snarls   a_only      OK decomp_s     wall_s   peak_MB elapsed_s
         8      393601      554306     32000     4000    PASS 1.486016   2.878143     259.5         5
@@ -19,4 +19,4 @@
 CEILING reached on this node:
   8192 Mb  |  403046401 + 567620133 nodes  |  32768000 bubbles  |  4291.847834s  |  247372.7 MB peak
   throughput at ceiling: 9544 variants/s, 226165 nodes/s (single core)
-OK — pushed to the limit; diff stayed EXACT at every completed size
+OK - pushed to the limit; diff stayed EXACT at every completed size

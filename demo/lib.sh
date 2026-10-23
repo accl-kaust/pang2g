@@ -21,5 +21,5 @@ note() { printf '    %s\n' "$*"; }
 # Resolve a tool by name: prefer demo/tools, then PATH. Empty if not found.
 have() { command -v "$1" >/dev/null 2>&1; }
 need_g2g() {
-    [ -x "$G2G" ] || { echo "ERROR: $G2G not found — run demo/02_build_g2g.sh first" >&2; exit 1; }
+    [ -x "$G2G" ] || { echo "ERROR: $G2G not found - run demo/02_build_g2g.sh first" >&2; exit 1; }
 }

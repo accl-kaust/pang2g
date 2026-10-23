@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-01_stratify_hprc_samples.py — Assign HPRC samples to AFR/EAS populations.
+01_stratify_hprc_samples.py - Assign HPRC samples to AFR/EAS populations.
 
 Classification is taken STRICTLY from the authoritative 1000 Genomes
 3202-sample population table (downloaded by download_hprc_assemblies.sh to
-$G2G_DATA_ROOT/hprc/metadata/1kgp_pops.panel) — never from a hardcoded guess.
+$G2G_DATA_ROOT/hprc/metadata/1kgp_pops.panel) - never from a hardcoded guess.
 An earlier hardcoded map mislabeled several American samples (HG00733=PUR,
 HG01123/HG01175=CLM, HG02148=PEL) as EAS, which would have built the "EAS"
 pangenome from the wrong genomes and invalidated the AFR-vs-EAS comparison.
@@ -66,7 +66,7 @@ def load_superpop(panel_file: str) -> dict[str, str]:
             if len(p) > max(s_i, sp_i):
                 superpop[p[s_i].strip()] = p[sp_i].strip()
 
-    # GIAB Han Chinese son (NA24631) — not present in 1KGP tables.
+    # GIAB Han Chinese son (NA24631) - not present in 1KGP tables.
     superpop.setdefault("HG005", "EAS")
     print(f"[stratify] super-pop entries loaded: {len(superpop)}", file=sys.stderr)
     return superpop

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 02_build_pangenomes.sh — Build AFR and EAS pangenomes
+# 02_build_pangenomes.sh - Build AFR and EAS pangenomes
 #
 # Uses minigraph-cactus (the HPRC recommended pipeline) to
 # build two population-specific pangenome graphs from the
@@ -39,9 +39,9 @@ if ! command -v cactus-pangenome &>/dev/null; then
 fi
 echo "[build_pg] cactus: $(cactus-pangenome --version 2>&1 | head -1)"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Build one pangenome
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 build_pangenome() {
     local pop="$1"
     local samples_file="$METADATA_DIR/${pop,,}_samples.txt"
@@ -51,7 +51,7 @@ build_pangenome() {
     local log_file="$out_dir/build_${TIMESTAMP}.log"
 
     echo ""
-    echo "[build_pg] ══ Building $pop pangenome ══"
+    echo "[build_pg] == Building $pop pangenome =="
 
     if [[ ! -f "$samples_file" ]]; then
         echo "[build_pg] Sample file not found: $samples_file"
@@ -62,7 +62,7 @@ build_pangenome() {
     mapfile -t SAMPLES < "$samples_file"
     echo "[build_pg] Samples: ${#SAMPLES[@]}"
 
-    # ── Create cactus-pangenome seqfile (TSV: name  path) ────
+    # -- Create cactus-pangenome seqfile (TSV: name  path) ----
     # Format: one line per haplotype
     # <sample>_hap1  /path/to/sample_hap1.fa.gz
     > "$seqfile"
@@ -93,11 +93,11 @@ build_pangenome() {
 
     echo "[build_pg] Seqfile: $seqfile ($(wc -l < "$seqfile") entries)"
 
-    # ── Run cactus-pangenome ──────────────────────────────────
+    # -- Run cactus-pangenome ----------------------------------
     # Toil refuses to reuse an existing jobstore, so a previous failed run
     # leaves one behind that blocks every retry. Clean it (and stale outputs)
     # for a fresh start. SLURM_MEM_PER_NODE is in MB, so pass it with an 'M'
-    # suffix — appending 'G' previously asked for 409600G (400,000 GB).
+    # suffix - appending 'G' previously asked for 409600G (400,000 GB).
     rm -rf "$job_store"
     local mem_mb="${SLURM_MEM_PER_NODE:-409600}"
 
@@ -136,9 +136,9 @@ build_pangenome() {
     fi
 }
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Build both pangenomes (sequential to avoid memory contention)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 build_pangenome AFR
 build_pangenome EAS
 

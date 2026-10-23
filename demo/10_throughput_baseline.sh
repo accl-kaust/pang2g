@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Demo 7 — throughput vs. the linearize-and-map baseline (fig_throughput).
+# Demo 7 - throughput vs. the linearize-and-map baseline (fig_throughput).
 #
 # Question: why align two pangenome graphs directly (G2G) instead of the obvious
-# alternative — linearize each graph back into haplotypes and map them with a
+# alternative - linearize each graph back into haplotypes and map them with a
 # sequence aligner? Because the graph is a *compressed* representation: its size
 # saturates as redundant haplotypes are added, so G2G's whole diff is ~flat in the
 # panel size h, whereas linearize-and-map must extract and align every haplotype,
@@ -11,15 +11,15 @@
 # We sweep h (haplotypes per population) and, at each point, time:
 #   * G2G          : g2g popA.gfa popB.gfa --ref <contig>   (the entire diff)
 #   * baseline     : extract h haplotypes per population (bcftools consensus) and
-#                    align them to the reference (minimap2) — the dominant cost of
+#                    align them to the reference (minimap2) - the dominant cost of
 #                    any linearize-and-map pipeline, BEFORE variant calling. Timing
 #                    only this stage is deliberately generous to the baseline: the
 #                    real pipeline then has to call and merge variants on top.
 #
 # Everything is GRCh37/b37, reusing the inputs staged by 09_fetch_biology_data.sh.
 # Needs vg, bcftools, tabix, samtools, minimap2 (vg+minimap2 ship in demo/tools via
-# 01_setup_tools.sh; bcftools/samtools/tabix from your g2g_bio env). Cannot run in
-# the dev sandbox (no tools/data there). Each tool is overridable: VG=, BCFTOOLS=,
+# 01_setup_tools.sh; bcftools/samtools/tabix from a conda env). Each tool is
+# overridable: VG=, BCFTOOLS=,
 # TABIX=, SAMTOOLS=, MINIMAP2=.
 #
 # Inputs (env): REF_FA, PANEL_VCF or PANEL_TMPL ({}=contig), SAMPLES_A, SAMPLES_B,
@@ -68,7 +68,7 @@ build_graph() {  # $1=sample-list  $2=out.gfa
         | "$VG" convert -f - 2>>"$OUT/_err" > "$2" || true
     [ -s "$2" ] || { echo "ERROR: vg produced an empty graph ($2):" >&2; tail -3 "$OUT/_err" >&2; exit 1; }
 }
-extract_haps() {  # $1=sample-list  $2=out.fa  — one haplotype per sample
+extract_haps() {  # $1=sample-list  $2=out.fa  - one haplotype per sample
     : > "$2"
     local s
     while IFS= read -r s || [ -n "$s" ]; do
@@ -107,7 +107,7 @@ for H in $H_SWEEP; do
     : > "$OUT/_cons.err"
     extract_haps "$OUT/a.ids" "$OUT/hapsA.fa"; extract_haps "$OUT/b.ids" "$OUT/hapsB.fa"
     if ! { [ -s "$OUT/hapsA.fa" ] && [ -s "$OUT/hapsB.fa" ]; }; then
-        note "  warning: consensus produced no haplotypes — last error from bcftools:"
+        note "  warning: consensus produced no haplotypes - last error from bcftools:"
         tail -3 "$OUT/_cons.err" 2>/dev/null | sed 's/^/      /' >&2 || true
     fi
     "$MINIMAP2" -cx asm20 "$CFA" "$OUT/hapsA.fa" >/dev/null 2>&1 || true
@@ -122,6 +122,6 @@ echo
 note "results: $TSV"
 note "figure:  python3 demo/make_figures.py --throughput-csv $TSV"
 note "interpretation: G2G is ~flat as h grows (graph size saturates); the baseline"
-note "grows ~linearly in h — and that is only its extract+align stage, before any"
+note "grows ~linearly in h - and that is only its extract+align stage, before any"
 note "variant calling. G2G aligns the compressed graphs directly."
-echo "OK — throughput baseline complete"
+echo "OK - throughput baseline complete"

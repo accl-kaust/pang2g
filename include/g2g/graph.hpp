@@ -34,7 +34,7 @@ class VariationGraph {
 public:
     std::string name;
 
-    // ── Sequence storage ──────────────────────────────────────
+    // -- Sequence storage --------------------------------------
     // All node sequences packed into one flat array.
     std::vector<char>     seq_data;
     std::vector<uint64_t> node_seq_offsets;  // size = num_nodes; 64-bit so a
@@ -42,23 +42,23 @@ public:
                                              // exceed 4 GiB (multi-Gbp graphs)
     std::vector<uint16_t> node_seq_lengths;  // size = num_nodes
 
-    // ── Adjacency (CSR format) ─────────────────────────────────
+    // -- Adjacency (CSR format) ---------------------------------
     std::vector<uint32_t> adj_out_ptr;    // size = num_nodes + 1
     std::vector<NodeId>   adj_out_data;
     std::vector<uint32_t> adj_in_ptr;     // size = num_nodes + 1
     std::vector<NodeId>   adj_in_data;
 
-    // ── Named paths ───────────────────────────────────────────
+    // -- Named paths -------------------------------------------
     std::vector<uint32_t>      path_offsets;   // size = num_paths + 1
     std::vector<NodeId>        path_node_ids;  // flat
     std::vector<std::string>   path_names;
 
-    // ── External-id ↔ internal-index mapping ─────────────────
+    // -- External-id ↔ internal-index mapping -----------------
     // Python prototype uses string node IDs; we keep a map for GFA import.
     std::unordered_map<std::string, NodeId> id_map;
     std::vector<std::string>               node_names;  // reverse map
 
-    // ── Accessors ─────────────────────────────────────────────
+    // -- Accessors ---------------------------------------------
     uint32_t num_nodes() const { return static_cast<uint32_t>(node_seq_offsets.size()); }
     uint32_t num_paths() const { return static_cast<uint32_t>(path_names.size()); }
 
@@ -87,11 +87,11 @@ public:
                 path_offsets[path_idx + 1] - path_offsets[path_idx]};
     }
 
-    // ── Builders (used by GFA reader and tests) ───────────────
+    // -- Builders (used by GFA reader and tests) ---------------
     // These produce the Python prototype's builder interface on top
     // of the compact CSR layout.  Call finalise() once after all
     // add_node/add_path calls.
-    // ── Builders (used by GFA reader and tests) ───────────────
+    // -- Builders (used by GFA reader and tests) ---------------
     NodeId add_node(const std::string& external_id, std::string_view sequence);
     void   add_edge(NodeId u, NodeId v);
     void   add_path(const std::string& name, const std::vector<NodeId>& nodes);
@@ -101,7 +101,7 @@ public:
     void   finalise();
 
 private:
-    // Temporary edge list — converted to CSR by finalise()
+    // Temporary edge list - converted to CSR by finalise()
     std::vector<std::pair<NodeId,NodeId>> edge_list_;
     bool finalised_{false};
 };

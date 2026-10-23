@@ -1,7 +1,7 @@
 /**
  * tests/test_sequence.cpp
  * =======================
- * Unit tests for sequence.cpp — verifies parity with Python prototype.
+ * Unit tests for sequence.cpp - verifies parity with Python prototype.
  *
  * Ground truth values computed from:
  *   from g2g.sequence import edit_distance, seq_similarity
@@ -13,7 +13,7 @@
 
 using namespace g2g;
 
-// ── edit_distance ─────────────────────────────────────────────
+// -- edit_distance ---------------------------------------------
 
 TEST(EditDistance, IdenticalStrings) {
     EXPECT_EQ(edit_distance("ACGT", "ACGT"), 0);
@@ -42,7 +42,7 @@ TEST(EditDistance, DemoGraphAlleles) {
     EXPECT_EQ(edit_distance("CTTAGGAATCG", "GATTACA"), 8);
 }
 
-// ── seq_similarity ────────────────────────────────────────────
+// -- seq_similarity --------------------------------------------
 
 TEST(SeqSimilarity, BothEmpty) {
     EXPECT_FLOAT_EQ(seq_similarity("", ""), 1.0f);

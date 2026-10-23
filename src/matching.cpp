@@ -4,11 +4,11 @@
  * Bipartite allele matching implementations.
  *
  * Priority order per Phase 2 findings:
- *   1. hungarian_match() — LAPJV O(k³); primary path for k ≤ lapjv_limit.
+ *   1. hungarian_match() - LAPJV O(k³); primary path for k ≤ lapjv_limit.
  *                          (Phase 2: 570× speedup vs brute at k=7.)
- *   2. greedy_match()    — O(k² log k) approximation; (1-1/e) ratio.
+ *   2. greedy_match()    - O(k² log k) approximation; (1-1/e) ratio.
  *                          Fallback for k > lapjv_limit (default 30).
- *   3. brute_match()     — Exact oracle; only for k ≤ 8 unit tests.
+ *   3. brute_match()     - Exact oracle; only for k ≤ 8 unit tests.
  *
  * Phase 3 Task P3-2 status: COMPLETE.
  *   - lapjv() vendored as include/g2g/lapjv.hpp (self-contained header).
@@ -27,7 +27,7 @@
 
 namespace g2g {
 
-// ── Helpers ───────────────────────────────────────────────────
+// -- Helpers ---------------------------------------------------
 
 static std::vector<float>
 build_sim_matrix_flat(g2g::span<const std::string_view> seqs_a,
@@ -75,7 +75,7 @@ build_result_from_sim_flat(const std::vector<float>& sim,
     return r;
 }
 
-// ── Brute-force oracle (P3-1: COMPLETE) ──────────────────────
+// -- Brute-force oracle (P3-1: COMPLETE) ----------------------
 //
 // Exact port of Python bipartite_allele_match().
 // Enumerates all assignments of size m = 0..min(na,nb):
@@ -83,7 +83,7 @@ build_result_from_sim_flat(const std::vector<float>& sim,
 //   • all P(small_n, m) permutations from the smaller side,
 // picks the assignment maximising sum(sim) - gap_cost * unmatched.
 //
-// Complexity: O(min(na,nb)! * C(max,min)) — feasible only for k ≤ 8.
+// Complexity: O(min(na,nb)! * C(max,min)) - feasible only for k ≤ 8.
 
 MatchResult brute_match(g2g::span<const std::string_view> seqs_a,
                          g2g::span<const std::string_view> seqs_b,
@@ -202,7 +202,7 @@ MatchResult brute_match(g2g::span<const std::string_view> seqs_a,
     return build_result_from_sim_flat(sim, na, nb, best_pairs, params);
 }
 
-// ── Greedy approximation ──────────────────────────────────────
+// -- Greedy approximation --------------------------------------
 
 MatchResult greedy_match(g2g::span<const std::string_view> seqs_a,
                           g2g::span<const std::string_view> seqs_b,
@@ -235,7 +235,7 @@ MatchResult greedy_match(g2g::span<const std::string_view> seqs_a,
     return build_result_from_sim_flat(sim, na, nb, pairs, params);
 }
 
-// ── Hungarian (LAPJV) — P3-2: COMPLETE ───────────────────────
+// -- Hungarian (LAPJV) - P3-2: COMPLETE -----------------------
 //
 // Builds an n×n cost matrix (padding rectangular inputs with gap_cost
 // dummy rows/columns), runs lapjv(), then converts the assignment back
@@ -307,7 +307,7 @@ MatchResult hungarian_match(g2g::span<const std::string_view> seqs_a,
                                       na, nb, pairs, params);
 }
 
-// ── Dispatcher ────────────────────────────────────────────────
+// -- Dispatcher ------------------------------------------------
 
 MatchResult allele_match(g2g::span<const std::string_view> seqs_a,
                           g2g::span<const std::string_view> seqs_b,

@@ -17,7 +17,7 @@ mkdir -p "$OUT_DIR"
 
 NCBI_FTP="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38"
 
-# Fail loudly if the toolchain isn't on PATH — otherwise bcftools errors get
+# Fail loudly if the toolchain isn't on PATH - otherwise bcftools errors get
 # swallowed by `|| true` and we silently write empty BEDs. The usual cause is
 # forgetting to `conda activate g2g_eval` before running.
 for tool in bcftools tabix wget; do
@@ -30,9 +30,9 @@ done
 
 echo "[clinvar] Output: $OUT_DIR"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 1. Download ClinVar VCF (GRCh38)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[clinvar] Downloading ClinVar VCF (GRCh38)..."
 if [[ -f "$OUT_DIR/clinvar.vcf.gz" ]] && \
    [[ $(stat -c%s "$OUT_DIR/clinvar.vcf.gz") -gt 50000000 ]] && \
@@ -48,11 +48,11 @@ wget -q -O "$OUT_DIR/clinvar.vcf.gz.tbi" \
     "${NCBI_FTP}/clinvar.vcf.gz.tbi" || \
     tabix -p vcf "$OUT_DIR/clinvar.vcf.gz"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 2. Extract pathogenic/likely pathogenic SVs
 #    CLNSIG = Pathogenic or Likely_pathogenic
 #    CLNVC  = structural variant types (Deletion, Duplication, etc.)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # Show top CLNVC values to confirm filter will match
 echo "[clinvar] CLNVC value counts (top 10):"
 bcftools query -f '%CLNVC\n' "$OUT_DIR/clinvar.vcf.gz" 2>/dev/null \
@@ -61,7 +61,7 @@ bcftools query -f '%CLNVC\n' "$OUT_DIR/clinvar.vcf.gz" 2>/dev/null \
 echo "[clinvar] Extracting pathogenic SVs..."
 # CLNVC uses Title_Case (e.g. "Deletion", "Duplication"); bcftools ~ is case-sensitive.
 # Use case-insensitive regex via (?i) prefix (POSIX ERE supported by bcftools >= 1.10).
-# Do NOT filter on FILTER column — ClinVar variants routinely carry filters like
+# Do NOT filter on FILTER column - ClinVar variants routinely carry filters like
 # "no_assertion_criteria_provided" but are still clinically relevant.
 SV_FILTER='CLNVC~"(?i)(deletion|duplication|inversion|insertion|copy_number)"'
 PATHO_FILTER='CLNSIG~"(?i)(pathogenic)"'
@@ -76,9 +76,9 @@ bcftools query \
     | sort -k1,1 -k2,2n \
     > "$OUT_DIR/clinvar_pathogenic_svs.bed"
 
-# ─────────────────────────────────────────────────────────────
-# 3. All ClinVar SVs (any significance) — for sensitivity analysis
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
+# 3. All ClinVar SVs (any significance) - for sensitivity analysis
+# -------------------------------------------------------------
 echo "[clinvar] Extracting all ClinVar SVs..."
 bcftools query \
     -i "${SV_FILTER}" \
@@ -91,9 +91,9 @@ bcftools query \
     | sort -k1,1 -k2,2n \
     > "$OUT_DIR/clinvar_all_svs.bed"
 
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 # 4. Create GRCh38 chromosome size file (needed for bedtools)
-# ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------
 echo "[clinvar] Creating chromosome sizes file..."
 # Try multiple sources; fall back to generating from the fai of the GRCh38 reference.
 SIZES_OK=0
@@ -130,7 +130,7 @@ if [[ "$SIZES_OK" -eq 0 ]]; then
         echo "[clinvar] chrom.sizes extracted from VCF header ($(wc -l < "$OUT_DIR/hg38.chrom.sizes") contigs)"
         SIZES_OK=1
     else
-        echo "[clinvar] WARNING: could not create hg38.chrom.sizes — bedtools slop will fail" >&2
+        echo "[clinvar] WARNING: could not create hg38.chrom.sizes - bedtools slop will fail" >&2
     fi
 fi
 

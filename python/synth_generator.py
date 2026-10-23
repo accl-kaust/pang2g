@@ -1,5 +1,5 @@
 """
-synth_generator.py — Synthetic variation graph generator for Phase 2 profiling.
+synth_generator.py - Synthetic variation graph generator for Phase 2 profiling.
 
 Generates pairs of variation graphs with:
   - n snarls arranged in a linear chain (backbone → snarl → backbone → ...)
@@ -31,7 +31,7 @@ def _random_seq(length: int, rng: random.Random) -> str:
 
 
 def _mutate_seq(seq: str, error_rate: float, rng: random.Random) -> str:
-    """Introduce point mutations at given rate — simulates population divergence."""
+    """Introduce point mutations at given rate - simulates population divergence."""
     bases = list(seq)
     for i in range(len(bases)):
         if rng.random() < error_rate:
@@ -84,7 +84,7 @@ def generate_graph_pair(
     ga = VariationGraph(f"SynthA-n{n_snarls}")
     gb = VariationGraph(f"SynthB-n{n_snarls}")
 
-    # ── Build backbone anchors ────────────────────────────────
+    # -- Build backbone anchors --------------------------------
     anchors: list[str] = []
     for i in range(n_snarls + 1):
         node_id = f"anc_{i}"
@@ -93,7 +93,7 @@ def generate_graph_pair(
         gb.add_node(node_id, seq)   # identical anchors = shared backbone
         anchors.append(node_id)
 
-    # ── Build snarls ─────────────────────────────────────────
+    # -- Build snarls -----------------------------------------
     # Track paths: list of (hap_a_nodes, hap_b_nodes) per snarl
     # We'll stitch them into named haplotypes at the end.
     snarl_alleles_a: list[list[str]] = []  # node IDs per allele in graph A
@@ -151,7 +151,7 @@ def generate_graph_pair(
         snarl_alleles_a.append(alleles_a)
         snarl_alleles_b.append(alleles_b)
 
-    # ── Add edges: connect anchor → allele → next anchor ─────
+    # -- Add edges: connect anchor → allele → next anchor -----
     for s_idx in range(n_snarls):
         src = anchors[s_idx]
         snk = anchors[s_idx + 1]
@@ -162,7 +162,7 @@ def generate_graph_pair(
             gb.add_edge(src, node_b)
             gb.add_edge(node_b, snk)
 
-    # ── Register representative haplotype paths ───────────────
+    # -- Register representative haplotype paths ---------------
     # One path per graph threading allele[0] of each snarl
     path_a = [anchors[0]]
     path_b = [anchors[0]]
