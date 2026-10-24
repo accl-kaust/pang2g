@@ -85,7 +85,7 @@ log "6. Diff:  g2g cg_A.gfa cg_B.gfa --ref GRCh38 --vcf hla_diff.vcf"
     --gaf "$OUT/hla_diff.gaf" --vcf "$OUT/hla_diff.vcf"
 
 log "7. Sample of the variant-level diff (real chr coordinates)"
-grep -v '^##' "$OUT/hla_diff.vcf" | head -8
+grep -v '^##' "$OUT/hla_diff.vcf" | sed -n '1,8p'   # not head: SIGPIPE under pipefail
 
 log "8. Self-diff (cg_A vs cg_A) - must be zero differences"
 "$G2G" "$OUT/cg_A.gfa" "$OUT/cg_A.gfa" --ref GRCh38 2>&1 \

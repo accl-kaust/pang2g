@@ -35,7 +35,7 @@ note "ensuring pysam (bgzip/tabix/faidx) is importable…"
 python3 -c "import pysam" 2>/dev/null || pip install --quiet pysam
 
 log "Tool versions"
-"$TOOLS/vg" version | head -1
+"$TOOLS/vg" version | sed -n 1p
 "$TOOLS/minimap2" --version | sed 's/^/minimap2 /'
 python3 -c "import pysam; print('pysam', pysam.__version__)"
 echo "OK - tools ready in $TOOLS"
