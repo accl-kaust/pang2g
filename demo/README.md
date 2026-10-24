@@ -1,16 +1,16 @@
-# G2G demo - diffing two pangenome graphs
+# The demos
 
-This directory is a **self-contained, reproducible demonstration** of G2G's
-graph-to-graph diff: give it two pangenome graphs that share a reference, and it
-reports the variants that differ between them, with real reference coordinates.
+This directory is a self-contained demonstration of G2G's graph-to-graph
+diff. Give it two pangenome graphs that share a reference and it reports the
+variants that differ between them, with reference coordinates:
 
 ```
 g2g  graph_A.gfa  graph_B.gfa  --ref GRCh38  --vcf diff.vcf
 ```
 
-It outputs a VCF-style diff - one record per allele present in only one of the
-two graphs (POS is the 0-based reference offset of the site; add 1 to compare
-with a standard 1-based VCF):
+The output is a VCF-style diff with one record per allele present in only
+one of the two graphs. POS is the 0-based reference offset of the site, so
+add 1 to compare with a standard 1-based VCF:
 
 ```
 #CHROM  POS   ID    REF  ALT    ...  INFO
@@ -19,12 +19,11 @@ GRCh38  1516  A_2   GAA  .      ...  GRAPH=A      <- a deletion, unique to A
 GRCh38  249   B_0   G    C      ...  GRAPH=B      <- unique to graph B
 ```
 
-Variants are matched between the two graphs by **reference coordinate**, after
-decomposing each bubble into atomic SNPs/indels. This is robust to the two
-graphs chopping the shared reference into different nodes - the situation that
-breaks naive bubble-boundary matching on real graphs.
-
----
+Variants are matched between the two graphs by reference coordinate, after
+each bubble has been decomposed into atomic SNPs and indels. Two graphs that
+chop the shared reference into different nodes therefore still match, which
+is exactly the situation that breaks naive bubble-boundary matching on real
+graphs.
 
 ## Quick start
 
@@ -32,7 +31,7 @@ breaks naive bubble-boundary matching on real graphs.
 # the test case (build + planted ground truth + Q4 synthetic pipeline), from the repo root:
 bash run_test_case.sh            # add --unit for the GoogleTests, --real for the HLA demo
 
-# 1. everything (build + synthetic + scaling sweep + fetch tools + real HLA demo)
+# everything (build + synthetic + scaling sweep + fetch tools + real HLA demo)
 bash demo/run_all.sh
 
 # synthetic + scaling only (no downloads, no extra tools):
@@ -42,36 +41,32 @@ SKIP_REAL=1 bash demo/run_all.sh
 SKIP_SCALING=1 bash demo/run_all.sh
 ```
 
-Logs from a real run are committed under [`logs/`](logs/); example outputs under
-[`sample_outputs/`](sample_outputs/).
+Logs from a real run are committed under [`logs/`](logs/), and example
+outputs under [`sample_outputs/`](sample_outputs/).
 
 ## Prerequisites
 
-| For | You need |
-|-----|----------|
-| Building G2G | a C++20 compiler (GCC ≥ 9 or Clang ≥ 10), `cmake`, `ninja` |
-| Synthetic demo | the above + `python3` |
-| Real HLA demo | the above + outbound HTTPS (the setup script fetches `vg`, `minimap2`, `paftools`, and `pysam`) |
+Building G2G needs a C++20 compiler (GCC 9 or newer, Clang 10 or newer) and
+`cmake`; `ninja` is used if present. The synthetic demo needs `python3` on
+top of that. The real HLA demo also needs outbound HTTPS, because the setup
+script fetches `vg`, `minimap2`, `paftools` and `pysam`. The setup downloads
+pinned static binaries into `demo/tools/`; nothing is installed system-wide,
+and `tools/` and `work/` are git-ignored.
 
-The setup downloads pinned, static binaries into `demo/tools/` - nothing is
-installed system-wide. `tools/` and `work/` are git-ignored.
+On older clusters that still ship GCC 9, note that its libstdc++ has no
+`<span>` header. G2G carries a small header-only `g2g::span` shim
+(`include/g2g/span.hpp`) that falls back to a built-in view when `std::span`
+is unavailable, so the stock system compiler on, say, Ubuntu 20.04 builds the
+demo as it is.
 
-> **Older clusters (GCC 9):** GCC 9's libstdc++ has no `<span>` header. G2G
-> ships a header-only `g2g::span` shim (`include/g2g/span.hpp`) that transparently
-> falls back to a built-in view when `std::span` is unavailable, so the stock
-> system compiler on e.g. Ubuntu 20.04 (GCC 9.4) builds the demo as-is - no
-> `module load` or conda compiler required.
+## Demo 1: a controlled synthetic pair with known ground truth
 
----
+`03_synthetic_demo.sh`, log in [`logs/03_synthetic_demo.log`](logs/03_synthetic_demo.log).
 
-## Demo 1 - controlled synthetic pair (known ground truth)
-
-`03_synthetic_demo.sh` → [`logs/03_synthetic_demo.log`](logs/03_synthetic_demo.log)
-
-[`make_synthetic_pair.py`](make_synthetic_pair.py) builds two graphs that embed
-the **same reference path** but (a) plant a known set of variants and (b) chop
-the reference into **different node sizes** (A = 25 bp, B = 17 bp). `g2g --ref`
-must recover exactly the planted variants regardless of that segmentation.
+[`make_synthetic_pair.py`](make_synthetic_pair.py) builds two graphs that
+embed the same reference path but plant a known set of variants and chop the
+reference into different node sizes (25 bp in A, 17 bp in B). `g2g --ref`
+has to recover exactly the planted variants regardless of that segmentation:
 
 ```
 planted : shared=5 A_only=3 B_only=2
@@ -79,45 +74,46 @@ reported: A_only=3 B_only=2
 RESULT  : PASS - diff matches ground truth exactly
 ```
 
-It also runs a **self-diff** (a graph against itself), which must report
-**zero** differences - a basic correctness invariant.
+It also runs a self-diff, a graph against itself, which has to report zero
+differences. This demo needs no network and no third-party tools, only
+`g2g` and `python3`.
 
-This demo needs no network and no third-party tools - just `g2g` + `python3`.
+## Demo 2: real biological data (HLA-DRB1)
 
-## Demo 2 - real biological data (HLA-DRB1)
+`04_real_hla_demo.sh`, log in [`logs/04_real_hla_demo.log`](logs/04_real_hla_demo.log).
 
-`04_real_hla_demo.sh` → [`logs/04_real_hla_demo.log`](logs/04_real_hla_demo.log)
+This one builds two population pangenomes from real HLA-DRB1 haplotypes (12
+GRCh38 sequences, a standard and highly polymorphic pangenome benchmark) the
+way real pangenomes are built, then diffs them:
 
-Builds two population pangenomes from **real HLA-DRB1 haplotypes** (12 GRCh38
-sequences, a standard, highly polymorphic pangenome benchmark) the way real ones
-are made, then diffs them:
-
-1. download the haplotypes (pggb test data);
+1. download the haplotypes (the pggb test data);
 2. designate GRCh38 (haplotype 0) as the shared reference;
-3. align the other haplotypes to it (`minimap2`) and call variants (`paftools`);
-4. split into two populations (A = haps 0,2,4; B = haps 1,3,5) and build a
-   base-level, **acyclic** graph for each (`vg construct`);
+3. align the other haplotypes to it with `minimap2` and call variants with `paftools`;
+4. split them into two populations (A = haplotypes 0, 2, 4; B = haplotypes 1, 3, 5)
+   and build a base-level, acyclic graph for each with `vg construct`;
 5. diff with `g2g --ref GRCh38`.
 
 ```
 cg_A: 4500 nodes (acyclic)   cg_B: 3742 nodes (acyclic)
-g2g --ref GRCh38  ->  snarl_pairs=1024  a_only=349  b_only=12   (~0.1 s)
+g2g --ref GRCh38  ->  snarl_pairs=1024  a_only=349  b_only=12   (about 0.1 s)
 self-diff (cg_A vs cg_A)  ->  a_only=0  b_only=0
 ```
 
-The output is a variant-level VCF with real `GRCh38:pos` coordinates, including
-indels (see [`sample_outputs/hla_diff_sample.vcf`](sample_outputs/hla_diff_sample.vcf)).
+The output is a variant-level VCF with real `GRCh38:pos` coordinates,
+indels included; see
+[`sample_outputs/hla_diff_sample.vcf`](sample_outputs/hla_diff_sample.vcf).
 
-## Demo 3 - scaling beyond the gene region
+## Demo 3: scaling beyond the gene region
 
-`05_scaling_demo.sh` → [`logs/05_scaling_demo.log`](logs/05_scaling_demo.log)
+`05_scaling_demo.sh`, log in [`logs/05_scaling_demo.log`](logs/05_scaling_demo.log).
 
-The same controlled diff, driven across graphs growing from ~100 kb to **8 Mb**
-(~700× the HLA gene region) at a dense ~1 variant / 200 bp. At every size g2g
-must still recover the planted A-only / B-only set **exactly** - so this measures
-speed and memory *without giving up correctness*. Wall time and peak RSS are
-g2g's own (`--verbose-timing` → `[timing] wall=`, `[mem] peak_rss_mb=`), so no
-external profiler is needed.
+The same controlled diff, driven across graphs growing from about 100 kb to
+8 Mb (roughly 700 times the HLA gene region) at a dense one variant per
+200 bp. At every size g2g still has to recover the planted A-only and B-only
+sets exactly, so this measures speed and memory without giving up
+correctness. Wall time and peak RSS come from g2g itself (`--verbose-timing`
+prints `[timing] wall=` and `[mem] peak_rss_mb=`), so no external profiler is
+needed.
 
 | ref bp | nodes (A+B) | snarls | a_only / b_only | exact? | wall | peak RSS |
 |-------:|------------:|-------:|----------------:|:------:|-----:|---------:|
@@ -126,28 +122,31 @@ external profiler is needed.
 | 2 Mb   |       237 k |  8 000 | 1 000 / 1 000   |   yes    | 0.49 s |  68 MB |
 | 8 Mb   |       948 k | 32 000 | 4 000 / 4 000   |   yes    | 2.27 s | 258 MB |
 
-Time and memory both scale ~linearly (each 4× in size costs ~4.6× time):
-~18 k variants/s, ~420 k nodes/s on a single core. Push further with
-`SCALE_MAX_MB=32` or a custom `SCALE_SIZES="bp:variants ..."`.
+Time and memory both scale close to linearly (each 4x in size costs about
+4.6x in time): about 18 k variants/s and 420 k nodes/s on a single core.
+`SCALE_MAX_MB=32` adds a larger point, and `SCALE_SIZES="bp:variants ..."`
+replaces the sweep.
 
-> The built-in snarl finder used to be quadratic here (a whole-graph reachability
-> search per bubble). It now uses an exact, topologically-windowed sink search  - 
-> falling back to the full search only for bubbles larger than the window - which
-> cut the 4 Mb point from ~52 s to ~1 s with byte-identical boundaries.
+A historical note: the built-in snarl finder used to be quadratic here (a
+whole-graph reachability search per bubble). It now uses an exact,
+topologically windowed sink search, and only falls back to the full search
+for bubbles larger than the window, which cut the 4 Mb point from about 52 s
+to about 1 s with byte-identical boundaries.
 
-## Demo 3b - pushing to the machine's limit
+## Demo 3b: pushing to the machine's limit
 
-`06_scaling_limit.sh` → [`logs/06_scaling_limit.log`](logs/06_scaling_limit.log)
+`06_scaling_limit.sh`, log in [`logs/06_scaling_limit.log`](logs/06_scaling_limit.log).
 
-Where `05` runs a fixed sweep, `06` keeps **doubling** the reference size until
-the next point would exceed the node's RAM (or a wall-clock budget), then stops
-cleanly and reports the ceiling. It projects each point's peak memory from the
-previous one and refuses to *attempt* a point it expects to OOM, so an
-unattended cluster run is never killed mid-way and wastes an allocation - and
-the diff is checked exact at every size.
+Where `05` runs a fixed sweep, `06` keeps doubling the reference size until
+the next point would exceed the node's RAM or a wall-clock budget, then stops
+cleanly and reports the ceiling. It projects each point's peak memory from
+the previous one and refuses to attempt a point it expects to run out of
+memory on, so an unattended cluster run is never killed half way through and
+the allocation is not wasted; the diff is checked for exactness at every
+size.
 
-On a **512 GB** node it climbs to an **8 Gbp** graph pair - past the whole human
-genome - before hitting the RAM ceiling, exact at every step:
+On a 512 GB node it climbs to an 8 Gbp graph pair, past the whole human
+genome, before hitting the RAM ceiling, exact at every step:
 
 | ref | nodes (A+B) | variants | exact? | wall | peak RSS |
 |----:|------------:|---------:|:------:|-----:|---------:|
@@ -157,22 +156,24 @@ genome - before hitting the RAM ceiling, exact at every step:
 |   4 Gb |  485 M  | 20.5 M | yes | 1880 s |   121 GiB |
 |   8 Gb |  971 M  | 41.0 M | yes | 4292 s |   242 GiB |
 
-That's **~971 M nodes / 41 M variants** diffed exactly on a single core in ~72
-min - **~2.6× the human genome (3.1 Gb)** - the next doubling (16 Gb) is the only
-thing the node's RAM can't hold. Across the full 10⁶ → 9.7×10⁸-node sweep time
-and memory stay linear (~226k nodes/s, one core); a smaller node simply stops
-proportionally sooner (a 16 GB box tops out at ~256 Mb / 30 M nodes).
+That is about 971 million nodes and 41 million variants diffed exactly on a
+single core in about 72 minutes, roughly 2.6 times the human genome
+(3.1 Gb); the next doubling, 16 Gb, is the only thing the node's RAM cannot
+hold. Across the whole sweep, from a million to nearly a billion nodes, time
+and memory stay linear (about 226 k nodes/s on one core), and a smaller node
+simply stops proportionally sooner (a 16 GB machine tops out around 256 Mb
+and 30 M nodes).
 
 ```bash
-# auto-adapts to the node's RAM; tee a log to commit as evidence
+# adapts to the node's RAM; tee a log to keep as evidence
 bash demo/06_scaling_limit.sh 2>&1 | tee demo/logs/06_scaling_limit.log
 # knobs: BUDGET_SEC (default 9 h), MEM_CEIL_MB (default 80% RAM), START_MB, MAX_MB
 ```
 
 ### Plotting the curve
 
-`plot_scaling.py` turns the `05` / `06` result TSVs into a log-log figure (fitted
-power-law exponent + an ideal-linear guide):
+`plot_scaling.py` turns the `05` and `06` result TSVs into a log-log figure
+with the fitted power-law exponent and an ideal-linear guide:
 
 ```bash
 python3 demo/plot_scaling.py            # auto-finds demo/work/*.tsv
@@ -181,44 +182,45 @@ python3 demo/plot_scaling.py            # auto-finds demo/work/*.tsv
 
 ![G2G --ref scaling](sample_outputs/scaling_curve.png)
 
-Across 8 Mb → 8 Gb (11 points, ~10⁶ → 9.7×10⁸ nodes) wall time scales as
-**N^1.04** and peak memory as **N^0.99** - both within a hair of linear - and
-snarl decomposition is exactly **N^1.00** (the old quadratic is gone). The same
-curve is also committed as
-[`fig_refdiffscaling.pdf`](sample_outputs/fig_refdiffscaling.pdf) for the paper.
-(Run `03`/`05` on the same machine first to extend the curve down to 100 kb.)
+From 8 Mb to 8 Gb (11 points, a million to nearly a billion nodes) wall time
+scales as N^1.04 and peak memory as N^0.99, both within a hair of linear,
+and snarl decomposition is exactly N^1.00 (the old quadratic is gone). The
+same curve is committed as
+[`fig_refdiffscaling.pdf`](sample_outputs/fig_refdiffscaling.pdf) for the
+paper. Run `03` and `05` on the same machine first if you want the curve to
+extend down to 100 kb.
 
----
+## Demo 4: the Q4 biological validation (population-differentiation enrichment)
 
-## Demo 4 - Q4 biological validation (population-differentiation enrichment)
+`09_hprc_biology.sh`, with [`hprc_enrich.py`](hprc_enrich.py) as the engine.
 
-`09_hprc_biology.sh`  ·  engine: [`hprc_enrich.py`](hprc_enrich.py)
-
-Tests the biological claim: when G2G diffs two **population** pangenomes (here
-AFR vs EAS), the alleles it reports in one but not the other - the *delta graph*
- -  should sit closer than chance to structural variants that are **highly
-differentiated** between those populations (high Hudson F_ST in gnomAD-SV), and
-should touch known **pathogenic** (ClinVar) sites. The test is a permutation
-null: observed delta-to-target proximity vs. the same count after shuffling
-every delta to a random position on its chromosome.
+This tests the biological claim of the paper. When G2G diffs two population
+pangenomes (here AFR against EAS), the alleles it reports in one but not the
+other, the delta graph, should sit closer than chance to structural variants
+that are highly differentiated between those populations (high Hudson F_ST
+in gnomAD-SV), and should touch known pathogenic (ClinVar) sites. The test
+is a permutation null: the observed delta-to-target proximity against the
+same count after shuffling every delta to a random position on its
+chromosome.
 
 ```
-fold = observed / mean(null)      p = (#{null ≥ observed} + 1) / (perms + 1)
+fold = observed / mean(null)      p = (#{null >= observed} + 1) / (perms + 1)
 ```
 
-**The enrichment engine is data-independent and self-testing.** It plants a
-known enrichment (must recover fold ≫ 1, p < 0.01) and a random negative control
-(must stay fold ≈ 1):
+The enrichment engine does not depend on any data and tests itself: it
+plants a known enrichment, which it has to recover (fold well above 1,
+p < 0.01), and a random negative control, which has to stay at a fold
+around 1:
 
 ```bash
-python3 demo/hprc_enrich.py --self-test     # stdlib only - no data, no tools
+python3 demo/hprc_enrich.py --self-test     # stdlib only, no data, no tools
 ```
 
-**Synthetic end-to-end mode** runs the whole pipeline with the *real* `g2g`
-binary, no HPRC download or `vg`/`bcftools` needed - it plants a population
-difference, runs `g2g --ref`, synthesises a gnomAD-SV/ClinVar fixture around the
-recovered deltas, and checks both that the signal enriches **and** that a
-shuffled-delta control does not:
+The synthetic end-to-end mode runs the whole pipeline with the real `g2g`
+binary and needs no HPRC download and no `vg` or `bcftools`. It plants a
+population difference, runs `g2g --ref`, synthesises a gnomAD-SV and ClinVar
+fixture around the recovered deltas, and checks both that the signal
+enriches and that a shuffled-delta control does not:
 
 ```bash
 bash demo/09_hprc_biology.sh --synthetic
@@ -236,30 +238,24 @@ It writes `work/biology/biology_results.tsv`, which the paper figure reads:
 python3 demo/make_figures.py --biology-csv demo/work/biology/biology_results.tsv
 ```
 
-**Real cluster mode** (`bash demo/09_hprc_biology.sh`, no flag) builds the AFR
-and EAS pangenomes with `vg construct` from a population-labelled phased panel,
-diffs them per chromosome with `g2g --ref`, and enriches against a real
-gnomAD-SV sites VCF and ClinVar. It needs `vg`, `bcftools`, `tabix` and the data
-files, supplied via env vars (`REF_FA`, `PANEL_VCF`, `SAMPLES_A/_B`,
-`GNOMAD_SV_VCF`, `CLINVAR_VCF`, `CHROM_SIZES`, `CHROMS`) - see the header of the
-script. The analysis stage is byte-for-byte the same engine validated above.
-
-> **What is validated where:** the permutation statistic and the full
-> diff→enrich→figure wiring are validated here on synthetic data with the real
-> binary. Building genome-wide AFR/EAS pangenomes and running against real
-> gnomAD-SV/ClinVar needs `vg`/`bcftools` and the staged inputs
-> (`09_fetch_biology_data.sh`); the chromosome-22 run reported in the paper is
-> logged in `logs/09_real_chr22.log`.
-
----
+The real mode (`bash demo/09_hprc_biology.sh` without a flag) builds the AFR
+and EAS pangenomes with `vg construct` from a population-labelled phased
+panel, diffs them per chromosome with `g2g --ref`, and enriches against a
+real gnomAD-SV sites VCF and ClinVar. It needs `vg`, `bcftools`, `tabix` and
+the data files, supplied through environment variables (`REF_FA`,
+`PANEL_VCF`, `SAMPLES_A`, `SAMPLES_B`, `GNOMAD_SV_VCF`, `CLINVAR_VCF`,
+`CHROM_SIZES`, `CHROMS`); the header of the script lists them, and
+`09_fetch_biology_data.sh` stages the public inputs. The analysis stage is
+byte for byte the same engine as in the synthetic mode. The chromosome-22
+run reported in the paper is logged in `logs/09_real_chr22.log`.
 
 ## Paper figures
 
 The figure generator lives at the repository root (`../make_figures.py`;
-`demo/make_figures.py` forwards to it). With no arguments it regenerates every
-figure of the paper into `latex/figs/` from the committed measurement tables in
-`results/` and `demo/sample_outputs/`; pass a `--<figure>-csv` flag to plot a
-fresh run of one of the demos above:
+`demo/make_figures.py` forwards to it). With no arguments it regenerates
+every figure of the paper into `latex/figs/` from the committed measurement
+tables in `results/` and `demo/sample_outputs/`; pass a `--<figure>-csv`
+flag to plot a fresh run of one of the demos above instead:
 
 ```bash
 python3 demo/make_figures.py \
@@ -268,12 +264,11 @@ python3 demo/make_figures.py \
     --biology-csv  demo/work/biology/biology_results.tsv
 ```
 
-`07_parallel_scaling.sh` (DP-phase vs end-to-end speedup; baselines on one
-thread and flags the run invalid if parallel diverges from sequential) and
-`08_ablation.sh` (each design choice disabled vs the optimized baseline) produce
-the first two TSVs.
-
----
+`07_parallel_scaling.sh` produces the first of those TSVs (DP-phase against
+end-to-end speed-up, with a one-thread baseline, and it flags the run as
+invalid if the parallel result diverges from the sequential one), and
+`08_ablation.sh` the second (each design choice disabled against the
+optimised baseline).
 
 ## Using G2G on your own graphs
 
@@ -281,55 +276,53 @@ the first two TSVs.
 g2g A.gfa B.gfa --ref <name> --vcf diff.vcf       # variant-level diff
 ```
 
-- Both graphs must embed the reference as a path. GFA **P-lines and W-lines**
-  are both supported; resolve a W-line reference by its sample or contig, e.g.
-  `--ref GRCh38` or `--ref chr1` (no need for the full `GRCh38#0#chr1:...` name).
-- A reference spanning several contigs is diffed per-contig.
-- Other useful flags: `--snarls vg` (use the vg toolkit's snarl finder instead
-  of the built-in one; needs `vg` on `PATH` or `$G2G_VG`), `--verbose-timing`.
+Both graphs must embed the reference as a path. GFA P-lines and W-lines are
+both supported; a W-line reference resolves by its sample or contig, for
+example `--ref GRCh38` or `--ref chr1`, without the full
+`GRCh38#0#chr1:...` name. A reference spanning several contigs is diffed per
+contig. Other useful flags are `--snarls vg`, which uses the vg toolkit's
+snarl finder instead of the built-in one (needs `vg` on the PATH or in
+`$G2G_VG`), and `--verbose-timing`.
 
-## How the diff works (one paragraph)
+## How the diff works
 
-Each graph is decomposed into snarls (bubbles). For every bubble anchored on the
-reference path, each allele is aligned to the bubble's reference allele and the
-constituent SNPs/indels are emitted, keyed by their **absolute reference
-position** (`bubble_open_offset + offset_within_allele`). Because that position
-depends only on the reference coordinate - not on node boundaries or on how many
-adjacent variants a bubble happens to span - a merged bubble in one graph yields
-the same atomic variants as the separate bubbles in the other, and corresponding
-variants match. Variants present in only one graph become that graph's delta.
+Each graph is decomposed into snarls (bubbles). For every bubble anchored on
+the reference path, each allele is aligned to the bubble's reference allele
+and the constituent SNPs and indels are emitted, keyed by their absolute
+reference position (`bubble_open_offset + offset_within_allele`). Because
+that position depends only on the reference coordinate, not on node
+boundaries or on how many adjacent variants a bubble happens to span, a
+merged bubble in one graph yields the same atomic variants as the separate
+bubbles in the other, and corresponding variants match. Variants present in
+only one graph become that graph's delta.
 
-## Validation evidence
+## What backs this up
 
-- **Self-consistency:** a graph diffed against itself yields 0 differences
-  (both demos).
-- **Exact on known truth:** the synthetic pair recovers the planted
-  shared / A-only / B-only set exactly, despite different node segmentation.
-- **Merged vs split bubbles:** unit test `ReferenceDiff.MergedBubbleMatchesSplitBubbles`
-  (in `tests/test_refdiff.cpp`) proves a single merged bubble matches two
-  separate bubbles encoding the same SNPs.
-- **Real data:** runs end-to-end on real HLA-DRB1 graphs in ~0.1 s and emits a
-  coordinate-stamped variant diff.
-- **Scales near-linearly:** the diff stays exact from 100 kb to 8 Mb (~950k
-  nodes) with ~linear time and memory (Demo 3), and on to **8 Gbp / ~971M nodes /
-  41M variants** on a 512 GB node - ~2.6× the human genome, diffed exactly in
-  ~72 min single-core (Demo 3b).
+A graph diffed against itself yields no differences (both demos check this).
+The synthetic pair recovers the planted shared, A-only and B-only sets
+exactly, despite the different node segmentation. The unit test
+`ReferenceDiff.MergedBubbleMatchesSplitBubbles` in `tests/test_refdiff.cpp`
+shows that a single merged bubble matches two separate bubbles encoding the
+same SNPs. The real HLA-DRB1 graphs run end to end in about 0.1 s and give a
+coordinate-stamped variant diff. And the diff stays exact from 100 kb to
+8 Mb with close to linear time and memory (demo 3), and on to 8 Gbp, about
+971 million nodes and 41 million variants, on a 512 GB node in about 72
+minutes on one core (demo 3b).
 
 ## Limitations
 
-- **DAG-only.** Decomposition requires an acyclic graph; cyclic input errors
-  cleanly (`Graph contains cycles - DAG required`). Reference-anchored graphs
-  from minigraph-cactus / `vg construct` are acyclic; some other builders
-  (e.g. `vg msga`) can produce cycles.
-- **Indels are not left-normalised**, so indel calls in repeats may differ by a
-  base from a tool like `bcftools norm`.
-- Validated past whole-genome scale on **synthetic** graphs (8 Gbp / ~971M nodes
-  on a 512 GB node, RAM-bound; Demo 3b). The Q4 biological pipeline (Demo 4) is
-  stood up and validated end-to-end on synthetic data with the real binary;
-  running it on real many-haplotype, HPRC-scale AFR/EAS pangenomes is the
-  cluster step (needs `vg`/`bcftools` + the gnomAD-SV/ClinVar panels).
-- The diff itself is single-threaded; the parallel work-stealing runtime
-  accelerates the snarl-correspondence aligner, not the `--ref` coordinate diff.
+Decomposition requires an acyclic graph; cyclic input stops cleanly with
+`Graph contains cycles - DAG required`. Reference-anchored graphs from
+Minigraph-Cactus and `vg construct` are acyclic; some other builders, `vg
+msga` for example, can produce cycles. Indels are not left-normalised, so
+indel calls in repeats may differ by a base from a tool like `bcftools norm`.
+The scaling past whole-genome size was measured on synthetic graphs (demo
+3b); the biological pipeline (demo 4) is validated end to end on synthetic
+data with the real binary and on real chromosome-22 panels, while running it
+on many-haplotype, HPRC-scale AFR and EAS pangenomes needs `vg`, `bcftools`
+and the gnomAD-SV and ClinVar panels. The `--ref` diff itself is
+single-threaded; the parallel work-stealing runtime accelerates the
+snarl-correspondence aligner, not the coordinate diff.
 
 ## Files
 
@@ -340,10 +333,10 @@ variants match. Variants present in only one graph become that graph's delta.
 | `02_build_g2g.sh` | build the `g2g` binary |
 | `03_synthetic_demo.sh` | controlled pair vs known ground truth + self-diff |
 | `04_real_hla_demo.sh` | real HLA-DRB1 pangenome diff |
-| `05_scaling_demo.sh` | scaling sweep (100 kb → 8 Mb) with timing + peak memory |
-| `06_scaling_limit.sh` | push scaling to the node's RAM / time limit (Demo 3b) |
-| `07_parallel_scaling.sh` | DP-phase vs end-to-end parallel speedup sweep |
-| `08_ablation.sh` | each design choice disabled vs the optimized baseline |
+| `05_scaling_demo.sh` | scaling sweep (100 kb to 8 Mb) with timing + peak memory |
+| `06_scaling_limit.sh` | push scaling to the node's RAM / time limit (demo 3b) |
+| `07_parallel_scaling.sh` | DP-phase vs end-to-end parallel speed-up sweep |
+| `08_ablation.sh` | each design choice disabled vs the optimised baseline |
 | `09_hprc_biology.sh` | Q4 enrichment: delta vs gnomAD-SV / ClinVar (synthetic + real) |
 | `09_fetch_biology_data.sh` | stage GRCh37 inputs for the real Q4 run (1000G, gnomAD-SV, ClinVar) |
 | `hprc_enrich.py` | permutation-null enrichment engine (`--self-test`, `--fst-sweep`, `--min-len`) |
@@ -351,6 +344,6 @@ variants match. Variants present in only one graph become that graph's delta.
 | `plot_scaling.py` | log-log scaling figure from the `05`/`06` result TSVs |
 | `make_figures.py` | regenerate all paper figures (reads the demo result TSVs) |
 | `make_synthetic_pair.py` | generator for the controlled / scaling pairs |
-| `lib.sh` | shared paths/helpers |
+| `lib.sh` | shared paths and helpers |
 | `logs/` | captured logs from a real run |
 | `sample_outputs/` | example diff/truth files |

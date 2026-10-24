@@ -2,7 +2,6 @@ cff-version: 1.2.0
 message: "If you use PanG2G, please cite the BIBM 2026 paper below."
 title: "PanG2G: Scalable Base-Pair-Resolution Graph-to-Graph Alignment of Pangenome Graphs"
 type: software
-license: MIT
 repository-code: "https://github.com/ahmadshakleya/G2G"
 authors:
   - family-names: Shakleya

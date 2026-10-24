@@ -10,10 +10,10 @@ Stage: build
 #   apptainer run  g2g.sif A.gfa B.gfa --ref GRCh38 --vcf delta.vcf
 #   apptainer exec g2g.sif /opt/g2g/container/selftest.sh
 #
-# On a cluster without fakeroot, build the Docker image elsewhere and convert
-# it instead (no privileges needed):
+# On a cluster without fakeroot, convert the published Docker image instead
+# (no privileges needed):
 #
-#   apptainer pull g2g.sif docker://ghcr.io/ahmadshakleya/g2g:latest
+#   apptainer pull g2g.sif docker://ahmadshakleya/g2g
 #
 # or build the SIF where fakeroot is available and copy the file across.
 
@@ -30,7 +30,6 @@ Stage: build
     make_figures.py  /opt/g2g/
     run_test_case.sh /opt/g2g/
     README.md      /opt/g2g/
-    LICENSE        /opt/g2g/
     CITATION.cff   /opt/g2g/
 
 %post

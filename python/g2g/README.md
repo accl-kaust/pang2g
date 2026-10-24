@@ -1,29 +1,25 @@
-# g2g - Graph-to-Graph Pangenome Alignment
+# g2g: the Python prototype
 
-A prototype implementation of graph-to-graph alignment for pangenome variation graphs.
-Where current tools map a *sequence* (read or assembly) to a *graph* (pangenome reference),
-`g2g` maps a *graph to another graph* - comparing two population pangenomes directly,
+This is the prototype implementation of graph-to-graph alignment for
+pangenome variation graphs, written before the C++ engine and kept as a
+readable reference and correctness oracle. Where current tools map a
+sequence (a read or an assembly) to a graph (a pangenome reference), `g2g`
+maps a graph to another graph, comparing two population pangenomes directly
 without routing everything through a single linear reference.
-
----
 
 ## Background
 
-Genome reference models have evolved in three steps:
+Genome reference models have gone through three stages: a single linear
+string (GRCh38), where sequences are compared to a sequence; the pangenome
+variation graph (vg, minigraph), where sequences are mapped to a graph; and
+what this project does, aligning two pangenome graphs to each other.
 
-| Era | Paradigm | Reference structure |
-|-----|----------|---------------------|
-| 1 | Sequence → Sequence | Single linear string (GRCh38) |
-| 2 | Sequence → Graph | Pangenome variation graph (vg, minigraph) |
-| 3 | **Graph → Graph** | **Two pangenome graphs aligned to each other** ← this project |
-
-The motivation: once you have population-specific pangenomes (e.g. one built from African
-cohorts, one from East Asian cohorts), you need a way to ask - which structural variants
-are shared? Which are population-specific? Where do the graphs diverge? A single linear
-reference cannot answer these questions without reintroducing the very reference bias that
-pangenomes were built to eliminate.
-
----
+The motivation is simple. Once you have population-specific pangenomes, say
+one built from African cohorts and one from East Asian cohorts, you want to
+ask which structural variants are shared, which are population-specific,
+and where the graphs diverge. A single linear reference cannot answer those
+questions without reintroducing the very reference bias that pangenomes were
+built to eliminate.
 
 ## How it works
 
@@ -47,31 +43,24 @@ Graph B ──┘     │                    └── ΔB→A  (B-only alleles)
          (score + shared graph + delta graphs)
 ```
 
-**Scoring:** `W(A) = W_seq + W_topo + W_struct`
-
-- `W_seq` - sequence similarity of matched boundary (anchor) nodes
-- `W_topo` - structural class consistency (both simple bubbles, nested snarls, etc.)
-- `W_struct` - bipartite matching score across allele sets within each snarl pair
-
-**Complexity:** `O(|T| · |T'| · k³)` where `T`, `T'` are snarl trees and `k` is the
-maximum number of alleles per snarl (typically 2–5 in real pangenomes).
-
----
+The score is `W(A) = W_seq + W_topo + W_struct`, where `W_seq` is the
+sequence similarity of matched boundary (anchor) nodes, `W_topo` the
+structural class consistency (both simple bubbles, nested snarls, and so
+on), and `W_struct` the bipartite matching score across the allele sets
+within each snarl pair. The complexity is `O(|T| · |T'| · k³)`, where `T`
+and `T'` are the snarl trees and `k` the maximum number of alleles per
+snarl, typically 2 to 5 in real pangenomes.
 
 ## Installation
 
-Requires Python ≥ 3.12 and `networkx`. With miniconda:
+Python 3.12 or newer and `networkx`, nothing else. With miniconda:
 
 ```bash
 conda create -n g2g python=3.12 networkx
 conda activate g2g
 ```
 
-No other dependencies.
-
----
-
-## Quickstart
+## Quick start
 
 ```bash
 # From the directory containing the g2g/ folder:
@@ -97,8 +86,6 @@ aligner = GraphAligner(alpha=1.0, beta=0.5, gamma=2.0, gap=0.5)
 result  = aligner.align(ga, gb)
 print_result(result)
 ```
-
----
 
 ## Package structure
 
@@ -141,23 +128,22 @@ g2g/
     └── main()
 ```
 
-The memory / compute split is intentional:
-- **Memory files** (`types.py`, `graph.py`) can be read to understand the data model with
-  no knowledge of algorithms.
-- **Compute files** (`sequence.py`, `decompose.py`, `align.py`) contain all algorithmic
-  logic and can be swapped independently - e.g. replace `sequence.py` with a C extension
-  for large graphs without touching anything else.
+The split between memory and compute files is deliberate. The memory files
+(`types.py`, `graph.py`) can be read to understand the data model without
+knowing anything about the algorithms, and the compute files
+(`sequence.py`, `decompose.py`, `align.py`) hold all the algorithmic logic
+and can be swapped independently, for instance replacing `sequence.py` with
+a C extension for large graphs without touching anything else.
 
----
-
-## Output explained
+## Reading the output
 
 ```
 ANCHOR NODES  (shared backbone)
   b1a ['ACGT']  ↔  b1a ['ACGT']   sim=1.00
 ```
-Nodes whose sequences are identical (or near-identical) in both graphs.
-They act as alignment anchors - everything else is interpreted relative to them.
+These are nodes whose sequences are identical, or nearly so, in both graphs.
+They act as alignment anchors; everything else is interpreted relative to
+them.
 
 ```
 SNARL ALIGNMENTS
@@ -165,8 +151,8 @@ SNARL ALIGNMENTS
     A-allele[0] 'ACGT'  ↔  B-allele[0] 'ACGT'  sim=1.00   ← shared
     A-allele[1] 'ATGT'  ↔  B-allele[1] 'ATGT'  sim=1.00   ← shared
 ```
-Per-snarl alignment records. Matched alleles are homologous across populations.
-The score decomposes into `W_seq + W_topo + W_struct`.
+One record per aligned snarl pair. Matched alleles are homologous across
+populations, and the score decomposes into `W_seq + W_topo + W_struct`.
 
 ```
 DELTA GRAPH  ΔA→B  (A-only alleles)
@@ -176,59 +162,42 @@ DELTA GRAPH  ΔB→A  (B-only alleles)
   snarl (m1,s_end)  seq='CCCGGATTACTTAAG'
 ```
 The delta graphs are the main output. They list every allele present in one
-population graph but absent from the other - the population-specific structural
-variants. This is the graph-level analogue of a VCF file.
+population graph but absent from the other, the population-specific
+structural variants; think of them as the graph-level analogue of a VCF.
 
 ```
 TOTAL ALIGNMENT SCORE:  13.0000
 ```
-A single number summarising overall graph similarity. Higher = more structurally
-similar. Can be used to build a distance matrix across many population pangenomes.
+A single number summarising overall graph similarity, higher meaning more
+structurally similar. It can be used to build a distance matrix across many
+population pangenomes.
 
----
+## Limitations of the prototype
 
-## Key limitations (prototype)
-
-- **DAG only.** Graphs with cycles (e.g. tandem repeats) are not supported.
-  The snarl decomposer will raise `ValueError` on a cyclic graph.
-- **Simple bubbles only.** The decomposer finds bubbles where all paths from
-  source converge at a single sink. Complex nested structures are detected but
-  not recursively scored in the DP.
-- **Brute-force allele matching.** The bipartite matching is exact but
-  exponential in `k`. Safe for `k ≤ ~8`; beyond that, replace with the
-  Hungarian algorithm (`scipy.optimize.linear_sum_assignment`).
-- **Greedy snarl pairing.** Snarls are paired one-by-one in topological order.
-  A global DP over the full snarl tree would give optimal pairings at higher cost.
-- **No GFA I/O.** Graphs are built programmatically. A `VariationGraph.from_gfa()`
-  reader is the natural next step to connect to real pangenome data.
-
----
-
-## Roadmap
-
-| Priority | Feature |
-|----------|---------|
-| High | GFA reader (`VariationGraph.from_gfa`) |
-| High | Hungarian algorithm for large allele sets |
-| Medium | Full snarl-tree DP (nested snarl scoring) |
-| Medium | k-mer index for anchor detection (replace backbone heuristic) |
-| Low | GAF-like output format for graph alignments |
-| Low | Multi-graph alignment (K > 2 pangenomes simultaneously) |
-
----
+It handles DAGs only; graphs with cycles (tandem repeats, for example) are
+not supported, and the snarl decomposer raises `ValueError` on a cyclic
+graph. It only finds simple bubbles, where all paths from the source
+converge at a single sink; nested structures are detected but not
+recursively scored in the DP. The bipartite allele matching is brute force,
+exact but exponential in `k`, so it is safe up to about `k = 8`; beyond that
+one would use the Hungarian algorithm
+(`scipy.optimize.linear_sum_assignment`). Snarl pairing is greedy, one pair
+at a time in topological order; a global DP over the whole snarl tree would
+give optimal pairings at a higher cost. And there is no GFA I/O: graphs are
+built programmatically. All of these are addressed in the C++ engine in
+`src/`, which reads GFA, uses LAPJV for the matching, offers interval
+pairing, and runs in parallel.
 
 ## Theoretical basis
 
 The alignment score `W(A) = W_seq + W_topo + W_struct` generalises pairwise
-sequence alignment to graphs. Special cases:
+sequence alignment to graphs. When both graphs are paths it reduces to
+standard sequence alignment (Needleman-Wunsch); when one graph is a path it
+reduces to sequence-to-graph alignment (as in GraphAligner); when both are
+arbitrary graphs it is this project.
 
-- Both graphs are paths → reduces to standard sequence alignment (Needleman-Wunsch)
-- One graph is a path → reduces to sequence-to-graph alignment (GraphAligner)
-- Both graphs are arbitrary → this project
-
-The snarl tree decomposition reduces the NP-hard general graph alignment problem
-to a polynomial-time tree alignment problem, exploiting the low treewidth of
-real variation graphs (typically ≤ 3–5 for bubble-decomposed human pangenomes).
-
-For the full theoretical derivation see the inline docstrings in `align.py` and
-`decompose.py`.
+The snarl tree decomposition reduces the NP-hard general graph alignment
+problem to a polynomial-time tree alignment problem, exploiting the low
+treewidth of real variation graphs (typically 3 to 5 or less for
+bubble-decomposed human pangenomes). The docstrings in `align.py` and
+`decompose.py` carry the full derivation.
