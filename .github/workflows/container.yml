@@ -1,0 +1,65 @@
+# Build the PanG2G container images, run the test case inside them, and
+# publish: the Docker image to GitHub's registry (ghcr.io) on pushes to main,
+# the Apptainer image (g2g.sif) as a downloadable workflow artifact.
+name: container
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t g2g:ci .
+
+      - name: Run the test case inside the image
+        run: |
+          docker run --rm g2g:ci g2g --help
+          docker run --rm g2g:ci /opt/g2g/container/selftest.sh
+
+      - name: Log in to ghcr.io
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push the image
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE=ghcr.io/${{ github.repository_owner }}/g2g
+          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          docker tag g2g:ci "$IMAGE:latest"
+          docker tag g2g:ci "$IMAGE:${GITHUB_SHA::7}"
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:${GITHUB_SHA::7}"
+
+  apptainer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: 1.3.6
+
+      - name: Build g2g.sif from container/g2g.def
+        run: sudo apptainer build g2g.sif container/g2g.def
+
+      - name: Run the test case inside the image
+        run: |
+          apptainer exec g2g.sif g2g --help
+          apptainer exec g2g.sif /opt/g2g/container/selftest.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: g2g.sif
+          path: g2g.sif
+          retention-days: 30

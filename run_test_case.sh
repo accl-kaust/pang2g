@@ -59,19 +59,26 @@ LOGDIR="$ROOT/logs/test_case"; mkdir -p "$LOGDIR"
 
 # -- toolchain ----------------------------------------------------------------
 missing=()
-for t in cmake python3; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
+command -v python3 >/dev/null 2>&1 || missing+=("python3")
 CXX_BIN="${CXX:-}"
-[ -n "$CXX_BIN" ] || CXX_BIN="$(command -v g++ || command -v c++ || command -v clang++ || true)"
-[ -n "$CXX_BIN" ] || missing+=("a C++ compiler (g++ / clang++)")
+if [ "$BUILD" -eq 1 ]; then      # a compiler and CMake are only needed to build
+    command -v cmake >/dev/null 2>&1 || missing+=("cmake")
+    [ -n "$CXX_BIN" ] || CXX_BIN="$(command -v g++ || command -v c++ || command -v clang++ || true)"
+    [ -n "$CXX_BIN" ] || missing+=("a C++ compiler (g++ / clang++)")
+fi
 if [ "${#missing[@]}" -gt 0 ]; then
     echo "ERROR: not found: ${missing[*]}" >&2
     echo "       on a cluster, load the toolchain modules first (e.g. module load gcc cmake python)" >&2
     exit 2
 fi
 echo "PanG2G test case  -  $(date)"
-echo "  host: $(hostname)   cpus: $(nproc 2>/dev/null || echo '?')   compiler: $("$CXX_BIN" --version | head -1)"
-echo "  cmake: $(cmake --version | head -1 | sed 's/cmake version //')   python3: $(python3 --version 2>&1 | sed 's/Python //')"
-echo "  build dir: $BUILD_DIR   -march: ${G2G_MARCH:-native}   jobs: $JOBS"
+echo "  host: $(hostname)   cpus: $(nproc 2>/dev/null || echo '?')   python3: $(python3 --version 2>&1 | sed 's/Python //')"
+if [ "$BUILD" -eq 1 ]; then
+    echo "  compiler: $("$CXX_BIN" --version | head -1)   cmake: $(cmake --version | head -1 | sed 's/cmake version //')"
+    echo "  build dir: $BUILD_DIR   -march: ${G2G_MARCH:-native}   jobs: $JOBS"
+else
+    echo "  binary: $BUILD_ABS/g2g (no build)"
+fi
 
 # -- step runner --------------------------------------------------------------
 NAMES=(); STATUS=(); SECS=()

@@ -86,6 +86,36 @@ access), and `--real` to download `vg` + `minimap2` and diff two pangenomes
 built from real HLA-DRB1 haplotypes.  `bash run_test_case.sh --help` lists
 every option.
 
+### Container image
+
+`Dockerfile` builds an image with the `g2g` command, the demo scripts and the
+test case; `container/g2g.def` is the same recipe for Apptainer/Singularity.
+Both compile the engine for x86-64-v3, so one image runs on any x86-64 node.
+
+```bash
+docker build -t g2g .                                  # or: docker pull ghcr.io/ahmadshakleya/g2g:latest
+docker run --rm g2g g2g --help
+docker run --rm -v "$PWD":/data g2g g2g A.gfa B.gfa --ref GRCh38 --vcf delta.vcf
+docker run --rm g2g /opt/g2g/container/selftest.sh    # the test case of section 4
+```
+
+On a cluster use Apptainer or Singularity.  Building from the definition
+file needs root or fakeroot; converting the Docker image does not:
+
+```bash
+apptainer pull g2g.sif docker://ghcr.io/ahmadshakleya/g2g:latest   # or: apptainer build g2g.sif container/g2g.def
+apptainer exec g2g.sif g2g A.gfa B.gfa --ref GRCh38 --vcf delta.vcf
+apptainer exec g2g.sif /opt/g2g/container/selftest.sh
+```
+
+(`singularity` takes the same commands.)  The workflow in
+`.github/workflows/container.yml` builds both images on every push, runs the
+test case inside each, pushes the Docker image to ghcr.io and attaches
+`g2g.sif` to the run as a downloadable artifact.  While the repository is
+private, pulling from ghcr.io needs a GitHub token (`docker login ghcr.io`,
+`apptainer registry login docker://ghcr.io`); the alternative is to download
+the `g2g.sif` artifact and copy the file to the cluster.
+
 ## 3. Running on a cluster
 
 PanG2G needs only a C++ compiler, CMake and Python, so it fits the usual
@@ -346,6 +376,8 @@ on Minigraph-Cactus graphs.
 ```
 run_test_case.sh       build + the test case of section 4 (--unit, --real, --quick)
 CMakeLists.txt         build (options: G2G_MARCH, G2G_BUILD_TESTS, the five ablation flags)
+Dockerfile, container/ container recipes (Docker; Apptainer/Singularity) and the in-image self-test
+.github/workflows/     CI: builds both container images and runs the test case inside them
 include/g2g/, src/     C++20 engine (static library + the `g2g` command)
 tests/                 GoogleTest suite (fetched by CMake; -DG2G_BUILD_TESTS=OFF to skip)
 tools/                 bench_matching: matching cost vs. allele count (fig_matching)
