@@ -348,8 +348,11 @@ regenerated from this repository.  The committed tables in `results/` and
 | Q4 biology (fig_biology, F_ST sweep) | `demo/09_fetch_biology_data.sh` then `demo/09_hprc_biology.sh`; sweep: `demo/hprc_enrich.py --fst-sweep 0.05,0.1,0.2,0.3,0.5` | vg, bcftools, tabix + ~1.5 GB of downloads |
 | all figures | `python3 make_figures.py` | numpy, matplotlib |
 
-Every harness writes the TSV/CSV that `make_figures.py` reads; pass the
-matching `--*-csv` flag to plot a fresh run.  `demo/README.md` describes
+The demo scripts use the binary that `run_test_case.sh` built
+(`build/release/g2g`; `build/g2g` from `demo/02_build_g2g.sh` is also found,
+and `G2G=/path/to/g2g` overrides both).  Every harness writes the TSV/CSV
+that `make_figures.py` reads; pass the matching `--*-csv` flag to plot a
+fresh run.  `demo/README.md` describes
 each demo and its expected output; `experiments/README.md` describes the
 Slurm experiment suite.  `experiments/accl/` and `experiments/ibex/` hold
 the job scripts used for the paper's measurements on the authors' clusters
