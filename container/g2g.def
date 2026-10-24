@@ -59,6 +59,7 @@ Stage: final
         curl ca-certificates bzip2
     rm -rf /var/lib/apt/lists/*
     chmod -R a+rX /opt/g2g
+    chmod a+rx /opt/g2g/container/selftest.sh /opt/g2g/run_test_case.sh /opt/g2g/demo/*.sh
 
 %environment
     export PATH=/opt/g2g/build/release:$PATH

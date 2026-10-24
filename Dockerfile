@@ -31,6 +31,7 @@ RUN apt-get update \
         curl ca-certificates bzip2 \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /opt/g2g /opt/g2g
+RUN chmod a+rx /opt/g2g/container/selftest.sh /opt/g2g/run_test_case.sh /opt/g2g/demo/*.sh
 ENV PATH=/opt/g2g/build/release:${PATH} \
     G2G=/opt/g2g/build/release/g2g \
     MPLBACKEND=Agg
