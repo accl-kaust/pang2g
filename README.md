@@ -108,7 +108,17 @@ apptainer exec g2g.sif g2g A.gfa B.gfa --ref GRCh38 --vcf delta.vcf
 apptainer exec g2g.sif /opt/g2g/container/selftest.sh
 ```
 
-(`singularity` takes the same commands.)  The workflow in
+(`singularity` takes the same commands.)  Apptainer and Singularity mount
+your home directory inside the image but usually nothing else, so data on a
+scratch file system needs `--bind`, and the self-test's writable copy goes
+to `/tmp` unless `G2G_SELFTEST_DIR` points elsewhere:
+
+```bash
+singularity run  --bind /scratch/$USER g2g.sif /scratch/$USER/A.gfa /scratch/$USER/B.gfa --ref GRCh38 --vcf /scratch/$USER/delta.vcf
+G2G_SELFTEST_DIR=/scratch/$USER/g2g_selftest singularity exec --bind /scratch/$USER g2g.sif /opt/g2g/container/selftest.sh
+```
+
+The workflow in
 `.github/workflows/container.yml` builds both images on every push, runs the
 test case inside each, pushes the Docker image to ghcr.io and attaches
 `g2g.sif` to the run as a downloadable artifact.  While the repository is
