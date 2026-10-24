@@ -95,6 +95,11 @@ static void print_help(const char* prog) {
 }
 
 static Args parse_args(int argc, char** argv) {
+    // -h / --help anywhere on the line is a request for help, not a usage error.
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "-h" || a == "--help") { print_help(argv[0]); std::exit(0); }
+    }
     if (argc < 3) {
         print_help(argv[0]);
         std::exit(1);
