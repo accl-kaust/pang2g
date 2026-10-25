@@ -1,0 +1,19 @@
+# Build trees (CMake), object files, static test builds
+build/
+build-*/
+*.o
+*.a
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Slurm job output and the test-case logs (logs/.gitkeep keeps the directory so
+# `sbatch` can open its --output file); measured results worth keeping are
+# copied into results/ by the job scripts.
+/logs/*
+!/logs/.gitkeep
+
+# Experiment outputs (results/phase5/<exp>/, results/ibex/) are written by the harnesses, not tracked.
+/results/

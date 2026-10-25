@@ -1,0 +1,32 @@
+=== Real biological validation - AFR vs EAS chr22 (1000 Genomes phase 3, GRCh37), re-run 2026-10-04 with the superbubble decomposer ===
+inputs: ALL.chr22.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz, integrated_call_samples_v3.20130502.ALL.panel (AFR n=661, EAS n=504), Ensembl GRCh37 chr22, gnomad_v2.1_sv.sites.vcf.gz, clinvar_GRCh37.vcf.gz (fileDate 2026-09-28)
+tools: vg 1.76.1, bcftools 1.24; laptop (8 cores, 7 GB, WSL)
+
+--- vg construct ---
+popA_22.gfa: 3000357 segments; popB_22.gfa: 2403570 segments
+
+--- g2g --ref 22 ---
+[g2g] GA: 3000357 nodes  GB: 2403570 nodes
+[g2g] reference-coordinate diff along path '22'
+[g2g] total_score=156111  snarl_pairs=147063  a_only=427685  b_only=181033
+[timing] io=20.223565 decompose=8.742025 index=0.000000 dp=0.000000 wall=32.433233
+[mem] peak_rss_mb=1316.4
+delta alleles: 608718   A-only: 427685   B-only: 181033
+
+--- enrichment (hprc_enrich.py, window 400 bp, 1000 permutations) ---
+category	observed	expected	fold	p
+delta vs high-F_ST gnomAD-SV (≥0.2)	946	650.0	1.455	0.000999000999000999
+delta vs ClinVar pathogenic	16696	10383.48	1.608	0.000999000999000999
+
+--- F_ST sweep ---
+fst_threshold	n_high	observed	expected	fold	p
+0.05	15541	3362	2296.98	1.464	0.000999000999000999
+0.1	8314	2070	1424.62	1.453	0.000999000999000999
+0.2	3280	946	650.0	1.455	0.000999000999000999
+0.3	1671	455	295.52	1.54	0.000999000999000999
+0.5	684	202	142.17	1.421	0.000999000999000999
+
+--- SV-sized deltas (LEN>=50) ---
+category	observed	expected	fold	p
+delta vs high-F_ST gnomAD-SV (≥0.2)	3	0.02	136.364	0.000999000999000999
+delta vs ClinVar pathogenic	0	0.29	0.0	1.0

@@ -1,0 +1,22 @@
+
+=== Scaling to the limit - doubling until RAM or budget is hit ===
+    MemTotal 503.7 GB  |  mem ceiling 412635 MB  |  budget 32400s  |  density 1 var / 200 bp
+   ref_mb      nodesA      nodesB    snarls   a_only      OK decomp_s     wall_s   peak_MB elapsed_s
+        8      393601      554306     32000     4000    PASS 1.486016   2.878143     259.5         5
+       16      787201     1108632     64000     8000    PASS 2.959552   5.493418     509.4        14
+       32     1574401     2217278    128000    16000    PASS 5.932344  11.883365    1009.3        32
+       64     3148801     4434532    256000    32000    PASS 11.998613  24.933593    1975.4        71
+      128     6297601     8869101    512000    64000    PASS 23.999224  51.336897    3966.2       150
+      256    12595201    17738137   1024000   128000    PASS 46.916719 103.727604    7838.6       309
+      512    25190401    35476300   2048000   256000    PASS 75.838306 189.583021   15652.5       606
+     1024    50380801    70952692   4096000   512000    PASS 172.863270 414.601002   31292.2      1239
+     2048   100761601   141905164   8192000  1024000    PASS 348.876626 816.702396   61797.9      2477
+     4096   201523201   283810233  16384000  2048000    PASS 745.110441 1879.874227  123631.4      5285
+     8192   403046401   567620133  32768000  4096000    PASS 1551.109082 4291.847834  247372.7     11479
+
+    results table: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/scaling_limit/scale_limit_results.tsv
+    stopped because: reached MAX_MB=8192
+CEILING reached on this node:
+  8192 Mb  |  403046401 + 567620133 nodes  |  32768000 bubbles  |  4291.847834s  |  247372.7 MB peak
+  throughput at ceiling: 9544 variants/s, 226165 nodes/s (single core)
+OK - pushed to the limit; diff stayed EXACT at every completed size

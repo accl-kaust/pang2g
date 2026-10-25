@@ -1,0 +1,39 @@
+
+=== Building G2G (Release, generator: Ninja) ===
+-- The CXX compiler identification is GNU 9.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE
+-- Found OpenMP_CXX: -fopenmp (found version "4.5")
+-- Found OpenMP: TRUE (found version "4.5")
+-- Found OpenMP 4.5
+-- libhandlegraph not found - snarl decomposition will use built-in stub
+-- Configuring done (1.8s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/build
+[1/13] Building CXX object CMakeFiles/g2g_lib.dir/src/sequence.cpp.o
+[2/13] Building CXX object CMakeFiles/g2g_lib.dir/src/graph.cpp.o
+[3/13] Building CXX object CMakeFiles/g2g_lib.dir/src/anchor.cpp.o
+[4/13] Building CXX object CMakeFiles/g2g_lib.dir/src/snarls_vg.cpp.o
+[5/13] Building CXX object CMakeFiles/g2g_lib.dir/src/matching.cpp.o
+[6/13] Building CXX object CMakeFiles/g2g.dir/src/main.cpp.o
+[7/13] Building CXX object CMakeFiles/g2g_lib.dir/src/align.cpp.o
+[8/13] Building CXX object CMakeFiles/g2g_lib.dir/src/decompose.cpp.o
+[9/13] Building CXX object CMakeFiles/g2g_lib.dir/src/io.cpp.o
+[10/13] Building CXX object CMakeFiles/g2g_lib.dir/src/parallel.cpp.o
+[11/13] Building CXX object CMakeFiles/g2g_lib.dir/src/refdiff.cpp.o
+[12/13] Linking CXX static library libg2g_lib.a
+[13/13] Linking CXX executable g2g
+Usage: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/build/g2g <graph_a.gfa> <graph_b.gfa> [options]
+
+Options:
+OK - built /home/shaklea/Research/G2G/G2G_Project_Summer_2026/build/g2g

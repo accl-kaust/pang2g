@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use PanG2G, please cite the BIBM 2026 paper below."
+title: "PanG2G: Scalable Base-Pair-Resolution Graph-to-Graph Alignment of Pangenome Graphs"
+type: software
+repository-code: "https://github.com/accl-kaust/pang2g"
+authors:
+  - family-names: Shakleya
+    given-names: Ahmad
+    affiliation: "King Abdullah University of Science and Technology (KAUST)"
+    email: ahmad.shakleya@kaust.edu.sa
+  - family-names: Fahmy
+    given-names: Suhaib A.
+    affiliation: "King Abdullah University of Science and Technology (KAUST)"
+preferred-citation:
+  type: conference-paper
+  title: "PanG2G: Scalable Base-Pair-Resolution Graph-to-Graph Alignment of Pangenome Graphs"
+  authors:
+    - family-names: Shakleya
+      given-names: Ahmad
+    - family-names: Fahmy
+      given-names: Suhaib A.
+  collection-title: "Proceedings of the IEEE International Conference on Bioinformatics and Biomedicine (BIBM)"
+  year: 2026
+  publisher:
+    name: IEEE

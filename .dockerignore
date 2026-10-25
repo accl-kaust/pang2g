@@ -1,0 +1,11 @@
+# Not needed inside the image (build trees, generated data).
+.git
+.github
+.claude
+build
+build-*
+logs
+demo/work
+demo/tools
+demo/data
+*.sif

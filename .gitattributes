@@ -1,0 +1,28 @@
+# Line endings.  Everything git detects as text is stored and checked out with
+# LF, whatever core.autocrlf says on the machine, so that shell scripts, Slurm
+# jobs and Python files run unmodified on Linux even when the repository
+# was checked out or zipped on Windows.
+* text=auto eol=lf
+*.sh     text eol=lf
+*.slurm  text eol=lf
+*.py     text eol=lf
+*.cpp    text eol=lf
+*.hpp    text eol=lf
+*.txt    text eol=lf
+*.md     text eol=lf
+*.tsv    text eol=lf
+*.csv    text eol=lf
+*.cff    text eol=lf
+*.json   text eol=lf
+*.vcf    text eol=lf
+*.gfa    text eol=lf
+
+# Binary content: never normalized or diffed as text.
+*.pdf    binary
+*.png    binary
+*.jpg    binary
+*.gz     binary
+*.bz2    binary
+*.vg     binary
+*.xg     binary
+*.gbz    binary

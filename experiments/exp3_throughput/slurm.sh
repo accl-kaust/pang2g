@@ -1,0 +1,46 @@
+#!/bin/bash --login
+# ============================================================
+# SLURM - Experiment 3 (Throughput Scaling)
+#
+# Runs all graph sizes (1K → 1M snarls) × 3 seeds × 4 tools.
+# Estimated wall time: 8–12h depending on largest graphs.
+#
+# Submit with:
+#   sbatch experiments/exp3_throughput/slurm.sh
+#
+# ADJUST: --partition, --account for your cluster.
+# ============================================================
+#SBATCH --job-name=g2g_exp3_throughput
+#SBATCH --output=logs/exp3_%j.out
+#SBATCH --error=logs/exp3_%j.err
+#SBATCH --partition=batch      # adjust to your cluster
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=64
+#SBATCH --mem=256G
+#SBATCH --time=14:00:00
+
+set -euo pipefail
+
+G2G_ROOT="${SLURM_SUBMIT_DIR:-$PWD}"
+mkdir -p "$G2G_ROOT/logs"
+
+source "$HOME/miniconda3/etc/profile.d/conda.sh" 2>/dev/null || \
+    source "$HOME/miniconda/etc/profile.d/conda.sh"
+conda activate g2g_eval
+
+cd "$G2G_ROOT"
+
+export G2G_DATA_ROOT="${G2G_DATA_ROOT:-$HOME/g2g_data}"
+export THREADS="$SLURM_CPUS_ON_NODE"
+
+echo "[slurm] Job $SLURM_JOB_ID  node=$(hostname)  CPUs=$SLURM_CPUS_ON_NODE  date=$(date)"
+mkdir -p "results/phase5/exp3"
+echo "exp3_start_epoch=$(date +%s)" \
+    >> "results/phase5/exp3/slurm_timing_${SLURM_JOB_ID}.txt"
+
+bash experiments/exp3_throughput/run.sh
+
+echo "exp3_end_epoch=$(date +%s)" \
+    >> "results/phase5/exp3/slurm_timing_${SLURM_JOB_ID}.txt"
+echo "[slurm] Exp3 completed at $(date)"

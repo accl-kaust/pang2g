@@ -1,0 +1,32 @@
+
+=== 1. Generate a controlled pair (5 shared, 3 A-only, 2 B-only; chop A=25 B=17) ===
+[gen] ref=400bp  shared=5 A_only=3 B_only=2  chop A=25 B=17 (different on purpose)
+    graph A: 38 segments, 1 path
+    graph B: 38 segments, 1 path
+
+=== 2. Diff:  g2g demoA.gfa demoB.gfa --ref GRCh38 --vcf diff.vcf ===
+[g2g] reading "$REPO/demo/work/synthetic/demoA.gfa" ...
+[g2g] reading "$REPO/demo/work/synthetic/demoB.gfa" ...
+[g2g] GA: 38 nodes  GB: 38 nodes
+[g2g] reference-coordinate diff along path 'GRCh38'
+[g2g] total_score=5  snarl_pairs=5  a_only=3  b_only=2
+[g2g] alignment written to "$REPO/demo/work/synthetic/diff.gaf"
+[g2g] delta VCF written to "$REPO/demo/work/synthetic/diff.vcf"
+
+=== 3. Diff output (variant-level, real coordinates) ===
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+GRCh38	27	A_0	A	T	.	PASS	GRAPH=A;SNARL=GRCh38:27;LEN=1
+GRCh38	265	A_1	C	A	.	PASS	GRAPH=A;SNARL=GRCh38:265;LEN=1
+GRCh38	333	A_2	G	C	.	PASS	GRAPH=A;SNARL=GRCh38:333;LEN=1
+GRCh38	129	B_0	G	T	.	PASS	GRAPH=B;SNARL=GRCh38:129;LEN=1
+GRCh38	163	B_1	G	T	.	PASS	GRAPH=B;SNARL=GRCh38:163;LEN=1
+
+=== 4. Check the diff against the planted ground truth ===
+  planted : shared=5 A_only=3 B_only=2
+  reported: A_only=3 B_only=2
+  RESULT  : PASS - diff matches ground truth exactly
+
+=== 5. Self-diff (graph vs itself) - must be zero differences ===
+  a_only=0  b_only=0
+
+OK - synthetic demo complete (outputs in $REPO/demo/work/synthetic)

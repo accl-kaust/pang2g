@@ -1,0 +1,83 @@
+Bootstrap: docker
+From: ubuntu:24.04
+Stage: build
+
+# Apptainer / Singularity definition for PanG2G.  Builds the engine from the
+# repository checkout the build is started in and ships the g2g command, the
+# demo scripts and the test case in one image.  From the repository root:
+#
+#   apptainer build g2g.sif container/g2g.def          # needs root or fakeroot
+#   apptainer run  g2g.sif A.gfa B.gfa --ref GRCh38 --vcf delta.vcf
+#   apptainer exec g2g.sif /opt/g2g/container/selftest.sh
+#
+# On a cluster without fakeroot, convert the published Docker image instead
+# (no privileges needed):
+#
+#   apptainer pull g2g.sif docker://ahmadshakleya/g2g
+#
+# or build the SIF where fakeroot is available and copy the file across.
+
+%files
+    CMakeLists.txt /opt/g2g/
+    include        /opt/g2g/
+    src            /opt/g2g/
+    tools          /opt/g2g/
+    demo           /opt/g2g/
+    experiments    /opt/g2g/
+    python         /opt/g2g/
+    container      /opt/g2g/
+    run_test_case.sh /opt/g2g/
+    README.md      /opt/g2g/
+    CITATION.cff   /opt/g2g/
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends g++ cmake make ca-certificates
+    cd /opt/g2g
+    rm -rf build demo/work demo/tools logs
+    cmake -B build/release -DCMAKE_BUILD_TYPE=Release -DG2G_BUILD_TESTS=OFF -DG2G_MARCH=x86-64-v3
+    cmake --build build/release -j"$(nproc)" --target g2g bench_matching
+    build/release/g2g --help > /dev/null
+
+
+Bootstrap: docker
+From: ubuntu:24.04
+Stage: final
+
+%files from build
+    /opt/g2g /opt/g2g
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        python3 python3-numpy python3-matplotlib python3-pysam \
+        curl ca-certificates bzip2
+    rm -rf /var/lib/apt/lists/*
+    chmod -R a+rX /opt/g2g
+    chmod a+rx /opt/g2g/container/selftest.sh /opt/g2g/run_test_case.sh /opt/g2g/demo/*.sh
+
+%environment
+    export PATH=/opt/g2g/build/release:$PATH
+    export G2G=/opt/g2g/build/release/g2g
+    export MPLBACKEND=Agg
+
+%runscript
+    exec g2g "$@"
+
+%test
+    g2g --help > /dev/null && echo "g2g runs"
+    /opt/g2g/container/selftest.sh --quick
+
+%labels
+    Name PanG2G
+    Description graph-to-graph alignment of pangenome variation graphs
+    Source https://github.com/accl-kaust/pang2g
+
+%help
+    PanG2G: diff two pangenome variation graphs.
+      apptainer run  g2g.sif A.gfa B.gfa --ref GRCh38 --vcf delta.vcf
+      apptainer exec g2g.sif g2g --help
+      apptainer exec g2g.sif /opt/g2g/container/selftest.sh     # the README test case
+    The demo scripts live under /opt/g2g/demo (copy them somewhere writable first).
