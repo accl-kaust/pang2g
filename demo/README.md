@@ -53,7 +53,7 @@ script fetches `vg`, `minimap2`, `paftools` and `pysam`. The setup downloads
 pinned static binaries into `demo/tools/`; nothing is installed system-wide,
 and `tools/` and `work/` are git-ignored.
 
-On older clusters that still ship GCC 9, note that its libstdc++ has no
+GCC 9's libstdc++ has no
 `<span>` header. G2G carries a small header-only `g2g::span` shim
 (`include/g2g/span.hpp`) that falls back to a built-in view when `std::span`
 is unavailable, so the stock system compiler on, say, Ubuntu 20.04 builds the
@@ -127,7 +127,7 @@ Time and memory both scale close to linearly (each 4x in size costs about
 `SCALE_MAX_MB=32` adds a larger point, and `SCALE_SIZES="bp:variants ..."`
 replaces the sweep.
 
-A historical note: the built-in snarl finder used to be quadratic here (a
+The built-in snarl finder used to be quadratic here (a
 whole-graph reachability search per bubble). It now uses an exact,
 topologically windowed sink search, and only falls back to the full search
 for bubbles larger than the window, which cut the 4 Mb point from about 52 s
@@ -161,7 +161,7 @@ single core in about 72 minutes, roughly 2.6 times the human genome
 (3.1 Gb); the next doubling, 16 Gb, is the only thing the node's RAM cannot
 hold. Across the whole sweep, from a million to nearly a billion nodes, time
 and memory stay linear (about 226 k nodes/s on one core), and a smaller node
-simply stops proportionally sooner (a 16 GB machine tops out around 256 Mb
+stops proportionally sooner (a 16 GB machine tops out around 256 Mb
 and 30 M nodes).
 
 ```bash

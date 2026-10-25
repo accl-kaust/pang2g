@@ -9,8 +9,8 @@ was developed on a 64-core AMD EPYC 7763 node; set `--partition` and
 `--account` in the `slurm.sh` files for your site. All jobs record wall time
 and peak memory.
 
-If you are on a cluster for the first time, start with the top-level test
-case rather than this suite: `sbatch experiments/slurm/test_case.slurm`, as
+For a first run on a cluster, the top-level test case is the quicker start:
+`sbatch experiments/slurm/test_case.slurm`, as
 described in the root `README.md`. The scripts under `experiments/ibex/` are
 whole-node jobs for the biggest runs (parallel scaling to 128 threads, the
 ablation, the 8-Gbp sweep); they need no conda environment, only a compiler,

@@ -8,18 +8,12 @@ PanG2G compares two pangenome variation graphs directly, graph against graph,
 and reports what we call the delta graph: every allele (SNP, indel or
 structural variant) that is present in one graph but absent from the other,
 with its sequence and, when both graphs embed a common reference, its
-reference coordinate. If you are used to comparing two VCFs with
-`bcftools isec`, this is the same idea for two graphs, without flattening
-either of them to a linear reference first.
+reference coordinate. For two graphs it does what `bcftools isec` does for
+two VCFs, without flattening either graph to a linear reference first.
 
 ```bash
 g2g popA.gfa popB.gfa --ref GRCh38 --vcf delta.vcf
 ```
-
-This README is written for someone who works with pangenomes but has not
-seen this code before: what the tool does, how to run the test case, how to
-use it on a cluster or in a container, and how the larger experiments are
-run. Section 9 has the citation.
 
 ## 1. What it does
 
@@ -86,8 +80,8 @@ the options.
 
 ### Container image
 
-If you would rather not build anything, the same binary, demo scripts and
-test case are packaged as a Docker image on Docker Hub:
+The same binary, demo scripts and test case are also packaged as a Docker
+image on Docker Hub:
 
 ```bash
 docker pull ahmadshakleya/g2g
@@ -100,10 +94,9 @@ docker run --rm ahmadshakleya/g2g /opt/g2g/container/selftest.sh     # the test 
 the same recipe for Apptainer and Singularity. The engine inside is compiled
 for x86-64-v3, so one image runs on any x86-64 node.
 
-On a cluster you will usually have Apptainer or Singularity rather than
-Docker. Building from the definition file needs root or fakeroot, which
-clusters rarely allow, but converting the Docker Hub image needs no
-privileges at all:
+Clusters usually provide Apptainer or Singularity rather than Docker.
+Building from the definition file needs root or fakeroot, which clusters
+rarely allow; converting the Docker Hub image needs no privileges:
 
 ```bash
 apptainer pull g2g.sif docker://ahmadshakleya/g2g      # or: apptainer build g2g.sif container/g2g.def
@@ -111,10 +104,10 @@ apptainer exec g2g.sif g2g A.gfa B.gfa --ref GRCh38 --vcf delta.vcf
 apptainer exec g2g.sif /opt/g2g/container/selftest.sh
 ```
 
-`singularity` takes the same commands. One thing to remember: these runtimes
-mount your home directory inside the image but usually nothing else, so data
-on a scratch file system has to be bound explicitly, and the self-test's
-writable copy goes to `/tmp` unless `G2G_SELFTEST_DIR` says otherwise:
+`singularity` takes the same commands. Both runtimes mount the home
+directory inside the image but usually nothing else, so data on a scratch
+file system has to be bound explicitly, and the self-test's writable copy
+goes to `/tmp` unless `G2G_SELFTEST_DIR` says otherwise:
 
 ```bash
 singularity run --bind /scratch/$USER g2g.sif /scratch/$USER/A.gfa /scratch/$USER/B.gfa --ref GRCh38 --vcf /scratch/$USER/delta.vcf
@@ -154,8 +147,7 @@ squeue --me
 tail -f logs/test_case_<jobid>.out
 ```
 
-A few things tend to matter on clusters. The default build uses
-`-march=native`, so a binary compiled on the login node may not run on a
+The default build uses `-march=native`, so a binary compiled on the login node may not run on a
 compute node of a different CPU generation; build with
 `G2G_MARCH=x86-64-v3 bash run_test_case.sh` (or pass
 `-DG2G_MARCH=x86-64-v3` to CMake) for a binary that runs on any AVX2 node, or
@@ -253,8 +245,8 @@ self-diffs one of them. Expect `a_only=349 b_only=12` and an empty self-diff;
 `demo/logs/04_real_hla_demo.log` is a captured run.
 
 Every step's full output is kept in `logs/test_case/`. `demo/README.md`
-walks through all the demos (scaling to 8 Gbp, parallel speed-up, the
-ablation, throughput against linearize-and-map) with their expected numbers.
+describes all the demos (scaling to 8 Gbp, parallel speed-up, the ablation,
+throughput against linearize-and-map) with their expected numbers.
 
 ## 5. Using PanG2G on your own graphs
 
@@ -340,9 +332,8 @@ aligner.
 
 ## 6. Larger experiments
 
-The test case is deliberately small. The scripts below scale the same checks
-up, and each one writes a TSV or CSV with its measurements into `demo/work/`
-or `results/phase5/`.
+The scripts below scale the checks of the test case up, and each one writes
+a TSV or CSV with its measurements into `demo/work/` or `results/phase5/`.
 
 | experiment | script | needs |
 |---|---|---|
@@ -424,7 +415,7 @@ at an unpacked googletest-1.14.0.
 
 `fatal error: span: No such file or directory`: should not happen. GCC 9's
 libstdc++ has no `<span>`, and `include/g2g/span.hpp` substitutes a small
-shim; tell us if you see it anyway.
+shim.
 
 `ERROR: reference path 'X' not found in both graphs`: the two graphs name
 their paths differently. `grep '^[PW]' A.gfa | cut -f2 | head` shows the

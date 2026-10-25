@@ -14,7 +14,7 @@ string (GRCh38), where sequences are compared to a sequence; the pangenome
 variation graph (vg, minigraph), where sequences are mapped to a graph; and
 what this project does, aligning two pangenome graphs to each other.
 
-The motivation is simple. Once you have population-specific pangenomes, say
+Once you have population-specific pangenomes, say
 one built from African cohorts and one from East Asian cohorts, you want to
 ask which structural variants are shared, which are population-specific,
 and where the graphs diverge. A single linear reference cannot answer those
@@ -163,7 +163,7 @@ DELTA GRAPH  ΔB→A  (B-only alleles)
 ```
 The delta graphs are the main output. They list every allele present in one
 population graph but absent from the other, the population-specific
-structural variants; think of them as the graph-level analogue of a VCF.
+structural variants, the graph-level analogue of a VCF.
 
 ```
 TOTAL ALIGNMENT SCORE:  13.0000
