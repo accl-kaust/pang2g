@@ -14,10 +14,10 @@
 #      `g2g --ref` must report exactly the 3 A-only and 2 B-only sites at the
 #      planted coordinates, and a graph diffed against itself must report 0.
 #   2. enrichment self-test      demo/hprc_enrich.py --self-test
-#      The permutation statistic behind the paper's biological validation must
+#      The permutation statistic behind the biological validation must
 #      recover a planted enrichment (fold >> 1, p < 0.01) and report none for a
 #      random control (fold ~ 1).
-#   3. Q4 pipeline, synthetic    demo/09_hprc_biology.sh --synthetic
+#   3. biological validation, synthetic   demo/09_hprc_biology.sh --synthetic
 #      A 10 Mb pair with 300 planted population-specific sites is diffed with
 #      the real binary; the deltas must be enriched for a synthetic high-F_ST
 #      gnomAD-SV fixture and for ClinVar-pathogenic sites, and a shuffled
@@ -139,7 +139,7 @@ fi
 run_step "1. planted ground truth (demo/03_synthetic_demo.sh)"           bash demo/03_synthetic_demo.sh
 run_step "2. enrichment self-test (demo/hprc_enrich.py --self-test)"     python3 demo/hprc_enrich.py --self-test
 [ "$QUICK" -eq 0 ] && \
-run_step "3. Q4 pipeline on synthetic data (demo/09_hprc_biology.sh --synthetic)" bash demo/09_hprc_biology.sh --synthetic
+run_step "3. biological validation on synthetic data (demo/09_hprc_biology.sh --synthetic)" bash demo/09_hprc_biology.sh --synthetic
 if [ "$REAL" -eq 1 ]; then
     run_step "real data: fetch vg + minimap2 (demo/01_setup_tools.sh)"    bash demo/01_setup_tools.sh
     run_step "real data: HLA-DRB1 pangenome diff (demo/04_real_hla_demo.sh)" bash demo/04_real_hla_demo.sh

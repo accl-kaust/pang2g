@@ -35,7 +35,7 @@ endif()
 
 # -- Ablation build flags --------------------------------------
 # Each flag disables one optimization to isolate its contribution.  The option
-# names are paper-facing; several map to a differently-named internal macro (the
+# names are user-facing; several map to a differently-named internal macro (the
 # toggle each optimization actually reads), so the mapping is set explicitly.
 option(G2G_BFS_LAYOUT       "Use BFS snarl-tree layout instead of van Emde Boas" OFF)
 option(G2G_STEAL_RANDOM     "Use random/FIFO steal instead of largest-task-first" OFF)
@@ -132,6 +132,6 @@ endif()
 
 # -- Tools -----------------------------------------------------
 # bench_matching: per-snarl bipartite matching cost vs. allele count k
-# (LAPJV vs. brute force); writes the CSV behind fig_matching.
+# (LAPJV vs. brute force); writes a CSV of matching cost against k.
 add_executable(bench_matching tools/bench_matching.cpp)
 target_link_libraries(bench_matching PRIVATE g2g_lib)

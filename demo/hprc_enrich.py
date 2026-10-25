@@ -2,7 +2,7 @@
 """
 hprc_enrich.py - population-differentiation enrichment for a G2G delta graph.
 
-The Q4 claim: the alleles G2G reports as present in one population pangenome but
+The claim: the alleles G2G reports as present in one population pangenome but
 not the other (the delta graph) should be enriched for *population-differentiated*
 structural variants - i.e. SVs with a high F_ST between the two populations  - 
 relative to chance. This script tests that with a permutation null.
@@ -256,7 +256,7 @@ def main():
     ap.add_argument("--window", type=int, default=1000)
     ap.add_argument("--perms", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--out", default=None, help="write a results TSV (for fig_biology)")
+    ap.add_argument("--out", default=None, help="write a results TSV")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:

@@ -6,10 +6,10 @@ Reads two GFA files written by the project's generators (simple bubbles:
 source -> {alleles} -> sink), reports the k distribution of
   * all snarls of A, all snarls of B, and
   * the snarls that the boundary-key pairing (correspond_snarls) pairs,
-and writes a CSV (k,count) for make_figures.py --alleles-csv.
+and writes a CSV (k,count) for further analysis.
 
 Usage:
-    python3 experiments/plot/workload_k_hist.py A.gfa B.gfa --out k_hist.csv
+    python3 experiments/analysis/workload_k_hist.py A.gfa B.gfa --out k_hist.csv
 """
 import argparse
 import csv

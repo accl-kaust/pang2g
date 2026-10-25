@@ -8,7 +8,7 @@
 # choice affects. The expected pattern: control ~1.0x, treatment > 1.0x.
 #
 # Notes:
-#   * The CMake option names are paper-facing; the build maps each to the
+#   * The CMake option names are user-facing; the build maps each to the
 #     internal macro the optimization actually reads (see CMakeLists.txt).
 #   * vEB layout (G2G_BFS_LAYOUT) is a no-op on the current depth-1 snarls, so
 #     its rows should read ~1.0x - that is a real result, not a measurement bug.

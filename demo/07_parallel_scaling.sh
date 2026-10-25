@@ -3,8 +3,7 @@
 #
 # Fixes one graph pair and sweeps the thread count, reporting end-to-end AND
 # DP-phase speedup (the Amdahl distinction) plus the scheduler's [runstats]
-# (tasks / steals / imbalance). Writes a TSV that make_figures.py turns into
-# fig_scaling.
+# (tasks / steals / imbalance). Writes a TSV.
 #
 # What is measured, and why these choices:
 #   * Baseline is --threads 1, NOT --sequential. Both use the SAME algorithm
@@ -78,7 +77,6 @@ done
 
 echo
 note "results: $TSV   (baseline = 1 thread; speedup is pure parallelism)"
-note "plot:    python3 make_figures.py --scaling-csv $TSV"
 if [ "$bad" = 1 ]; then
     echo "WARNING: thread counts disagree on snarl-pair count - a parallel bug, not a speedup." >&2
 else

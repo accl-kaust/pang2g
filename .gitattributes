@@ -12,8 +12,6 @@
 *.md     text eol=lf
 *.tsv    text eol=lf
 *.csv    text eol=lf
-*.tex    text eol=lf
-*.bib    text eol=lf
 *.cff    text eol=lf
 *.json   text eol=lf
 *.vcf    text eol=lf

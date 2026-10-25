@@ -32,7 +32,6 @@
    200      4726564     54.054        683.960
 
     results: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/throughput/throughput.tsv
-    figure:  python3 demo/make_figures.py --throughput-csv /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/throughput/throughput.tsv
     interpretation: G2G is ~flat as h grows (graph size saturates); the baseline
     grows ~linearly in h - and that is only its extract+align stage, before any
     variant calling. G2G aligns the compressed graphs directly.

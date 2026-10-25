@@ -1,4 +1,4 @@
-# Not needed inside the image (the paper, figures, build trees, generated data).
+# Not needed inside the image (build trees, generated data).
 .git
 .github
 .claude
@@ -8,6 +8,4 @@ logs
 demo/work
 demo/tools
 demo/data
-latex
-figs
 *.sif

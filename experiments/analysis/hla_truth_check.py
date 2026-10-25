@@ -9,7 +9,7 @@ the same way PanG2G does: the shared leading anchor base is stripped and
 multi-allelic ALTs are split.
 
 Usage:
-    python3 experiments/plot/hla_truth_check.py popA.vcf popB.vcf delta.vcf
+    python3 experiments/analysis/hla_truth_check.py popA.vcf popB.vcf delta.vcf
 """
 import sys
 

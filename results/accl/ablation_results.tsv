@@ -1,6 +1,0 @@
-label	flag	phase	ctrl_base	ctrl_disabled	trt_base	trt_disabled
-LAPJV matching	G2G_BRUTE_MATCHING	dp	0.006525	0.006989	0.013143	0.927682
-minimiser anchor index	G2G_NAIVE_ANCHOR	index	0.051069	0.052457	0.007116	12.617659
-steal-largest policy	G2G_STEAL_RANDOM	dp	0.027646	0.028567	0.116136	0.134062
-static work partition	G2G_STATIC_PARTITION	dp	0.225589	0.225658	0.035795	0.065102
-vEB layout	G2G_BFS_LAYOUT	dp	0.084279	0.084390	2.607880	2.607713

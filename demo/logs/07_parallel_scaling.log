@@ -12,5 +12,4 @@
        128  7.759064  0.248240      25608     25425     1.0083   25608     2.65   52.64
 
     results: /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/parallel/parallel_scaling.tsv   (baseline = 1 thread; speedup is pure parallelism)
-    plot:    python3 make_figures.py --scaling-csv /home/shaklea/Research/G2G/G2G_Project_Summer_2026/demo/work/parallel/parallel_scaling.tsv
 OK - parallel scaling sweep complete (deterministic across thread counts)

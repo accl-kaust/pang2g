@@ -5,7 +5,7 @@
 # Runs the Exp1 test suite (planted variants
 # at known positions; measures recall and precision).
 # Then runs the pairing-error sweep (Exp1b) across graph sizes to
-# produce the precision/recall data behind fig_pairing_error.
+# produce the precision/recall data for the pairing-error analysis.
 #
 # Usage:
 #   conda activate g2g_eval
@@ -66,5 +66,4 @@ python3 "$G2G_ROOT/experiments/exp1_correctness/pairing_error_sweep.py" \
     --out "$SWEEP_CSV"
 
 echo "[exp1] Sweep results: $SWEEP_CSV"
-echo "[exp1] Figure: python3 make_figures.py --only fig_pairing_error --pairing-csv $SWEEP_CSV"
 echo "[exp1] Done."

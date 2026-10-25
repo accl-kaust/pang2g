@@ -14,3 +14,6 @@ __pycache__/
 # copied into results/ by the job scripts.
 /logs/*
 !/logs/.gitkeep
+
+# Experiment outputs (results/phase5/<exp>/, results/ibex/) are written by the harnesses, not tracked.
+/results/

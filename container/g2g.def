@@ -25,9 +25,7 @@ Stage: build
     demo           /opt/g2g/
     experiments    /opt/g2g/
     python         /opt/g2g/
-    results        /opt/g2g/
     container      /opt/g2g/
-    make_figures.py  /opt/g2g/
     run_test_case.sh /opt/g2g/
     README.md      /opt/g2g/
     CITATION.cff   /opt/g2g/
@@ -74,7 +72,7 @@ Stage: final
 
 %labels
     Name PanG2G
-    Description graph-to-graph alignment of pangenome variation graphs (IEEE BIBM 2026)
+    Description graph-to-graph alignment of pangenome variation graphs
     Source https://github.com/ahmadshakleya/G2G
 
 %help

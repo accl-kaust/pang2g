@@ -5,7 +5,7 @@
  *
  * Phase 3 Task P3-5b: MinimizerIndex - COMPLETE.
  *
- * Design (from §2.5.4 of the paper):
+ * Design:
  *   Build a minimizer sketch index (sliding-window k-mer sketches, as in
  *   minimap2) over graph A's backbone node sequences.  Anchor candidates
  *   are node pairs sharing ≥1 minimizer.  Refine with full seq_similarity;
@@ -25,7 +25,7 @@
  *   Below the threshold the naïve O(|VA||VB|) scan is faster due to
  *   lower constant factors.
  *
- * Sensitivity analysis (paper §2.7.3, ablation Q3):
+ * Sensitivity analysis (ablation):
  *   The test suite includes a SensitivityAnalysis test that sweeps
  *   kmer_len ∈ {11,15,21} and window ∈ {5,10,15} on synthetic graphs
  *   with planted anchors and reports recall at each setting.

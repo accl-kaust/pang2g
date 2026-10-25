@@ -1,6 +1,0 @@
-label	flag	phase	ctrl_ratio	trt_ratio
-LAPJV matching	G2G_BRUTE_MATCHING	dp	1.03	70.21
-minimizer anchor index	G2G_NAIVE_ANCHOR	index	1.00	1728.12
-priority dispatch -> static partition	G2G_STATIC_PARTITION	dp	1.00	1.91
-LPT -> FIFO	G2G_STEAL_RANDOM	dp	0.90	1.20
-vEB layout -> BFS	G2G_BFS_LAYOUT	dp	0.95	1.01

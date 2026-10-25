@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 09_fetch_biology_data.sh - stage the public inputs for the REAL Q4 run
+# 09_fetch_biology_data.sh - stage the public inputs for the real biological-validation run
 # (demo/09_hprc_biology.sh with no --synthetic flag).
 #
 # Everything here is GRCh37/b37 so coordinates line up end to end:
 #   * reference        human_g1k_v37.fasta            (contigs "1".."22", no "chr")
 #   * population panel  1000G phase-3 sample->pop map + per-chromosome genotype VCFs
-#   * F_ST targets      gnomAD-SV v2.1 sites (Collins 2020 - the paper's citation)
+#   * F_ST targets      gnomAD-SV v2.1 sites (Collins 2020)
 #   * pathogenic sites  ClinVar GRCh37
 # Do NOT mix in a "chr"-prefixed GRCh38 file: the contig names must match.
 #
@@ -93,7 +93,7 @@ zcat gnomad_v2.1_sv.sites.vcf.gz 2>/dev/null | grep -m 400 '^##INFO' \
 
 cat <<EOF
 
-Done. Inputs are in $DATA. Now run the real Q4 pipeline (start with CHROMS="$CHROMS"):
+Done. Inputs are in $DATA. Now run the real biological-validation pipeline (start with CHROMS="$CHROMS"):
 
   REF_FA=$DATA/human_g1k_v37.fasta \\
   PANEL_TMPL=$DATA/ALL.chr{}.phase3.genotypes.vcf.gz \\

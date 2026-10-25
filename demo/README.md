@@ -28,7 +28,7 @@ graphs.
 ## Quick start
 
 ```bash
-# the test case (build + planted ground truth + Q4 synthetic pipeline), from the repo root:
+# the test case (build + planted ground truth + synthetic biological validation), from the repo root:
 bash run_test_case.sh            # add --unit for the GoogleTests, --real for the HLA demo
 
 # everything (build + synthetic + scaling sweep + fetch tools + real HLA demo)
@@ -170,31 +170,16 @@ bash demo/06_scaling_limit.sh 2>&1 | tee demo/logs/06_scaling_limit.log
 # knobs: BUDGET_SEC (default 9 h), MEM_CEIL_MB (default 80% RAM), START_MB, MAX_MB
 ```
 
-### Plotting the curve
+Fitting a power law to the `05` and `06` result TSVs, from 8 Mb to 8 Gb (11
+points, a million to nearly a billion nodes), wall time scales as N^1.04 and
+peak memory as N^0.99, both within a hair of linear, and snarl decomposition
+is exactly N^1.00 (the old quadratic is gone).
 
-`plot_scaling.py` turns the `05` and `06` result TSVs into a log-log figure
-with the fitted power-law exponent and an ideal-linear guide:
-
-```bash
-python3 demo/plot_scaling.py            # auto-finds demo/work/*.tsv
-# -> demo/sample_outputs/scaling_curve.png   (needs matplotlib)
-```
-
-![G2G --ref scaling](sample_outputs/scaling_curve.png)
-
-From 8 Mb to 8 Gb (11 points, a million to nearly a billion nodes) wall time
-scales as N^1.04 and peak memory as N^0.99, both within a hair of linear,
-and snarl decomposition is exactly N^1.00 (the old quadratic is gone). The
-same curve is committed as
-[`fig_refdiffscaling.pdf`](sample_outputs/fig_refdiffscaling.pdf) for the
-paper. Run `03` and `05` on the same machine first if you want the curve to
-extend down to 100 kb.
-
-## Demo 4: the Q4 biological validation (population-differentiation enrichment)
+## Demo 4: biological validation (population-differentiation enrichment)
 
 `09_hprc_biology.sh`, with [`hprc_enrich.py`](hprc_enrich.py) as the engine.
 
-This tests the biological claim of the paper. When G2G diffs two population
+This tests the biological claim. When G2G diffs two population
 pangenomes (here AFR against EAS), the alleles it reports in one but not the
 other, the delta graph, should sit closer than chance to structural variants
 that are highly differentiated between those populations (high Hudson F_ST
@@ -232,11 +217,7 @@ delta vs ClinVar pathogenic    fold=42.0x  p=0.001   [PASS]
 shuffled control (null)        fold= 1.3x  p=0.23    [PASS]   (specificity)
 ```
 
-It writes `work/biology/biology_results.tsv`, which the paper figure reads:
-
-```bash
-python3 demo/make_figures.py --biology-csv demo/work/biology/biology_results.tsv
-```
+It writes its summary to `work/biology/biology_results.tsv`.
 
 The real mode (`bash demo/09_hprc_biology.sh` without a flag) builds the AFR
 and EAS pangenomes with `vg construct` from a population-labelled phased
@@ -246,29 +227,18 @@ the data files, supplied through environment variables (`REF_FA`,
 `PANEL_VCF`, `SAMPLES_A`, `SAMPLES_B`, `GNOMAD_SV_VCF`, `CLINVAR_VCF`,
 `CHROM_SIZES`, `CHROMS`); the header of the script lists them, and
 `09_fetch_biology_data.sh` stages the public inputs. The analysis stage is
-byte for byte the same engine as in the synthetic mode. The chromosome-22
-run reported in the paper is logged in `logs/09_real_chr22.log`.
+byte for byte the same engine as in the synthetic mode. A real chromosome-22
+run (AFR against EAS, 1000 Genomes phase 3) is logged in
+`logs/09_real_chr22.log`.
 
-## Paper figures
+## Demos 5 and 6: parallel scaling and ablation
 
-The figure generator lives at the repository root (`../make_figures.py`;
-`demo/make_figures.py` forwards to it). With no arguments it regenerates
-every figure of the paper into `latex/figs/` from the committed measurement
-tables in `results/` and `demo/sample_outputs/`; pass a `--<figure>-csv`
-flag to plot a fresh run of one of the demos above instead:
-
-```bash
-python3 demo/make_figures.py \
-    --scaling-csv  demo/work/parallel/parallel_scaling.tsv \
-    --ablation-csv demo/work/ablation/ablation_results.tsv \
-    --biology-csv  demo/work/biology/biology_results.tsv
-```
-
-`07_parallel_scaling.sh` produces the first of those TSVs (DP-phase against
-end-to-end speed-up, with a one-thread baseline, and it flags the run as
-invalid if the parallel result diverges from the sequential one), and
-`08_ablation.sh` the second (each design choice disabled against the
-optimised baseline).
+`07_parallel_scaling.sh` sweeps the thread count on one graph pair and
+reports DP-phase against end-to-end speed-up, with a one-thread baseline; it
+flags the run as invalid if the parallel result diverges from the sequential
+one. `08_ablation.sh` builds one binary per design choice with that choice
+disabled and compares each against the optimised baseline on a control and a
+treatment input. Both write a TSV under `work/`.
 
 ## Using G2G on your own graphs
 
@@ -337,12 +307,10 @@ snarl-correspondence aligner, not the coordinate diff.
 | `06_scaling_limit.sh` | push scaling to the node's RAM / time limit (demo 3b) |
 | `07_parallel_scaling.sh` | DP-phase vs end-to-end parallel speed-up sweep |
 | `08_ablation.sh` | each design choice disabled vs the optimised baseline |
-| `09_hprc_biology.sh` | Q4 enrichment: delta vs gnomAD-SV / ClinVar (synthetic + real) |
-| `09_fetch_biology_data.sh` | stage GRCh37 inputs for the real Q4 run (1000G, gnomAD-SV, ClinVar) |
+| `09_hprc_biology.sh` | biological validation: delta vs gnomAD-SV / ClinVar (synthetic + real) |
+| `09_fetch_biology_data.sh` | stage GRCh37 inputs for the real run (1000G, gnomAD-SV, ClinVar) |
 | `hprc_enrich.py` | permutation-null enrichment engine (`--self-test`, `--fst-sweep`, `--min-len`) |
 | `10_throughput_baseline.sh` | G2G diff vs linearize-and-map, sweeping haplotype count |
-| `plot_scaling.py` | log-log scaling figure from the `05`/`06` result TSVs |
-| `make_figures.py` | regenerate all paper figures (reads the demo result TSVs) |
 | `make_synthetic_pair.py` | generator for the controlled / scaling pairs |
 | `lib.sh` | shared paths and helpers |
 | `logs/` | captured logs from a real run |

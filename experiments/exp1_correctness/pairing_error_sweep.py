@@ -17,7 +17,7 @@ numbers are meaningless; use this script instead.
 
 Usage (from the repo root, after building build/release/g2g):
     python3 experiments/exp1_correctness/pairing_error_sweep.py \
-        --g2g build/release/g2g --out results/exp1b_pairing_error.csv
+        --g2g build/release/g2g --out exp1b_pairing_error.csv
 
     # a quick smoke run
     python3 experiments/exp1_correctness/pairing_error_sweep.py --quick

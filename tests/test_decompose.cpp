@@ -176,14 +176,14 @@ TEST(VebLayout, SourceSinkPreservedAfterReorder) {
 
 // -- VebPerf: traversal-order timing proxy ---------------------
 //
-// This is the ablation-study data point for paper §2.7.3 (Q3, Experiment 5).
+// This is the ablation-study data point (Experiment 5).
 // We build a synthetic graph with many snarls, then measure wall-clock time
 // for a simple bottom-up traversal in two orderings:
 //   1. Sequential (natural DFS order, pre-vEB).
 //   2. vEB order (post-apply_veb_order).
 //
 // On a warm cache the difference is small; it becomes significant once the
-// working set exceeds L3.  For the paper we run on HPRC-scale graphs.
+// working set exceeds L3.  The real runs use HPRC-scale graphs.
 // Here we just verify the infrastructure works and the vEB traversal
 // produces the same total work as the sequential traversal.
 

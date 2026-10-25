@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo 7 - throughput vs. the linearize-and-map baseline (fig_throughput).
+# Demo 7 - throughput vs. the linearize-and-map baseline.
 #
 # Question: why align two pangenome graphs directly (G2G) instead of the obvious
 # alternative - linearize each graph back into haplotypes and map them with a
@@ -120,7 +120,6 @@ done
 
 echo
 note "results: $TSV"
-note "figure:  python3 demo/make_figures.py --throughput-csv $TSV"
 note "interpretation: G2G is ~flat as h grows (graph size saturates); the baseline"
 note "grows ~linearly in h - and that is only its extract+align stage, before any"
 note "variant calling. G2G aligns the compressed graphs directly."

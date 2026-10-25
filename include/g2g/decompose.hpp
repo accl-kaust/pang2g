@@ -5,7 +5,7 @@
  * Snarl decomposition and snarl-tree layout.
  *
  * SnarlTree stores snarls in van Emde Boas (vEB) recursive order
- * (§2.5.2 of the paper) so that bottom-up DP traversal exhibits
+ * so that bottom-up DP traversal exhibits
  * cache-oblivious spatial locality.
  *
  * Two back-ends are provided at compile time:

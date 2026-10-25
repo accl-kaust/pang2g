@@ -13,7 +13,7 @@
 # The job builds the engine into build/slurm with -march=x86-64-v3 (so the same
 # binary also runs on the login node and on any other node type) and runs
 # run_test_case.sh: the planted ground-truth diff, the enrichment self-test and
-# the synthetic Q4 pipeline.  The GoogleTest suite is included when
+# the synthetic biological validation.  The GoogleTest suite is included when
 # G2G_GTEST_DIR points at an unpacked googletest-1.14.0 source tree; compute
 # nodes often have no outbound network, so fetch it once on the login node:
 #

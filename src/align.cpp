@@ -24,7 +24,7 @@
  * Delta construction (build_deltas) emits (a) the alleles of paired snarls left
  * unmatched by LAPJV and (b) every allele of a snarl that found no partner, so
  * the delta is exactly the set of alleles of one graph unmatched by the
- * alignment (Definition 2 in the paper).
+ * alignment.
  */
 
 #include <g2g/align.hpp>

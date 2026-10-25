@@ -9,7 +9,7 @@
  * ParallelMulti  - multi-thread produces same result as sequential
  * TaskDag        - task DAG structure (dep counts, priorities)
  * ScalingProxy   - timing proxy for Experiment 4 data (not a strict assert,
- *                  but records wall time for the paper's scaling figure)
+ *                  but records wall time for the scaling analysis)
  * MemEvict       - results freed after parent executes (peak memory)
  * EnvOverride    - G2G_NUM_THREADS env variable honoured
  */
@@ -355,7 +355,7 @@ TEST(TaskDag, HigherKHigherPriority) {
 // -- ScalingProxy: wall-time data for Experiment 4 ----------------------------
 // These tests are informational (they don't assert speedup - we have only
 // a few cores in the test environment) but produce the timing data that
-// goes into Figure 3 of the paper.
+// is the parallel scaling measurement.
 
 TEST(ScalingProxy, WallTimeDeclinesWithMoreThreads) {
     // 50 bubbles, k=4 - enough work to see a trend even on 2 cores

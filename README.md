@@ -16,11 +16,10 @@ either of them to a linear reference first.
 g2g popA.gfa popB.gfa --ref GRCh38 --vcf delta.vcf
 ```
 
-This is the code behind our BIBM 2026 paper (see section 9 for the citation).
-The README is written for someone who works with pangenomes but has not
+This README is written for someone who works with pangenomes but has not
 seen this code before: what the tool does, how to run the test case, how to
-use it on a cluster or in a container, and how the paper's numbers were
-produced.
+use it on a cluster or in a container, and how the larger experiments are
+run. Section 9 has the citation.
 
 ## 1. What it does
 
@@ -74,7 +73,7 @@ The run ends with a summary like this one:
   PASS  build g2g (build/release)                                     62s
   PASS  1. planted ground truth (demo/03_synthetic_demo.sh)            0s
   PASS  2. enrichment self-test (demo/hprc_enrich.py --self-test)      1s
-  PASS  3. Q4 pipeline on synthetic data (demo/09_hprc_biology.sh --synthetic)     4s
+  PASS  3. biological validation on synthetic data (demo/09_hprc_biology.sh --synthetic)     4s
 
 ALL CHECKS PASSED
 ```
@@ -160,7 +159,7 @@ A few things tend to matter on clusters. The default build uses
 compute node of a different CPU generation; build with
 `G2G_MARCH=x86-64-v3 bash run_test_case.sh` (or pass
 `-DG2G_MARCH=x86-64-v3` to CMake) for a binary that runs on any AVX2 node, or
-build inside the job that will use it, as the paper's job scripts do. Compute
+build inside the job that will use it, as the whole-node job scripts do. Compute
 nodes often have no outbound network, so anything that downloads
 (`demo/01_setup_tools.sh`, `demo/04_real_hla_demo.sh`,
 `demo/09_fetch_biology_data.sh`, the googletest fetch) should run on the
@@ -179,9 +178,8 @@ CPUs Slurm gives the job (`--cpus-per-task`); pass `--threads N` to use
 fewer. Figures need numpy and matplotlib, for example in a venv:
 `python3 -m venv ~/g2g-venv && . ~/g2g-venv/bin/activate && pip install numpy matplotlib`.
 
-For the bigger runs, `experiments/accl/` and `experiments/ibex/` hold the
-whole-node job scripts we used for the paper's measurements (parallel
-scaling to 128 threads, the ablation, the 8-Gbp sweep), and
+For the bigger runs, `experiments/ibex/` holds whole-node job scripts
+(parallel scaling to 128 threads, the ablation, the 8-Gbp sweep), and
 `experiments/exp*/slurm.sh` is the broader experiment suite, which expects
 the conda environment described in `experiments/README.md`. All of them are
 submitted from the repository root.
@@ -221,7 +219,7 @@ GRCh38  163   B_1   G    T    .     PASS    GRAPH=B;SNARL=GRCh38:163;LEN=1
 ```
 
 The second check (`demo/hprc_enrich.py --self-test`, about a second) covers
-the statistic behind the paper's biological validation. That analysis asks
+the statistic behind the biological validation. That analysis asks
 whether the delta alleles lie closer than chance to structural variants that
 are strongly differentiated between the two populations (high F_ST in
 gnomAD-SV) and to ClinVar pathogenic sites, using a permutation null. The
@@ -280,7 +278,7 @@ g2g afr.gfa eas.gfa --ref 22 --vcf delta.vcf --gaf delta.gaf
 ```
 
 `demo/09_hprc_biology.sh` and `demo/10_throughput_baseline.sh` do exactly
-this for the paper's chromosome-22 runs, and `demo/09_fetch_biology_data.sh`
+this for the chromosome-22 runs, and `demo/09_fetch_biology_data.sh`
 downloads the public inputs.
 
 ### Command line
@@ -340,38 +338,33 @@ Human chromosome 22 takes seconds. The `--ref` diff itself is
 single-threaded; the parallel runtime accelerates the graph-to-graph
 aligner.
 
-## 6. Reproducing the paper
+## 6. Larger experiments
 
-Everything reported in the paper can be regenerated from this repository.
-The tables in `results/` and `demo/sample_outputs/` are the measurements we
-used, and `python3 make_figures.py` redraws every figure in `latex/figs/`
-from them (the header of `make_figures.py` says which table feeds which
-figure).
+The test case is deliberately small. The scripts below scale the same checks
+up, and each one writes a TSV or CSV with its measurements into `demo/work/`
+or `results/phase5/`.
 
-| paper item | script | needs |
+| experiment | script | needs |
 |---|---|---|
-| Q1 planted-graph correctness, test suite | `bash run_test_case.sh --unit`; `experiments/exp1_correctness/run.sh` | nothing |
-| Q1 pairing error vs. size (fig_pairing_error) | `python3 experiments/exp1_correctness/pairing_error_sweep.py --pairing both --anchor-lens 8,2,1 --private-fracs 0,0.1 --linker-every 4` | nothing (about 15 min) |
-| Q1 real HLA-DRB1 graphs | `bash run_test_case.sh --real`; score with `experiments/plot/hla_truth_check.py demo/work/hla/popA.vcf demo/work/hla/popB.vcf demo/work/hla/hla_diff.vcf` | vg, minimap2, paftools (downloaded by `demo/01_setup_tools.sh`) |
-| Finding 1 (fig_matching) | `build/release/bench_matching > results/matching_cost_vs_k_cpp.csv` | nothing |
-| Finding 2 (fig_workload) | `cd python && python3 -u profile_workload.py` (about 25 min, pure Python); allele histogram as in `results/allele_count_hist.csv` | networkx |
-| Q2 parallel scaling (fig_scaling) | `demo/07_parallel_scaling.sh` (the job we used: `experiments/ibex/scaling_64.slurm`) | a many-core node |
-| Q2 throughput vs. linearize-and-map (fig_throughput) | `demo/10_throughput_baseline.sh` | vg, bcftools, minimap2 and the chr22 inputs below |
-| reference-anchored scaling (fig_refdiffscaling) | `demo/05_scaling_demo.sh`, `demo/06_scaling_limit.sh` (the job we used: `experiments/ibex/scaling_8gbp.slurm`) | a large-memory node for the 8-Gbp point |
-| Q3 ablations (fig_ablation) | `demo/08_ablation.sh` | nothing |
-| Q4 biology (fig_biology, F_ST sweep) | `demo/09_fetch_biology_data.sh` then `demo/09_hprc_biology.sh`; sweep: `demo/hprc_enrich.py --fst-sweep 0.05,0.1,0.2,0.3,0.5` | vg, bcftools, tabix and about 1.5 GB of downloads |
-| all figures | `python3 make_figures.py` | numpy, matplotlib |
+| planted-graph correctness sweep | `bash run_test_case.sh --unit`; `experiments/exp1_correctness/run.sh` | nothing |
+| pairing error against graph size | `python3 experiments/exp1_correctness/pairing_error_sweep.py --pairing both --anchor-lens 8,2,1 --private-fracs 0,0.1 --linker-every 4` | nothing (about 15 min) |
+| real HLA-DRB1 graphs | `bash run_test_case.sh --real`; score with `experiments/analysis/hla_truth_check.py demo/work/hla/popA.vcf demo/work/hla/popB.vcf demo/work/hla/hla_diff.vcf` | vg, minimap2, paftools (downloaded by `demo/01_setup_tools.sh`) |
+| matching cost against allele count | `build/release/bench_matching > matching_cost_vs_k.csv` | nothing |
+| workload characterisation (prototype) | `cd python && python3 -u profile_workload.py` (about 25 min, pure Python) | networkx |
+| parallel scaling | `demo/07_parallel_scaling.sh` (whole node: `experiments/ibex/scaling_64.slurm`) | a many-core node |
+| throughput against linearize-and-map | `demo/10_throughput_baseline.sh` | vg, bcftools, minimap2 and the chr22 inputs below |
+| reference-anchored scaling | `demo/05_scaling_demo.sh`, `demo/06_scaling_limit.sh` (whole node: `experiments/ibex/scaling_8gbp.slurm`) | a large-memory node for the 8-Gbp point |
+| ablations | `demo/08_ablation.sh` | nothing |
+| biological validation and F_ST sweep | `demo/09_fetch_biology_data.sh` then `demo/09_hprc_biology.sh`; sweep: `demo/hprc_enrich.py --fst-sweep 0.05,0.1,0.2,0.3,0.5` | vg, bcftools, tabix and about 1.5 GB of downloads |
 
 The demo scripts use the binary that `run_test_case.sh` built
 (`build/release/g2g`; `build/g2g` from `demo/02_build_g2g.sh` is found too,
-and `G2G=/path/to/g2g` overrides both). Each harness writes the TSV or CSV
-that `make_figures.py` reads, so a fresh run can be plotted by passing the
-matching `--*-csv` flag. `demo/README.md` describes each demo and its
-expected output, and `experiments/README.md` the Slurm experiment suite.
-`experiments/accl/` and `experiments/ibex/` keep the job scripts used for the
-paper's measurements on the two clusters we had access to.
+and `G2G=/path/to/g2g` overrides both). `demo/README.md` describes each demo
+and its expected output, `experiments/README.md` the Slurm experiment suite,
+and `experiments/ibex/` keeps the whole-node job scripts for the biggest
+runs.
 
-### Public inputs used
+### Public inputs for the real-data runs
 
 | data | version / URL |
 |---|---|
@@ -383,8 +376,8 @@ paper's measurements on the two clusters we had access to.
 | tools | vg 1.75 to 1.76, minimap2 2.28 to 2.31, bcftools/samtools 1.24 (conda-forge/bioconda) |
 
 The HPRC assembly pipeline under `experiments/exp6_hprc/` (Minigraph-Cactus
-population graphs) is provided as scripts only; the paper reports no results
-on Minigraph-Cactus graphs.
+population graphs) is provided as scripts only; we have not run it to
+completion ourselves.
 
 ## 7. Repository layout
 
@@ -395,19 +388,17 @@ Dockerfile, container/ container recipes (Docker; Apptainer/Singularity) and the
 .github/workflows/     CI: builds both container images, runs the test case inside them, publishes
 include/g2g/, src/     C++20 engine (static library + the `g2g` command)
 tests/                 GoogleTest suite (fetched by CMake; -DG2G_BUILD_TESTS=OFF to skip)
-tools/                 bench_matching: matching cost vs. allele count (fig_matching)
+tools/                 bench_matching: matching cost vs. allele count
 demo/                  end-to-end demos and harnesses: synthetic truth, real HLA-DRB1
-                       graphs, scaling sweeps, parallel scaling, ablation, Q4 biology,
-                       throughput; demo/README.md documents each with expected output
-demo/sample_outputs/   result tables and figures of the real-data runs
+                       graphs, scaling sweeps, parallel scaling, ablation, biological
+                       validation, throughput; demo/README.md documents each with
+                       expected output
+demo/sample_outputs/   example outputs of the synthetic and HLA demos
 experiments/           Slurm experiment suite (exp1-exp6), the test-case job (slurm/),
-                       the job scripts used for the paper's measurements (accl/, ibex/),
-                       generators and plot scripts; experiments/README.md
-results/               measured result tables behind the paper's figures
-make_figures.py        regenerates every figure in latex/figs/ from results/ + demo/sample_outputs/
+                       whole-node job scripts for the biggest runs (ibex/), generators
+                       and analysis scripts (analysis/); experiments/README.md
 python/g2g/            Python reference prototype (correctness oracle; slow)
 python/                workload characterisation scripts (profile_workload.py, synth_generator.py)
-latex/                 the paper
 logs/                  Slurm output and test-case logs (git-ignored)
 ```
 

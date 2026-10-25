@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo 6 - Q4 biological validation: are G2G delta alleles enriched for
+# Demo 6 - biological validation: are G2G delta alleles enriched for
 #          population-differentiated structural variation?
 #
 # The claim under test: when G2G diffs two *population* pangenomes (here AFR vs
@@ -15,8 +15,7 @@
 #                 a known population difference, runs the REAL g2g --ref diff, then
 #                 synthesises a gnomAD-SV/ClinVar fixture and confirms the pipeline
 #                 (a) recovers the planted enrichment and (b) reports NO enrichment
-#                 for a shuffled-delta negative control. Produces the real TSV that
-#                 figure fig_biology reads.
+#                 for a shuffled-delta negative control. Produces a results TSV.
 #   (default)     Real cluster pipeline: build AFR/EAS pangenomes with vg construct
 #                 from a population-labelled panel, diff with g2g --ref, and enrich
 #                 against real gnomAD-SV + ClinVar. Requires vg, bcftools, tabix and
@@ -56,7 +55,7 @@ check() {  # $1=tsv $2=row-regex $3=label $4=min_fold $5=max_fold $6=max_p
 run_synthetic() {
     local S="$OUT/synthetic"; mkdir -p "$S"
     local LEN="${SYN_LEN:-10000000}" CHROM="chr1"
-    log "Synthetic Q4 - plant a population difference, diff it, test enrichment"
+    log "Synthetic biological validation - plant a population difference, diff it, test enrichment"
 
     note "1. build two population pangenomes that differ at known coordinates"
     python3 "$DEMO_DIR/make_synthetic_pair.py" \
@@ -143,8 +142,7 @@ PY
     check "$S/control.tsv"           "F_ST"    "shuffled control (null)"      0.3 2.5    1.00 || rc=1
     echo
     note "results TSV: $OUT/biology_results.tsv"
-    note "figure:  python3 demo/make_figures.py --biology-csv $OUT/biology_results.tsv"
-    [ "$rc" = 0 ] && echo "OK - synthetic Q4 pipeline validated (signal enriched, control null)" \
+    [ "$rc" = 0 ] && echo "OK - synthetic pipeline validated (signal enriched, control null)" \
                   || { echo "FAILED - see rows above"; return 1; }
 }
 
@@ -186,7 +184,7 @@ run_real() {
     local CHROMS="${CHROMS:-22}"
     local R="$OUT/real"; mkdir -p "$R"
 
-    log "Real Q4 - build AFR/EAS pangenomes, diff with g2g --ref, enrich"
+    log "Real biological validation - build AFR/EAS pangenomes, diff with g2g --ref, enrich"
     : > "$R/delta.vcf.body"
     for chrom in $CHROMS; do
         local panel; panel="${PANEL_TMPL:+${PANEL_TMPL//\{\}/$chrom}}"; panel="${panel:-${PANEL_VCF:-}}"
@@ -223,8 +221,7 @@ run_real() {
         --afr-field "$AFR" --eas-field "$EAS" --fst-threshold "$FST" \
         --window "$WINDOW" --perms "$PERMS" --out "$OUT/biology_results.tsv"
     echo; note "results TSV: $OUT/biology_results.tsv"
-    note "figure:  python3 demo/make_figures.py --biology-csv $OUT/biology_results.tsv"
-    echo "OK - real Q4 pipeline complete"
+    echo "OK - real pipeline complete"
 }
 
 case "${1:-}" in

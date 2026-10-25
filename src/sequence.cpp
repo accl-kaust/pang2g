@@ -6,7 +6,7 @@
  * edit_distance: Wagner-Fischer DP, space O(n).
  * TODO Phase 3 SIMD: for sequences ≤ 16 bytes (most inner-node seqs),
  *   use SSE4.2 PCMPEQB to compare 16 chars in one instruction.
- *   Speedup estimate: 8–16× on x86 (see §2.5.1 finding 1 in the paper).
+ *   Speedup estimate: 8–16× on x86.
  *   Gate behind #ifdef __SSE4_2__ so the scalar path remains the fallback.
  */
 

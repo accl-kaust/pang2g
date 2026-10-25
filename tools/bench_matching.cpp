@@ -3,12 +3,12 @@
  * ========================
  * Measure the per-snarl-pair bipartite matching cost as a function of the
  * allele count k, for the exact LAPJV solver and for brute-force enumeration
- * (the pre-LAPJV baseline, feasible only for small k).  Produces the CSV that
- * make_figures.py turns into fig_matching (columns: k,brute_ms,lapjv_ms).
+ * (the pre-LAPJV baseline, feasible only for small k).  Produces a CSV with the
+ * columns k,brute_ms,lapjv_ms.
  *
  * Usage:
  *   bench_matching [--k-max 50] [--brute-k-max 8] [--seq-len 12] [--reps 20]
- *                  [--seed 42] > results/matching_cost_vs_k.csv
+ *                  [--seed 42] > matching_cost_vs_k.csv
  *
  * Each row times `reps` independent snarl pairs with k random alleles per
  * side (half of the B alleles are copies of A alleles, so the matching is

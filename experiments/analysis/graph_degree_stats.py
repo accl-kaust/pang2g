@@ -12,7 +12,7 @@ Reports, per graph:
     collide,
   * number of distinct (source,sink) boundary keys vs. number of bubbles.
 
-Usage:  python3 experiments/plot/graph_degree_stats.py graph.gfa [graph2.gfa ...]
+Usage:  python3 experiments/analysis/graph_degree_stats.py graph.gfa [graph2.gfa ...]
 """
 import sys
 from collections import Counter, defaultdict

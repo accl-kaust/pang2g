@@ -11,10 +11,12 @@ and peak memory.
 
 If you are on a cluster for the first time, start with the top-level test
 case rather than this suite: `sbatch experiments/slurm/test_case.slurm`, as
-described in the root `README.md`. The scripts under `experiments/accl/` and
-`experiments/ibex/` are the whole-node jobs behind the paper's measurements
-on the two clusters we used; they need no conda environment, only a
-compiler, CMake and Python.
+described in the root `README.md`. The scripts under `experiments/ibex/` are
+whole-node jobs for the biggest runs (parallel scaling to 128 threads, the
+ablation, the 8-Gbp sweep); they need no conda environment, only a compiler,
+CMake and Python. `experiments/analysis/` holds small analysis scripts
+(scoring the HLA diff against its variant lists, degree and allele-count
+statistics of a graph pair).
 
 ## 0. One-time setup
 
@@ -63,11 +65,6 @@ filled in later without rerunning the whole sweep (section 3.1).
 
 ## 1. Submitting experiments
 
-The three scripts under `experiments/accl/` are the exact jobs used for the
-BIBM 2026 camera-ready re-measurements on our cluster (48-CPU / 192 GB job
-limit); they chain the demo harnesses (`demo/0[5-9]*.sh`, `demo/10_*.sh`)
-and the exp1b sweep.
-
 Always submit from the repository root: the Slurm scripts set
 `G2G_ROOT=${SLURM_SUBMIT_DIR:-$PWD}`, which is the directory you call
 `sbatch` from.
@@ -109,9 +106,7 @@ tail -f logs/exp1_<jobid>.out
 Logs land in `logs/`; results in `results/phase5/<exp>/` as timestamped
 CSVs.
 
-## 3. Plotting results
-
-### 3.1 Filling in the PanGraph baseline (experiment 3)
+## 3. Filling in the PanGraph baseline (experiment 3)
 
 If you ran experiment 3 before installing PanGraph (its rows show
 `exit_code=-1`), there is no need to rerun the whole sweep. Once `pangraph`
@@ -124,25 +119,8 @@ ONLY_PANGRAPH=1 bash experiments/exp3_throughput/run.sh
 
 This reuses the GFAs already under `$G2G_DATA_ROOT/synthetic_gfa`, skips
 minimap2 and both G2G runs, and writes only the PanGraph rows to
-`results/phase5/exp3/exp3_throughput_pangraph_<ts>.csv`. The plot command
-below globs `exp3_throughput_*.csv`, so it picks up both the original sweep
-and this backfill without a manual merge.
-
-After an experiment finishes, render its figure (PDF and PNG go to
-`results/phase5/figures/`):
-
-```bash
-python experiments/plot/plot_exp3_throughput.py --csv 'results/phase5/exp3/exp3_throughput_*.csv'
-python experiments/plot/plot_exp4_parallel.py   --csv 'results/phase5/exp4/exp4_parallel_scaling_*.csv'
-python experiments/plot/plot_exp5_ablation.py \
-    --csv-main 'results/phase5/exp5/exp5_ablation_main_*.csv' \
-    --csv-a4   'results/phase5/exp5/exp5_ablation_anchor_*.csv' \
-    --csv-a5   'results/phase5/exp5/exp5_ablation_matching_*.csv'
-python experiments/plot/plot_exp6_biology.py \
-    --gnomad-all results/phase5/exp6/g2g_delta_vs_gnomad_all.bed \
-    --gnomad-fst results/phase5/exp6/g2g_delta_vs_gnomad_highfst.bed \
-    --clinvar    results/phase5/exp6/g2g_shared_vs_clinvar_patho.bed
-```
+`results/phase5/exp3/exp3_throughput_pangraph_<ts>.csv`, next to the
+original sweep's CSV.
 
 ## 4. Experiment 6 (HPRC biological validation)
 
@@ -204,8 +182,7 @@ EAS into two separate jobs.
 | Path | What |
 |---|---|
 | `$G2G_DATA_ROOT` (default `$HOME/g2g_data`) | HPRC assemblies, gnomAD/ClinVar, built pangenomes, synthetic GFA scratch |
-| `results/phase5/<exp>/` | per-experiment CSVs and timing files (in the repo) |
-| `results/phase5/figures/` | rendered figures |
+| `results/phase5/<exp>/` | per-experiment CSVs and timing files (git-ignored) |
 | `logs/` | Slurm stdout/stderr |
 
 Datasets and pangenome builds go under your home by default; if you have a

@@ -17,12 +17,12 @@
  *
  * Each scan costs O(size of the bubble + its boundary); on bubble chains the
  * whole decomposition is therefore near-linear in |V|+|E| (measured as N^1.00
- * in the paper's scaling sweep).  A scan that discovers more than kMaxScan
+ * in the scaling sweep).  A scan that discovers more than kMaxScan
  * nodes without closing gives up on that source (no snarl is reported there),
  * which bounds the worst case on graphs with unclosed tips.
  *
  * Nested snarls are enumerated too but only top-level snarls are kept
- * (depth-1 scope, see the paper); their alleles are all s→t paths, capped at
+ * (depth-1 scope); their alleles are all s→t paths, capped at
  * kMaxAlleles per snarl.
  */
 
