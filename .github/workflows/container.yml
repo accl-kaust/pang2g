@@ -1,7 +1,7 @@
 # Build the PanG2G container images, run the test case inside them, and
-# publish: the Docker image to Docker Hub (ahmadshakleya/g2g) and to GitHub's
-# registry (ghcr.io) on pushes to main, the Apptainer image (g2g.sif) as a
-# downloadable workflow artifact.  The Docker Hub push needs two repository
+# publish: the Docker image to Docker Hub (ahmadshakleya/g2g) on pushes to main,
+# and the Apptainer image (g2g.sif) as a downloadable workflow artifact.  The
+# Docker Hub push needs two repository
 # secrets, DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (an access token with
 # read/write scope); without them that step is skipped and the rest still runs.
 name: container
@@ -14,7 +14,7 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  packages: read
 
 jobs:
   docker:
@@ -42,17 +42,6 @@ jobs:
           fi
           echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
           IMAGE=docker.io/${DOCKERHUB_USERNAME}/g2g
-          docker tag g2g:ci "$IMAGE:latest"
-          docker tag g2g:ci "$IMAGE:${GITHUB_SHA::7}"
-          docker push "$IMAGE:latest"
-          docker push "$IMAGE:${GITHUB_SHA::7}"
-
-      - name: Push to ghcr.io
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          IMAGE=ghcr.io/${{ github.repository_owner }}/g2g
-          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
           docker tag g2g:ci "$IMAGE:latest"
           docker tag g2g:ci "$IMAGE:${GITHUB_SHA::7}"
           docker push "$IMAGE:latest"

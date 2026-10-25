@@ -2,7 +2,7 @@
 
 [![Docker Hub](https://img.shields.io/docker/pulls/ahmadshakleya/g2g?logo=docker&label=Docker%20Hub)](https://hub.docker.com/r/ahmadshakleya/g2g)
 [![image size](https://img.shields.io/docker/image-size/ahmadshakleya/g2g/latest?logo=docker&label=image%20size)](https://hub.docker.com/r/ahmadshakleya/g2g)
-[![container build](https://github.com/ahmadshakleya/G2G/actions/workflows/container.yml/badge.svg)](https://github.com/ahmadshakleya/G2G/actions/workflows/container.yml)
+[![container build](https://github.com/accl-kaust/pang2g/actions/workflows/container.yml/badge.svg)](https://github.com/accl-kaust/pang2g/actions/workflows/container.yml)
 
 PanG2G compares two pangenome variation graphs directly, graph against graph,
 and reports what we call the delta graph: every allele (SNP, indel or
@@ -55,8 +55,8 @@ case. The Python scripts only use the standard library; numpy speeds one of
 them up if it happens to be installed.
 
 ```bash
-git clone https://github.com/ahmadshakleya/G2G.git     # or unpack the archive you received
-cd G2G
+git clone https://github.com/accl-kaust/pang2g.git     # or unpack the archive you received
+cd pang2g
 bash run_test_case.sh            # build + three checks with known answers, about 2 minutes
 ```
 
@@ -116,7 +116,7 @@ G2G_SELFTEST_DIR=/scratch/$USER/g2g_selftest singularity exec --bind /scratch/$U
 
 The images are rebuilt by `.github/workflows/container.yml` on every push:
 it builds both, runs the test case inside each, pushes the Docker image to
-Docker Hub (and to GitHub's registry) and keeps `g2g.sif` as an artifact of
+Docker Hub and keeps `g2g.sif` as an artifact of
 the run.
 
 ## 3. Running on a cluster
@@ -129,7 +129,7 @@ the test case; compiling takes about a minute, which is light enough for a
 login node:
 
 ```bash
-git clone https://github.com/ahmadshakleya/G2G.git && cd G2G     # or unpack the archive
+git clone https://github.com/accl-kaust/pang2g.git && cd pang2g    # or unpack the archive
 module load gcc cmake python     # GCC >= 9, CMake >= 3.18 and python3, by whatever names your site uses
 bash run_test_case.sh --unit     # about 3 minutes
 ```

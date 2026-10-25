@@ -73,7 +73,7 @@ Stage: final
 %labels
     Name PanG2G
     Description graph-to-graph alignment of pangenome variation graphs
-    Source https://github.com/ahmadshakleya/G2G
+    Source https://github.com/accl-kaust/pang2g
 
 %help
     PanG2G: diff two pangenome variation graphs.
